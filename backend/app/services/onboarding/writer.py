@@ -26,6 +26,8 @@ from app.db.session import SessionLocal
 from app.services.onboarding.common import firm_dir, load_step
 
 MANIFESTS = REPO / "backend" / "onboarding_firms"
+# a figure as memos write it: a number with an optional currency, sign, brackets, scale, % or x ("£22.9m", "(1,240)")
+NUMBER = re.compile(r"[(]?[-−]?[£€$]?[-−]?[0-9][0-9,.]*[ ]?(%|x|k|m|bn|pp|bps)?[)]?")
 MASTER = "Master"
 LOCK = {"firm": "fixed", "content": "content"}                 # step 3 lock → firm_lock; anything else is free
 STYLE_KEYS = ("font", "size_pt", "bold", "italic", "caps", "align", "anchor")
@@ -279,7 +281,15 @@ class SpecWriter:
     # --- step 4 ---------------------------------------------------------------------------------
     def recipes(self) -> None:
         for name, c in (self.step4.get("catalogue") or {}).items():
-            self.concept(name, c.get("type"), c.get("kind"))
+            kind = c.get("type")
+            values = [v for vs in (c.get("examples") or {}).values() for v in vs]
+            numeric = any(NUMBER.fullmatch(str(v).strip()) for v in values)
+            if kind not in ("figure", "fact", "memo_data"):      # "mixed" and the like: the examples decide
+                kind = "figure" if numeric or not values else "fact"
+            if kind == "figure" and values and not numeric:
+                kind = "fact"                                    # the memos write it as words, not as a number
+                self.counts["concepts_typed_fact_from_examples"] += 1
+            self.concept(name, kind, c.get("kind") if kind == "figure" else "text")
             # what the binding needs to recognise the concept: where it is used and how past memos wrote it
             examples = "; ".join(f"{memo}: {', '.join(v[:2])}" for memo, v in list((c.get("examples") or {}).items())[:2] if v)
             row = self.s.get(S.Concept, self.concepts[name])
