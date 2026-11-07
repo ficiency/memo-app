@@ -17,6 +17,7 @@ Usage (from backend/):
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 import time
@@ -111,15 +112,22 @@ class Generator:
         return out
 
     def format_for(self, item: str, context: str) -> dict | None:
-        """The general format of a kind of value: its context's, else 'any'; a format that applies only to some
-        figures (applies_to) is used only when there is no general one."""
+        """The format of a kind of value in a context. A table whose header carries the unit ("£k") uses a format
+        that writes the unit in the header; nowhere else is such a format used. Otherwise: a general format of the
+        context, else of 'any'; a format that applies only to some figures (applies_to) only when there is none."""
+        candidates = {ctx: [f for f in self.formats.get((item, ctx)) or []] for ctx in (context, "any")}
+        if context == "table":
+            header = [f for fs in candidates.values() for f in fs if f.get("unit_display") == "header"]
+            if header:
+                return header[0]
+        candidates = {ctx: [f for f in fs if f.get("unit_display") != "header"] for ctx, fs in candidates.items()}
         for ctx in (context, "any"):
-            general = [f for f in self.formats.get((item, ctx)) or [] if not f.get("applies_to")]
+            general = [f for f in candidates[ctx] if not f.get("applies_to")]
             if general:
                 return general[0]
         for ctx in ("any", context):                               # no general one: the reporting ('any') format first
-            if self.formats.get((item, ctx)):
-                return self.formats[(item, ctx)][0]
+            if candidates[ctx]:
+                return candidates[ctx][0]
         return None
 
     def kind_of(self, concept, row) -> str | None:
@@ -135,7 +143,21 @@ class Generator:
             if ITEM.get(value_kind or "") == "date" and re.match(r"\d{4}-\d{2}-\d{2}", value):
                 fmt = self.format_for("date", context)
                 return format_date(value, fmt) if fmt else value
+            if value.startswith("[") and value.endswith("]"):     # a list in the record: one item per line (16)
+                try:
+                    items = json.loads(value)
+                    if not isinstance(items, list):
+                        return value
+                    # an item with fields reads as its texts: "Minimum cash: Cash at bank at each month end…"
+                    return "\n".join(": ".join(str(v) for v in x.values() if isinstance(v, (str, int, float)))
+                                     if isinstance(x, dict) else str(x) for x in items)
+                except ValueError:
+                    return value
             return value
+        if value_kind == "months":                                  # a duration: the number and its unit (4)
+            fmt = self.format_for("count", context) or {"item": "count"}
+            n = format_number(float(value), {**fmt, "decimals": 0 if float(value).is_integer() else 1})
+            return f"{n} {'month' if value == 1 else 'months'}"
         item = ITEM.get(value_kind or "") or ("count" if float(value).is_integer() else None)
         fmt = self.format_for(item, context) if item else None
         if not fmt:
@@ -295,7 +317,8 @@ class Generator:
         para = self.new(ElementParagraph, table_cell_id=c.id, position=0)
         self.new(Segment, paragraph_id=para.id, position=0, kind=seg_kind or ("chip" if chip else "text"), text=text, **(chip or {}))
 
-    def chip_text(self, concept, row, value, context="table") -> tuple[str, dict]:
+    def chip_text(self, concept, row, value, context=None) -> tuple[str, dict]:
+        context = context or getattr(self, "cell_context", "table")
         self.counts["chips"] += 1
         if value is None:
             self.counts["chips_without_value"] += 1
@@ -322,6 +345,8 @@ class Generator:
         for i, w in enumerate(widths):
             self.new(TableColumn, element_table_id=table.id, position=i, width_in=w)
         headers = [(c.header_text or "").strip().lower() for c in layout_cols]
+        # a table leaves the unit out of its cells only when a header carries it ("£k", "€m") (21)
+        self.cell_context = "table" if any(re.search(r"[£€$]|(?<![a-z])(k|m|bn)(?![a-z])", h) for h in headers) or periods else "prose"
         for r_index, row in enumerate(rows):
             self.new(TableRow, element_table_id=table.id, position=r_index, kind="data" if row.kind == "variable" else row.kind,
                      height_in=row.height_in)
@@ -390,6 +415,8 @@ class Generator:
         self.counts["charts"] += 1
         chart = self.new(ElementChart, element_id=el.id, chart_template_id=template.id, chart_type=template.chart_type)
         n = template.category_count or 6
+        m = re.match(r"periods: (\d+) actual \+ (\d+) forecast", template.category_rule or "")
+        actual, forecast = (int(m.group(1)), int(m.group(2))) if m else (None, None)
         for series in sorted(self.c_series[template.id], key=lambda x: x.position):
             concept = self.concepts.get(series.concept_id)
             family = [r for r in self.family_of(concept.name if concept else None) if r.number_value is not None]
@@ -397,7 +424,13 @@ class Generator:
                           concept_name=concept.name if concept else None, color_ref=series.color_ref)
             if not family:
                 self.counts["chart_series_without_data"] += 1
-            for i, r in enumerate(family[-n:]):
+            dated = [r for r in family if r.period]
+            if actual is not None and dated:                       # same periods as the firm's period rule (15)
+                chosen = [r for r in dated if not r.is_forecast][-actual:] if actual else []
+                chosen += [r for r in dated if r.is_forecast][:forecast]
+            else:
+                chosen = family[-n:]
+            for i, r in enumerate(chosen):
                 self.new(ChartPoint, chart_series_id=cs.id, position=i, value=r.number_value, is_forecast=r.is_forecast,
                          category=self.period_label(r) if r.period else r.path.split("[", 1)[-1].split("]", 1)[0])
 
