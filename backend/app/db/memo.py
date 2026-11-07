@@ -35,6 +35,8 @@ class Memo(Base):
     record_revision_id: Mapped[uuid.UUID] = fk("record_revisions.id", ondelete="RESTRICT")
     stage_id: Mapped[uuid.UUID | None] = fk("stages.id", nullable=True, ondelete="SET NULL")
     title: Mapped[str] = mapped_column(String)
+    memo_date: Mapped[str | None] = mapped_column(String)       # ISO date of the memo or meeting (memo data)
+    deal_team: Mapped[str | None] = mapped_column(Text)         # one member per line (memo data)
     sequence: Mapped[int] = mapped_column(Integer, default=0)   # last operation number
     status: Mapped[str] = mapped_column(String, default="editing")  # editing, reviewed
     created_by: Mapped[uuid.UUID | None] = fk("users.id", nullable=True, ondelete="SET NULL")

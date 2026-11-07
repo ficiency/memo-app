@@ -144,7 +144,8 @@ class Generator:
         deal_name = self.record.text("company:name") or "Deal"
         self.memo = self.flush_add(Memo(firm_id=self.firm.id, deal_id=self.revision.deal_id, spec_version_id=self.version.id,
                                         record_revision_id=self.revision.id, stage_id=self.stage.id,
-                                        title=f"{deal_name} · {self.spec.name} · {self.stage.name}"))
+                                        title=f"{deal_name} · {self.spec.name} · {self.stage.name}",
+                                        memo_date=self.memo_data["date"], deal_team=self.memo_data["team"] or None))
         sections = self.s.execute(select(S.Section).join(S.StageSection, S.StageSection.section_id == S.Section.id)
                                   .where(S.StageSection.stage_id == self.stage.id, S.StageSection.required)
                                   .order_by(S.Section.position)).scalars().all()
@@ -158,6 +159,7 @@ class Generator:
                                          layout_id=layout.id, kind="template", background_ref=layout.background_ref))
             self.op("add_slide", slide.id, {"section": section.name, "layout": layout.name, "position": position})
             self.counts["slides"] += 1
+            self.memo_data["page"] = str(position + 1)          # page number is memo data the slide position gives
             for el in self.s.scalars(select(Element).where(Element.layout_id == layout.id)
                                      .order_by(Element.z_index, Element.y_in, Element.x_in)):
                 self.add_element(slide, el)
@@ -217,8 +219,12 @@ class Generator:
                            record_path=path, value_snapshot=str(value))
         if r.kind == "memo_data":
             name = (concept.name if concept else "").lower()
-            key = next((k for k in ("stage", "date", "team") if k in name), None)
+            key = next((k for k in ("stage", "date", "team") if k in name), None) or \
+                ("page" if any(w in name for w in ("page", "slide_number", "number")) else None)
             value = self.memo_data.get(key) if key else None
+            if key == "team" and value:                           # one member per paragraph of the box
+                members = [m.strip() for m in re.split(r"[;\n]", value) if m.strip()]
+                value = members[min(r.paragraph or 0, len(members) - 1)] if members else value
             if key == "date" and value:
                 fmt = self.format_for("date", context)
                 value = format_date(value, fmt) if fmt else value
