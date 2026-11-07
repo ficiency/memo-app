@@ -38,9 +38,9 @@ periods move from deal to deal, so for a figure that belongs to a period use a r
 where the family is shown in the index (field:arr, table:pl_summary.revenue, series:arr_monthly). Use an exact
 path only for a value that is not part of a period series.
 
-Families with rows: one row is <prefix>[<row key>].<column> (the index shows an example); a concept that is
-the whole column or list (one value per case, per row or per item) is the family path itself, e.g.
-angle_table:x.returns.irr for IRR by case. List items have fields: narrative:risks[<id>].<field>.
+Families with rows: one row is <prefix>[<row key>].<column> (the index shows an example). Only a concept marked
+"one value per period, case or row" may be a whole family (angle_table:x.returns.irr for IRR by case); any
+other concept is one value: pick its row or item, e.g. narrative:series_c_terms[Anti-dilution].text.
 
 For every concept return one of:
   found:   "path": an exact or relative path from the index
@@ -57,7 +57,13 @@ Return JSON only:
 def concepts(session: Session, version_id) -> list[dict]:
     rows = session.scalars(select(S.Concept).where(S.Concept.spec_version_id == version_id,
                                                    S.Concept.kind != "memo_data").order_by(S.Concept.name)).all()
-    return [{"name": c.name, "type": c.kind, "value_kind": c.value_kind, "description": c.description} for c in rows]
+    # concepts that are a list: a table row (one value per period or per case) or a chart series
+    listed = set(session.scalars(select(S.TableTemplateRow.concept_id).join(S.TableTemplate).where(
+        S.TableTemplate.spec_version_id == version_id))) | set(session.scalars(select(S.ChartTemplateSeries.concept_id)
+        .join(S.ChartTemplate).where(S.ChartTemplate.spec_version_id == version_id)))
+    return [{"name": c.name, "type": c.kind, "value_kind": c.value_kind, "list": c.id in listed,
+             "description": c.description + ("; one value per period, case or row" if c.id in listed else "") if c.description
+             else ("one value per period, case or row" if c.id in listed else None)} for c in rows]
 
 
 def record_index(record: Record, firm_angle: str | None) -> str:
@@ -113,8 +119,15 @@ def make_validate(record: Record, wanted: list[dict]):
                 continue
             status = b.get("status")
             if status == "found":
-                row = record.resolve(str(b.get("path") or ""))
-                if row is None:
+                path = str(b.get("path") or "")
+                row = record.resolve(path)
+                family = record.rows(path) if row is None else []
+                if family and kinds[name].get("list"):
+                    errors += check_value(where, family[0], kinds[name])   # a whole column or list, where one is used
+                elif family:
+                    errors.append(f"{where}: {path!r} is a whole column or list, but this concept is one value; "
+                                  f"pick the item, e.g. {family[0].path}")
+                elif row is None:
                     rel = RELATIVE.match(str(b.get("path") or ""))
                     hint = " (no such family or period)" if rel else " (not in the index; use a path as listed, or a relative path)"
                     errors.append(f"{where}: path {b.get('path')!r} does not resolve{hint}")
