@@ -45,6 +45,13 @@ CHART = {"column": XL_CHART_TYPE.COLUMN_CLUSTERED, "stacked_column": XL_CHART_TY
          "combo": XL_CHART_TYPE.COLUMN_CLUSTERED, "other": XL_CHART_TYPE.COLUMN_CLUSTERED}
 
 
+def group(rows, key) -> dict:
+    out: dict = {}
+    for r in rows:
+        out.setdefault(getattr(r, key), []).append(r)
+    return out
+
+
 def materials(firm_name: str) -> dict[str, list[Path]]:
     manifest = REPO / "backend" / "onboarding_firms" / f"{firm_name}.json"
     out: dict[str, list[Path]] = {}
@@ -69,6 +76,38 @@ class Painter:
         self.files = materials(self.firm.name)
         self.slides = session.scalars(select(Slide).where(Slide.memo_id == self.memo.id, Slide.deleted_at.is_(None))
                                       .order_by(Slide.position)).all()
+        # the whole memo, read once: a remote database answers each round trip slowly
+        q = session.scalars
+        elements = q(select(Element).where(Element.slide_id.in_([x.id for x in self.slides]), Element.deleted_at.is_(None))).all()
+        self.elements_of = group(elements, "slide_id")
+        tables = q(select(ElementTable).where(ElementTable.element_id.in_([e.id for e in elements]))).all()
+        self.table_of = {t.element_id: t for t in tables}
+        tids = [t.id for t in tables]
+        self.cols_of = group(q(select(TableColumn).where(TableColumn.element_table_id.in_(tids))).all(), "element_table_id")
+        self.rows_of = group(q(select(TableRow).where(TableRow.element_table_id.in_(tids))).all(), "element_table_id")
+        cells = q(select(TableCell).where(TableCell.element_table_id.in_(tids))).all()
+        self.cells_of = group(cells, "element_table_id")
+        paragraphs = list(q(select(ElementParagraph).where(ElementParagraph.element_id.in_([e.id for e in elements])))) + \
+            list(q(select(ElementParagraph).where(ElementParagraph.table_cell_id.in_([c.id for c in cells]))))
+        self.paras_of_element = group([p for p in paragraphs if p.element_id], "element_id")
+        self.paras_of_cell = group([p for p in paragraphs if p.table_cell_id], "table_cell_id")
+        self.segments_of = group(q(select(Segment).where(Segment.paragraph_id.in_([p.id for p in paragraphs]))).all(), "paragraph_id")
+        charts = q(select(ElementChart).where(ElementChart.element_id.in_([e.id for e in elements]))).all()
+        self.chart_of = {c.element_id: c for c in charts}
+        series = q(select(ChartSeries).where(ChartSeries.element_chart_id.in_([c.id for c in charts]))).all()
+        self.series_of = group(series, "element_chart_id")
+        self.points_of = group(q(select(ChartPoint).where(ChartPoint.chart_series_id.in_([x.id for x in series]))).all(), "chart_series_id")
+        master = session.scalar(select(S.Layout).where(S.Layout.spec_version_id == self.version.id, S.Layout.is_master))
+        self.master_elements = q(select(Element).where(Element.layout_id == master.id)).all() if master else []
+        self.master_paras = group(q(select(ElementParagraph).where(ElementParagraph.element_id.in_([e.id for e in self.master_elements]))).all(), "element_id")
+        for p in [p for ps in self.master_paras.values() for p in ps]:
+            self.paras_of_element.setdefault(p.element_id, []).append(p)
+        for seg in q(select(Segment).where(Segment.paragraph_id.in_([p.id for ps in self.master_paras.values() for p in ps]))):
+            self.segments_of.setdefault(seg.paragraph_id, []).append(seg)
+        self.master_recipe = group(q(select(S.RecipeSegment).where(S.RecipeSegment.element_id.in_([e.id for e in self.master_elements]))).all(), "element_id")
+        self.concept_names = {c.id: c.name for c in q(select(S.Concept).where(S.Concept.spec_version_id == self.version.id))}
+        self.stage_name = session.get(S.Stage, self.memo.stage_id).name if self.memo.stage_id else ""
+        self.layout_rows = {l.id: l for l in q(select(S.Layout).where(S.Layout.spec_version_id == self.version.id))}
 
     # --- helpers --------------------------------------------------------------------------------
     def rgb(self, ref: str | None):
@@ -78,12 +117,9 @@ class Painter:
         return RGBColor.from_string(h.lstrip("#").upper()) if h else None
 
     def paragraphs(self, element_id=None, cell_id=None) -> list[tuple[ElementParagraph, list[Segment]]]:
-        q = select(ElementParagraph).where(ElementParagraph.element_id == element_id) if element_id else \
-            select(ElementParagraph).where(ElementParagraph.table_cell_id == cell_id)
-        out = []
-        for p in self.s.scalars(q.order_by(ElementParagraph.position)):
-            out.append((p, self.s.scalars(select(Segment).where(Segment.paragraph_id == p.id).order_by(Segment.position)).all()))
-        return out
+        paras = self.paras_of_element.get(element_id, []) if element_id else self.paras_of_cell.get(cell_id, [])
+        return [(p, sorted(self.segments_of.get(p.id, []), key=lambda x: x.position))
+                for p in sorted(paras, key=lambda p: p.position)]
 
     def write_text(self, text_frame, paras, keep_layout_style: bool, page: int) -> None:
         """Paragraphs and runs; placeholders keep their layout's look unless a paragraph overrides it."""
@@ -115,8 +151,8 @@ class Painter:
     # --- tables and charts ------------------------------------------------------------------------
     def fill_table(self, graphic_frame, table: ElementTable) -> None:
         tbl = graphic_frame.table
-        cols = self.s.scalars(select(TableColumn).where(TableColumn.element_table_id == table.id).order_by(TableColumn.position)).all()
-        rows = self.s.scalars(select(TableRow).where(TableRow.element_table_id == table.id).order_by(TableRow.position)).all()
+        cols = sorted(self.cols_of.get(table.id, []), key=lambda c: c.position)
+        rows = sorted(self.rows_of.get(table.id, []), key=lambda r: r.position)
         for i, c in enumerate(cols[: len(tbl.columns)]):
             if c.width_in:
                 tbl.columns[i].width = Inches(c.width_in)
@@ -124,7 +160,7 @@ class Painter:
             if r.height_in:
                 tbl.rows[i].height = Inches(r.height_in)       # each row its own height (no stretching)
         st = self.table_style
-        cells = {(c.row, c.col): c for c in self.s.scalars(select(TableCell).where(TableCell.element_table_id == table.id))}
+        cells = {(c.row, c.col): c for c in self.cells_of.get(table.id, [])}
         font, size = self.table_font
         for r in range(len(tbl.rows)):
             kind = rows[r].kind if r < len(rows) else "data"
@@ -156,9 +192,8 @@ class Painter:
                             run.font.color.rgb = colour
 
     def chart_data(self, chart: ElementChart):
-        series = self.s.scalars(select(ChartSeries).where(ChartSeries.element_chart_id == chart.id).order_by(ChartSeries.position)).all()
-        points = {x.id: self.s.scalars(select(ChartPoint).where(ChartPoint.chart_series_id == x.id).order_by(ChartPoint.position)).all()
-                  for x in series}
+        series = sorted(self.series_of.get(chart.id, []), key=lambda x: x.position)
+        points = {x.id: sorted(self.points_of.get(x.id, []), key=lambda p: p.position) for x in series}
         categories = next((([p.category for p in pts]) for pts in points.values() if pts), [])
         data = CategoryChartData()
         data.categories = categories or ["-"]
@@ -195,10 +230,10 @@ class Painter:
             prs.slide_width, prs.slide_height = Inches(self.version.page_w_in), Inches(self.version.page_h_in)
             layouts = {}
         blank = prs.slide_layouts[6] if not template else None
-        master = self.s.scalar(select(S.Layout).where(S.Layout.spec_version_id == self.version.id, S.Layout.is_master))
+        master = bool(self.master_elements)
         counts = {"slides": 0, "shapes": 0, "tables": 0, "charts": 0, "unfilled_placeholders": 0}
         for slide_row in self.slides:
-            layout = self.s.get(S.Layout, slide_row.layout_id) if slide_row.layout_id else None
+            layout = self.layout_rows.get(slide_row.layout_id)
             pptx_layout = layouts.get(layout.name) if layout and template else None
             slide = prs.slides.add_slide(pptx_layout or blank or prs.slide_layouts[0])
             slide._element.cSld.set("name", f"memo-slide:{slide_row.id}")
@@ -208,12 +243,11 @@ class Painter:
                 slide.background.fill.solid()
                 slide.background.fill.fore_color.rgb = self.rgb(slide_row.background_ref)
             if not template and master and (layout is None or layout.shows_master):
-                for m_el in self.s.scalars(select(Element).where(Element.layout_id == master.id)):
+                for m_el in self.master_elements:
                     self.draw(slide, m_el, page, master_box=True)
             placeholders = {ph.placeholder_format.idx: ph for ph in slide.placeholders} if pptx_layout else {}
             used = set()
-            for el in self.s.scalars(select(Element).where(Element.slide_id == slide_row.id, Element.deleted_at.is_(None))
-                                     .order_by(Element.z_index, Element.y_in, Element.x_in)):
+            for el in sorted(self.elements_of.get(slide_row.id, []), key=lambda e: (e.z_index or 0, e.y_in or 0, e.x_in or 0)):
                 if pptx_layout and el.placeholder_idx is not None and el.placeholder_idx in placeholders:
                     self.fill_placeholder(slide, placeholders[el.placeholder_idx], el, page, counts)
                     used.add(el.placeholder_idx)
@@ -232,17 +266,17 @@ class Painter:
 
     def fill_placeholder(self, slide, ph, el: Element, page: int, counts: dict) -> None:
         if el.type == "table":
-            table = self.s.scalar(select(ElementTable).where(ElementTable.element_id == el.id))
+            table = self.table_of.get(el.id)
             if table:
-                n_rows = len(self.s.scalars(select(TableRow).where(TableRow.element_table_id == table.id)).all())
-                n_cols = len(self.s.scalars(select(TableColumn).where(TableColumn.element_table_id == table.id)).all())
+                n_rows = len(self.rows_of.get(table.id, []))
+                n_cols = len(self.cols_of.get(table.id, []))
                 frame = ph.insert_table(max(n_rows, 1), max(n_cols, 1))
                 self.fill_table(frame, table)
                 frame.name = f"memo:{el.id}@{el.revision}"
                 counts["tables"] += 1
             return
         if el.type == "chart":
-            chart_row = self.s.scalar(select(ElementChart).where(ElementChart.element_id == el.id))
+            chart_row = self.chart_of.get(el.id)
             if chart_row:
                 data, series = self.chart_data(chart_row)
                 frame = ph.insert_chart(CHART.get(chart_row.chart_type, XL_CHART_TYPE.COLUMN_CLUSTERED), data)
@@ -271,15 +305,15 @@ class Painter:
                 return
             shape = slide.shapes.add_picture(str(logos[0]), x, y, height=h)
         elif el.type == "table":
-            table = self.s.scalar(select(ElementTable).where(ElementTable.element_id == el.id))
+            table = self.table_of.get(el.id)
             if not table:
                 return
-            n_rows = len(self.s.scalars(select(TableRow).where(TableRow.element_table_id == table.id)).all()) or 1
-            n_cols = len(self.s.scalars(select(TableColumn).where(TableColumn.element_table_id == table.id)).all()) or 1
+            n_rows = len(self.rows_of.get(table.id, [])) or 1
+            n_cols = len(self.cols_of.get(table.id, [])) or 1
             shape = slide.shapes.add_table(n_rows, n_cols, x, y, w, h)
             self.fill_table(shape, table)
         elif el.type == "chart":
-            chart_row = self.s.scalar(select(ElementChart).where(ElementChart.element_id == el.id))
+            chart_row = self.chart_of.get(el.id)
             if not chart_row:
                 return
             data, series = self.chart_data(chart_row)
@@ -315,12 +349,11 @@ class Painter:
 
     def master_text(self, el: Element, page: int):
         """Text of a master box from its recipe: fixed words and memo data (stage, date, page number)."""
-        recipe = self.s.scalars(select(S.RecipeSegment).where(S.RecipeSegment.element_id == el.id)
-                                .order_by(S.RecipeSegment.paragraph, S.RecipeSegment.position)).all()
+        recipe = sorted(self.master_recipe.get(el.id, []), key=lambda r: (r.paragraph or 0, r.position))
         if not recipe:
             return []
-        stage = self.s.get(S.Stage, self.memo.stage_id).name if self.memo.stage_id else ""
-        concepts = {c.id: c.name for c in self.s.scalars(select(S.Concept).where(S.Concept.spec_version_id == self.version.id))}
+        stage = self.stage_name
+        concepts = self.concept_names
         style = ElementParagraph(position=0, level=0)
         segs = []
         for r in recipe:
