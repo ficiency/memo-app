@@ -39,6 +39,8 @@ class Result:
     operation_id: uuid.UUID
     sequence: int
     created: list | None = None    # ids made by the operation (new element, new slide…)
+    element: dict | None = None    # the element as it is now, for everyone to update their view
+    slides: list | None = None     # the memo's slide order now, after a slide operation
 
 
 class Refuse(Exception):
@@ -63,7 +65,12 @@ class Door:
         self.constraints = session.scalars(select(S.OrderConstraint).where(S.OrderConstraint.spec_version_id == v)).all()
 
     # --- entry point ----------------------------------------------------------------------------
-    def apply(self, op: dict, actor_type: str = "person", actor_id=None, on_behalf_of=None, change_set_id=None) -> Result:
+    def apply(self, op: dict, actor_type: str = "person", actor_id=None, on_behalf_of=None, change_set_id=None,
+              held_by: str | None = None) -> Result:
+        """held_by: who is editing the target element right now (real time), when it is not the actor."""
+        # One operation at a time per memo: lock the memo's row until this operation commits, so two edits that
+        # arrive together cannot take the same sequence or both pass the same element revision.
+        self.memo = self.s.get(Memo, self.memo.id, with_for_update=True, populate_existing=True)
         kind = op.get("type")
         handler = getattr(self, f"_{kind}", None)
         created: list = []
@@ -71,6 +78,8 @@ class Door:
         try:
             if handler is None:
                 raise Refuse(f"unknown operation {kind!r}")
+            if held_by and self._is_element(op):
+                raise Refuse(f"{held_by} is editing this box")
             created = handler(op, actor_type, actor_id) or []
         except Refuse as e:
             status, reason = "refused", str(e)
@@ -90,7 +99,27 @@ class Door:
                                 kind=aside_kind or ("changed_since_export" if actor_type == "import" else "changed_since_seen"),
                                 detail=reason, status="open"))
         self.s.commit()
-        return Result(status, reason, row.id, row.sequence, created)
+        element = slides = None
+        if status == "applied" and self._is_element(op):
+            el = self.s.get(Element, _uuid(op.get("target")))
+            element = self.state(el) if el is not None else None
+        elif status == "applied" and op.get("type") in ("add_element",) and created:
+            element = self.state(self.s.get(Element, created[0]))
+        elif status == "applied" and "slide" in str(op.get("type")):
+            slides = [{"id": str(x.id), "position": x.position, "section_id": str(x.section_id) if x.section_id else None,
+                       "revision": x.revision} for x in self.order()]
+        return Result(status, reason, row.id, row.sequence, created, element, slides)
+
+    def state(self, el: Element) -> dict:
+        """An element as clients need it to redraw: frame, locks, revision and its text by paragraph (chips and
+        slots marked)."""
+        return {
+            "id": str(el.id), "slide_id": str(el.slide_id), "revision": el.revision, "deleted": el.deleted_at is not None,
+            "frame": {k: getattr(el, k) for k in FRAME}, "firm_lock": el.firm_lock,
+            "user_lock": str(el.user_lock_by) if el.user_lock_by else None,
+            "paragraphs": [[{"kind": s.kind, "text": s.text, "concept": s.concept_name} for s in segs]
+                           for _, segs in self.paragraphs(el)],
+        }
 
     # --- helpers --------------------------------------------------------------------------------
     def _is_element(self, op) -> bool:
