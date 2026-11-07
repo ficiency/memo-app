@@ -142,8 +142,15 @@ class SpecWriter:
                                 color_ref=self.colour(r.get("color")), **evidence(r)))
         for f in st.get("formats") or []:
             ex = f.get("examples")
-            self.add(S.Format(spec_version_id=self.v, item=f["item"], context=f.get("context") or "any", rule=f["rule"],
-                              example=", ".join(ex) if isinstance(ex, list) else ex, **evidence(f)))
+            fmt = self.flush_add(S.Format(
+                spec_version_id=self.v, item=f["item"], context=f.get("context") or "any", rule=f["rule"],
+                example=", ".join(ex) if isinstance(ex, list) else ex,
+                **{k: f.get(k) for k in ("applies_to", "decimals", "symbol", "symbol_position", "unit_display", "negative_style",
+                                         "thousands_separator", "decimal_separator", "suffix", "pattern")},
+                **evidence(f)))
+            for rule in f.get("scales") or []:
+                self.add(S.FormatScale(format_id=fmt.id, scale=rule["scale"], from_value=rule.get("from_value") or 0,
+                                       decimals=rule.get("decimals") or 0))
         # grid: margins from step 3 (house style, or measured from the design file); columns from step 1
         margins = self.step3.get("margins") or {}
         grid = (st.get("page") or {}).get("grid") or {}

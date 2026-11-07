@@ -152,6 +152,27 @@ class Format(InSpecVersion, Base):
     context: Mapped[str] = mapped_column(String, default="any") # prose, table, chart, any
     rule: Mapped[str] = mapped_column(Text)
     example: Mapped[str | None] = mapped_column(String)
+    applies_to: Mapped[str | None] = mapped_column(Text)              # which figures, when a kind is written two ways
+    # G8: fields a program writes numbers with (app/services/formats.py)
+    decimals: Mapped[int | None] = mapped_column(Integer)
+    symbol: Mapped[str | None] = mapped_column(String)
+    symbol_position: Mapped[str | None] = mapped_column(String)      # before, after
+    unit_display: Mapped[str | None] = mapped_column(String)         # inline (£22.9m), header (unit in the column header)
+    negative_style: Mapped[str | None] = mapped_column(String)       # minus, parentheses, unicode_minus
+    thousands_separator: Mapped[str | None] = mapped_column(String)
+    decimal_separator: Mapped[str | None] = mapped_column(String)
+    suffix: Mapped[str | None] = mapped_column(String)               # "x" for multiples
+    pattern: Mapped[str | None] = mapped_column(String)              # dates: YYYY YY MMMM MMM MM M DD D
+
+
+class FormatScale(Base):
+    """One range of a money format: from this value up, write it in this scale with these decimals."""
+    __tablename__ = "format_scales"
+    id: Mapped[uuid.UUID] = pk()
+    format_id: Mapped[uuid.UUID] = fk("formats.id")
+    scale: Mapped[str] = mapped_column(String)                       # units, k, m, bn
+    from_value: Mapped[float] = mapped_column(Float, default=0)
+    decimals: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Grid(InSpecVersion, Base):
