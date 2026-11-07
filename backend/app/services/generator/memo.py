@@ -4,9 +4,12 @@ Reads only data: the firm's latest spec version (sections per stage, layouts, re
 templates, formats), its binding and the latest record revision. Every slide and element is added as an
 operation by the generator, so the memo's history starts with its creation. Nothing here knows any firm.
 
-Simple on purpose (first version): one format per kind of value and context; conditional text, text the
-model writes and text a person writes are left as marked slots; optional sections are left out; when a
-section has several layouts, the first is used. What this gets wrong goes to the "where it breaks" list.
+The spec is read once, the memo is built in memory with ids made here, and it is saved in one batch: a
+remote database answers each round trip slowly, so the number of round trips is what decides the time.
+
+Simple on purpose: conditional text, text the model writes and text a person writes are left as marked
+slots; optional sections are left out; when a section has several layouts, the first is used. What this
+gets wrong goes to evals/WHERE_IT_BREAKS.md.
 
 Usage (from backend/):
     python -m app.services.generator.memo <firm> <stage> [--date YYYY-MM-DD] [--team "A (Partner); B"]
@@ -17,6 +20,7 @@ import argparse
 import re
 import sys
 import time
+import uuid
 from collections import Counter, defaultdict
 from datetime import date
 
@@ -33,81 +37,122 @@ from app.services.formats import format_date, format_number
 from app.services.records import RELATIVE, Record
 
 ITEM = {"money": "money", "percent": "percent", "multiple": "multiple", "count": "count", "ratio": "multiple",
-        "date": "date", "per_share": "per_share", "currency": "currency"}
+        "date": "date", "per_share": "per_share", "currency": "currency", "number": "count"}
+CURRENCY = {"£": "GBP", "€": "EUR", "$": "USD", "CHF": "CHF", "¥": "JPY"}
 STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anchor", "line_spacing",
          "space_before_pt", "space_after_pt", "bullet_char", "bullet_color_ref", "indent_in")
-FRAME = ("x_in", "y_in", "w_in", "h_in", "rotation_deg", "z_index")
-COPY = FRAME + ("name", "placeholder_idx", "type", "shape_kind", "role", "fill_kind", "firm_lock", "description",
-                "fill_ref", "line_ref", "line_width_pt")
+COPY = ("x_in", "y_in", "w_in", "h_in", "rotation_deg", "z_index", "name", "placeholder_idx", "type", "shape_kind",
+        "role", "fill_kind", "firm_lock", "description", "fill_ref", "line_ref", "line_width_pt")
+
+
+def by(rows, key) -> dict:
+    out = defaultdict(list)
+    for r in rows:
+        out[getattr(r, key)].append(r)
+    return out
 
 
 class Generator:
     def __init__(self, session: Session, firm_name: str, stage_name: str, memo_date: str | None, team: str | None):
         self.s = session
+        q = session.scalars
         self.firm = session.scalar(select(S.Firm).where(S.Firm.name == firm_name))
         self.spec = session.scalar(select(S.Spec).where(S.Spec.firm_id == self.firm.id))
         self.version = session.scalar(select(S.SpecVersion).where(S.SpecVersion.spec_id == self.spec.id)
                                       .order_by(S.SpecVersion.number.desc()))
+        v = self.version.id
         self.revision = session.scalar(select(RecordRevision).where(RecordRevision.firm_id == self.firm.id)
                                        .order_by(RecordRevision.number.desc()))
         self.record = Record(session, self.revision.id)
-        self.stage = session.scalar(select(S.Stage).where(S.Stage.spec_version_id == self.version.id,
-                                                         S.Stage.name == stage_name))
+        self.stage = session.scalar(select(S.Stage).where(S.Stage.spec_version_id == v, S.Stage.name == stage_name))
         if not self.stage:
-            names = session.scalars(select(S.Stage.name).where(S.Stage.spec_version_id == self.version.id)).all()
-            raise ValueError(f"stage {stage_name!r} is not one of {names}")
+            raise ValueError(f"stage {stage_name!r} is not one of "
+                             f"{q(select(S.Stage.name).where(S.Stage.spec_version_id == v)).all()}")
+        # the whole spec, read once
+        self.layouts = {l.id: l for l in q(select(S.Layout).where(S.Layout.spec_version_id == v))}
+        layout_elements = q(select(Element).where(Element.layout_id.in_(list(self.layouts)))).all()
+        self.elements_of = by(layout_elements, "layout_id")
+        element_ids = [e.id for e in layout_elements]
+        paragraphs = q(select(ElementParagraph).where(ElementParagraph.element_id.in_(element_ids))).all()
+        self.paragraphs_of = by(paragraphs, "element_id")
+        self.segments_of = by(q(select(Segment).where(Segment.paragraph_id.in_([p.id for p in paragraphs]))).all(), "paragraph_id")
+        self.recipe_of = by(q(select(S.RecipeSegment).where(S.RecipeSegment.spec_version_id == v)).all(), "element_id")
+        templates = q(select(S.TableTemplate).where(S.TableTemplate.spec_version_id == v)).all()
+        self.table_of = {t.element_id: t for t in templates}
+        tids = [t.id for t in templates]
+        self.t_cols = by(q(select(S.TableTemplateColumn).where(S.TableTemplateColumn.table_template_id.in_(tids))).all(), "table_template_id")
+        self.t_rows = by(q(select(S.TableTemplateRow).where(S.TableTemplateRow.table_template_id.in_(tids))).all(), "table_template_id")
+        self.t_cells = by(q(select(S.TableTemplateCell).where(S.TableTemplateCell.table_template_id.in_(tids))).all(), "table_template_id")
+        self.t_rule = {r.table_template_id: r for r in q(select(S.TableColumnRule).where(S.TableColumnRule.table_template_id.in_(tids)))}
+        charts = q(select(S.ChartTemplate).where(S.ChartTemplate.spec_version_id == v)).all()
+        self.chart_of = {c.element_id: c for c in charts}
+        self.c_series = by(q(select(S.ChartTemplateSeries).where(S.ChartTemplateSeries.chart_template_id.in_([c.id for c in charts]))).all(),
+                           "chart_template_id")
+        self.table_style_id = session.scalar(select(S.TableStyle.id).where(S.TableStyle.spec_version_id == v))
+        self.concepts = {c.id: c for c in q(select(S.Concept).where(S.Concept.spec_version_id == v))}
+        self.bindings = {b.concept_name: b for b in q(select(S.Binding).where(
+            S.Binding.firm_id == self.firm.id, S.Binding.record_schema == self.revision.record_schema))}
+        self.formats = self.load_formats()
         self.memo_data = {"stage": stage_name, "date": memo_date or date.today().isoformat(), "team": team or ""}
         self.counts: Counter = Counter()
+        self.rows: list = []                                       # everything this memo adds, saved at the end
         self.sequence = 0
-        self.formats = self.load_formats()
-        self.bindings = {b.concept_name: b for b in session.scalars(select(S.Binding).where(
-            S.Binding.firm_id == self.firm.id, S.Binding.record_schema == self.revision.record_schema))}
-        self.concepts = {c.id: c for c in session.scalars(select(S.Concept).where(S.Concept.spec_version_id == self.version.id))}
 
     # --- formats ---------------------------------------------------------------------------------
     def load_formats(self) -> dict[tuple[str, str], list[dict]]:
+        formats = self.s.scalars(select(S.Format).where(S.Format.spec_version_id == self.version.id)).all()
+        scales = by(self.s.scalars(select(S.FormatScale).where(S.FormatScale.format_id.in_([f.id for f in formats]))).all(), "format_id")
         out = defaultdict(list)
-        for f in self.s.scalars(select(S.Format).where(S.Format.spec_version_id == self.version.id)):
-            scales = [{"scale": x.scale, "from_value": x.from_value, "decimals": x.decimals}
-                      for x in self.s.scalars(select(S.FormatScale).where(S.FormatScale.format_id == f.id))]
+        for f in formats:
             out[(f.item, f.context)].append({c: getattr(f, c) for c in (
-                "item", "context", "applies_to", "decimals", "symbol", "symbol_position", "unit_display",
-                "negative_style", "thousands_separator", "decimal_separator", "suffix", "pattern", "example")}
-                | {"scales": scales})
+                "item", "context", "applies_to", "decimals", "symbol", "symbol_position", "unit_display", "negative_style",
+                "thousands_separator", "decimal_separator", "suffix", "pattern", "example")}
+                | {"scales": [{"scale": x.scale, "from_value": x.from_value, "decimals": x.decimals} for x in scales[f.id]]})
         return out
 
     def format_for(self, item: str, context: str) -> dict | None:
-        """One format per kind of value and context: the context's own, else 'any'; the general one first."""
+        """The general format of a kind of value: its context's, else 'any'; a format that applies only to some
+        figures (applies_to) is used only when there is no general one."""
         for ctx in (context, "any"):
-            options = self.formats.get((item, ctx)) or []
-            if options:
-                general = [f for f in options if not f.get("applies_to")]
-                return (general or options)[0]
+            general = [f for f in self.formats.get((item, ctx)) or [] if not f.get("applies_to")]
+            if general:
+                return general[0]
+        for ctx in ("any", context):                               # no general one: the reporting ('any') format first
+            if self.formats.get((item, ctx)):
+                return self.formats[(item, ctx)][0]
         return None
 
-    def write_value(self, row_value, value_kind: str | None, context: str) -> str:
+    def kind_of(self, concept, row) -> str | None:
+        """The concept's value kind when it is one the formats know, else the record's (11)."""
+        ck = concept.value_kind if concept else None
+        return ck if ck in ITEM else (row.value_kind if row is not None else ck)
+
+    def write_value(self, value, value_kind: str | None, context: str, unit: str | None = None) -> str:
         """A record value as the firm writes it."""
-        if row_value is None:
+        if value is None:
             return ""
-        if isinstance(row_value, str):
-            item = ITEM.get(value_kind or "")
-            if item == "date" and re.match(r"\d{4}-\d{2}-\d{2}", row_value):
+        if isinstance(value, str):
+            if ITEM.get(value_kind or "") == "date" and re.match(r"\d{4}-\d{2}-\d{2}", value):
                 fmt = self.format_for("date", context)
-                return format_date(row_value, fmt) if fmt else row_value
-            return row_value
-        item = ITEM.get(value_kind or "", "count" if float(row_value).is_integer() else None)
+                return format_date(value, fmt) if fmt else value
+            return value
+        item = ITEM.get(value_kind or "") or ("count" if float(value).is_integer() else None)
         fmt = self.format_for(item, context) if item else None
         if not fmt:
-            return f"{row_value:,.0f}" if float(row_value).is_integer() else f"{row_value:,.2f}"
-        if row_value < 0:                                         # negatives follow the firm's negative style
+            return f"{value:,.0f}" if float(value).is_integer() else f"{value:,.2f}"
+        if item == "money" and unit and fmt.get("symbol") and CURRENCY.get(fmt["symbol"], unit) != unit:
+            # the firm writes another currency and the record has no rate: say so instead of a wrong figure (13)
+            self.counts["needs_fx"] += 1
+            return f"[no data: {unit}→{CURRENCY.get(fmt['symbol'])} rate]"
+        if value < 0:                                              # negatives follow the firm's negative style
             neg = self.format_for("negative", context)
             if neg and neg.get("negative_style"):
                 fmt = {**fmt, "negative_style": neg["negative_style"]}
-        return format_number(float(row_value), fmt)
+        return format_number(float(value), fmt)
 
     # --- record values for concepts ---------------------------------------------------------------
     def concept_value(self, name: str | None):
-        """(record row or None, number/text value, path) for a concept through the firm's binding."""
+        """(record row or None, value, path) for a concept through the firm's binding."""
         b = self.bindings.get(name or "")
         if not b or b.kind == "missing":
             return None, None, None
@@ -119,7 +164,7 @@ class Generator:
         return row, row.number_value if row.number_value is not None else row.text_value, row.path
 
     def family_of(self, name: str | None) -> list:
-        """The periods (or rows) of a concept's family, oldest first: for period columns and chart series."""
+        """The periods (or rows) of a concept's family, oldest first."""
         b = self.bindings.get(name or "")
         if not b or b.kind != "path" or not b.path:
             return []
@@ -127,69 +172,72 @@ class Generator:
         family = m.group("family") if m else (self.record.by_path[b.path].family if b.path in self.record.by_path else b.path)
         return self.record.families.get(family) or self.record.rows(family)
 
-    # --- operations ----------------------------------------------------------------------------
-    def op(self, op_type: str, target_id, payload: dict) -> None:
-        self.sequence += 1
-        self.s.add(Operation(memo_id=self.memo.id, sequence=self.sequence, actor_type="generator", op_type=op_type,
-                             target_id=target_id, payload=payload, status="applied"))
-
-    def flush_add(self, row):
-        self.s.add(row)
-        self.s.flush()
+    # --- building ------------------------------------------------------------------------------
+    def new(self, cls, **kw):
+        row = cls(id=uuid.uuid4(), **kw)
+        self.rows.append(row)
         return row
 
-    # --- run -----------------------------------------------------------------------------------
+    def op(self, op_type: str, target_id, payload: dict) -> None:
+        self.sequence += 1
+        self.new(Operation, memo_id=self.memo.id, sequence=self.sequence, actor_type="generator", op_type=op_type,
+                 target_id=target_id, payload=payload, status="applied")
+
     def run(self) -> dict:
         started = time.perf_counter()
         deal_name = self.record.text("company:name") or "Deal"
-        self.memo = self.flush_add(Memo(firm_id=self.firm.id, deal_id=self.revision.deal_id, spec_version_id=self.version.id,
-                                        record_revision_id=self.revision.id, stage_id=self.stage.id,
-                                        title=f"{deal_name} · {self.spec.name} · {self.stage.name}",
-                                        memo_date=self.memo_data["date"], deal_team=self.memo_data["team"] or None))
+        self.memo = self.new(Memo, firm_id=self.firm.id, deal_id=self.revision.deal_id, spec_version_id=self.version.id,
+                             record_revision_id=self.revision.id, stage_id=self.stage.id,
+                             title=f"{deal_name} · {self.spec.name} · {self.stage.name}",
+                             memo_date=self.memo_data["date"], deal_team=self.memo_data["team"] or None)
         sections = self.s.execute(select(S.Section).join(S.StageSection, S.StageSection.section_id == S.Section.id)
                                   .where(S.StageSection.stage_id == self.stage.id, S.StageSection.required)
                                   .order_by(S.Section.position)).scalars().all()
-        for position, section in enumerate(sections):
-            layout = self.s.execute(select(S.Layout).join(S.SectionLayout, S.SectionLayout.layout_id == S.Layout.id)
-                                    .where(S.SectionLayout.section_id == section.id).order_by(S.Layout.position)).scalars().first()
-            if layout is None:
+        section_layouts = by(self.s.scalars(select(S.SectionLayout).where(
+            S.SectionLayout.section_id.in_([x.id for x in sections]))).all(), "section_id")
+        position = 0
+        for section in sections:
+            options = sorted((self.layouts[x.layout_id] for x in section_layouts[section.id]), key=lambda l: l.position)
+            if not options:
                 self.counts["section_without_layout"] += 1
                 continue
-            slide = self.flush_add(Slide(memo_id=self.memo.id, position=position, section_id=section.id,
-                                         layout_id=layout.id, kind="template", background_ref=layout.background_ref))
+            layout = options[0]
+            slide = self.new(Slide, memo_id=self.memo.id, position=position, section_id=section.id, layout_id=layout.id,
+                             kind="template", background_ref=layout.background_ref, revision=1)
             self.op("add_slide", slide.id, {"section": section.name, "layout": layout.name, "position": position})
             self.counts["slides"] += 1
-            self.memo_data["page"] = str(position + 1)          # page number is memo data the slide position gives
-            for el in self.s.scalars(select(Element).where(Element.layout_id == layout.id)
-                                     .order_by(Element.z_index, Element.y_in, Element.x_in)):
+            self.memo_data["page"] = str(position + 1)            # page number is memo data the slide position gives
+            for el in sorted(self.elements_of[layout.id], key=lambda e: (e.z_index or 0, e.y_in or 0, e.x_in or 0)):
                 self.add_element(slide, el)
+            position += 1
         self.memo.sequence = self.sequence
+        # one batch per table, parents before children (the models declare foreign keys, not relationships)
+        for cls in (Memo, Slide, Element, ElementTable, TableColumn, TableRow, TableCell, ElementParagraph, Segment,
+                    ElementChart, ChartSeries, ChartPoint, Operation):
+            self.s.add_all([r for r in self.rows if type(r) is cls])
+            self.s.flush()
         self.s.commit()
         return {"memo_id": str(self.memo.id), "title": self.memo.title, "seconds": round(time.perf_counter() - started, 2),
                 **dict(self.counts)}
 
     def add_element(self, slide: Slide, src: Element) -> None:
-        el = self.flush_add(Element(slide_id=slide.id, origin_element_id=src.id, **{c: getattr(src, c) for c in COPY}))
+        el = self.new(Element, slide_id=slide.id, origin_element_id=src.id, revision=1, **{c: getattr(src, c) for c in COPY})
         self.op("add_element", el.id, {"from": str(src.id), "type": src.type, "role": src.role})
         self.counts["elements"] += 1
-        styles = self.s.scalars(select(ElementParagraph).where(ElementParagraph.element_id == src.id)
-                                .order_by(ElementParagraph.position)).all()
-        recipe = self.s.scalars(select(S.RecipeSegment).where(S.RecipeSegment.element_id == src.id)
-                                .order_by(S.RecipeSegment.paragraph, S.RecipeSegment.position)).all()
-        table_seg = next((r for r in recipe if r.kind == "table"), None)
-        chart_seg = next((r for r in recipe if r.kind == "chart"), None)
-        if src.type == "table" or table_seg:
-            self.add_table(el, src)
-        elif src.type == "chart" or chart_seg:
-            self.add_chart(el, src)
+        recipe = sorted(self.recipe_of[src.id], key=lambda r: (r.paragraph or 0, r.position))
+        styles = sorted(self.paragraphs_of[src.id], key=lambda p: p.position)
+        if src.id in self.table_of:
+            self.add_table(el, self.table_of[src.id])
+        elif src.id in self.chart_of:
+            self.add_chart(el, self.chart_of[src.id])
         elif recipe:
             self.add_text(el, styles, recipe)
-        else:                                                     # fixed text the layout already holds
+        else:                                                      # fixed text the layout already holds
             for p in styles:
-                para = self.flush_add(ElementParagraph(element_id=el.id, position=p.position, level=p.level,
-                                                       **{k: getattr(p, k) for k in STYLE}))
-                for seg in self.s.scalars(select(Segment).where(Segment.paragraph_id == p.id).order_by(Segment.position)):
-                    self.s.add(Segment(paragraph_id=para.id, position=seg.position, kind="text", text=seg.text))
+                para = self.new(ElementParagraph, element_id=el.id, position=p.position, level=p.level,
+                                **{k: getattr(p, k) for k in STYLE})
+                for seg in sorted(self.segments_of[p.id], key=lambda x: x.position):
+                    self.new(Segment, paragraph_id=para.id, position=seg.position, kind="text", text=seg.text)
 
     # --- text ----------------------------------------------------------------------------------
     def add_text(self, el: Element, styles: list, recipe: list) -> None:
@@ -198,91 +246,100 @@ class Generator:
             by_paragraph[r.paragraph or 0].append(r)
         for index in sorted(by_paragraph):
             style = styles[min(index, len(styles) - 1)] if styles else None
-            para = self.flush_add(ElementParagraph(element_id=el.id, position=index, level=style.level if style else 0,
-                                                   **({k: getattr(style, k) for k in STYLE} if style else {})))
+            para = self.new(ElementParagraph, element_id=el.id, position=index, level=style.level if style else 0,
+                            **({k: getattr(style, k) for k in STYLE} if style else {}))
             for pos, r in enumerate(by_paragraph[index]):
-                self.s.add(self.segment(para.id, pos, r, "prose"))
+                self.segment(para.id, pos, r, "prose")
 
-    def segment(self, paragraph_id, position: int, r, context: str) -> Segment:
+    def segment(self, paragraph_id, position: int, r, context: str) -> None:
         concept = self.concepts.get(r.concept_id)
+        name = concept.name if concept else None
+        add = lambda kind, text, **kw: self.new(Segment, paragraph_id=paragraph_id, position=position, kind=kind, text=text, **kw)
         if r.kind == "fixed":
-            return Segment(paragraph_id=paragraph_id, position=position, kind="text", text=r.text or "")
-        if r.kind in ("figure", "fact"):
-            row, value, path = self.concept_value(concept.name if concept else None)
+            add("text", r.text or "")
+        elif r.kind in ("figure", "fact"):
+            row, value, path = self.concept_value(name)
             self.counts["chips"] += 1
             if value is None:
                 self.counts["chips_without_value"] += 1
-                return Segment(paragraph_id=paragraph_id, position=position, kind="chip", text=f"[no data: {concept.name if concept else '?'}]",
-                               concept_name=concept.name if concept else None)
-            text = self.write_value(value, (concept.value_kind if concept else None) or (row.value_kind if row else None), context)
-            return Segment(paragraph_id=paragraph_id, position=position, kind="chip", text=text, concept_name=concept.name,
-                           record_path=path, value_snapshot=str(value))
-        if r.kind == "memo_data":
-            name = (concept.name if concept else "").lower()
-            key = next((k for k in ("stage", "date", "team") if k in name), None) or \
-                ("page" if any(w in name for w in ("page", "slide_number", "number")) else None)
+                add("chip", f"[no data: {name or '?'}]", concept_name=name)
+                return
+            text = self.write_value(value, self.kind_of(concept, row), context, row.unit if row is not None else None)
+            add("chip", text, concept_name=name, record_path=path, value_snapshot=str(value))
+        elif r.kind == "memo_data":
+            lname = (name or "").lower()
+            key = next((k for k in ("stage", "date", "team") if k in lname), None) or \
+                ("page" if any(w in lname for w in ("page", "slide_number", "number")) else None)
             value = self.memo_data.get(key) if key else None
-            if key == "team" and value:                           # one member per paragraph of the box
+            if key == "team" and value:                            # one member per paragraph of the box
                 members = [m.strip() for m in re.split(r"[;\n]", value) if m.strip()]
                 value = members[min(r.paragraph or 0, len(members) - 1)] if members else value
             if key == "date" and value:
                 fmt = self.format_for("date", context)
                 value = format_date(value, fmt) if fmt else value
             self.counts["memo_data"] += 1
-            return Segment(paragraph_id=paragraph_id, position=position, kind="text" if value else "person_slot",
-                           text=value or f"‹person: {name}›", concept_name=concept.name if concept else None)
-        if r.kind == "conditional":
+            add("text" if value else "person_slot", value or f"‹person: {lname}›", concept_name=name)
+        elif r.kind == "conditional":
             self.counts["conditionals"] += 1
-            return Segment(paragraph_id=paragraph_id, position=position, kind="conditional",
-                           text=f"‹if {r.when_rule}: {r.text}›")
-        if r.kind == "model_writes":
+            add("conditional", f"‹if {r.when_rule}: {r.text}›")
+        elif r.kind == "model_writes":
             self.counts["model_drafts"] += 1
-            return Segment(paragraph_id=paragraph_id, position=position, kind="model_draft", text=f"‹model: {r.what}›")
-        self.counts["person_slots"] += 1
-        return Segment(paragraph_id=paragraph_id, position=position, kind="person_slot", text=f"‹person: {r.what or ''}›")
+            add("model_draft", f"‹model: {r.what}›")
+        else:
+            self.counts["person_slots"] += 1
+            add("person_slot", f"‹person: {r.what or ''}›")
 
-    def cell(self, table_id, row: int, col: int, text: str, kind: str = "data", fill_ref=None, chip: dict | None = None):
-        c = self.flush_add(TableCell(element_table_id=table_id, row=row, col=col, kind=kind, fill_ref=fill_ref))
-        para = self.flush_add(ElementParagraph(table_cell_id=c.id, position=0))
-        self.s.add(Segment(paragraph_id=para.id, position=0, kind="chip" if chip else "text", text=text, **(chip or {})))
+    def cell(self, table_id, row: int, col: int, text: str, kind: str = "data", fill_ref=None, chip: dict | None = None,
+             seg_kind: str | None = None) -> None:
+        c = self.new(TableCell, element_table_id=table_id, row=row, col=col, kind=kind, fill_ref=fill_ref)
+        para = self.new(ElementParagraph, table_cell_id=c.id, position=0)
+        self.new(Segment, paragraph_id=para.id, position=0, kind=seg_kind or ("chip" if chip else "text"), text=text, **(chip or {}))
+
+    def chip_text(self, concept, row, value, context="table") -> tuple[str, dict]:
+        self.counts["chips"] += 1
+        if value is None:
+            self.counts["chips_without_value"] += 1
+        text = self.write_value(value, self.kind_of(concept, row), context, row.unit if row is not None else None) \
+            if value is not None else ""
+        return text, {"concept_name": concept.name, "record_path": row.path if row is not None else None,
+                      "value_snapshot": None if value is None else str(value)}
 
     # --- tables --------------------------------------------------------------------------------
-    def add_table(self, el: Element, src: Element) -> None:
-        template = self.s.scalar(select(S.TableTemplate).where(S.TableTemplate.element_id == src.id))
-        if not template:
-            self.counts["tables_without_template"] += 1
-            return
+    def add_table(self, el: Element, template) -> None:
         self.counts["tables"] += 1
-        table = self.flush_add(ElementTable(element_id=el.id, table_template_id=template.id, table_style_id=self.s.scalar(
-            select(S.TableStyle.id).where(S.TableStyle.spec_version_id == self.version.id))))
-        cols = self.s.scalars(select(S.TableTemplateColumn).where(S.TableTemplateColumn.table_template_id == template.id)
-                              .order_by(S.TableTemplateColumn.position)).all()
-        rows = self.s.scalars(select(S.TableTemplateRow).where(S.TableTemplateRow.table_template_id == template.id)
-                              .order_by(S.TableTemplateRow.position)).all()
-        fixed = {(c.row, c.col): c for c in self.s.scalars(select(S.TableTemplateCell).where(
-            S.TableTemplateCell.table_template_id == template.id))}
-        rule = self.s.scalar(select(S.TableColumnRule).where(S.TableColumnRule.table_template_id == template.id))
+        table = self.new(ElementTable, element_id=el.id, table_template_id=template.id, table_style_id=self.table_style_id)
+        cols = sorted(self.t_cols[template.id], key=lambda c: c.position)
+        rows = sorted(self.t_rows[template.id], key=lambda r: r.position)
+        fixed = {(c.row, c.col): c for c in self.t_cells[template.id]}
+        rule = self.t_rule.get(template.id)
         periods = self.period_columns(rule, rows) if rule else []
-        # columns: the label column(s), then one per period when the table has a period rule
         layout_cols = [c for c in cols if c.kind != "period"] if periods else cols
         widths = [c.width_in for c in layout_cols]
         if periods:
             rest = sum(c.width_in or 0 for c in cols if c.kind == "period") or None
             widths += [rest / len(periods) if rest else None] * len(periods)
+        n_cols = max(len(widths), 1)
         for i, w in enumerate(widths):
-            self.s.add(TableColumn(element_table_id=table.id, position=i, width_in=w))
+            self.new(TableColumn, element_table_id=table.id, position=i, width_in=w)
+        headers = [(c.header_text or "").strip().lower() for c in layout_cols]
         for r_index, row in enumerate(rows):
-            self.s.add(TableRow(element_table_id=table.id, position=r_index, kind=row.kind, height_in=row.height_in))
+            self.new(TableRow, element_table_id=table.id, position=r_index, kind="data" if row.kind == "variable" else row.kind,
+                     height_in=row.height_in)
             concept = self.concepts.get(row.concept_id)
+            fill0 = fixed.get((r_index, 0))
             if row.kind == "header":
-                headers = [c.header_text or "" for c in layout_cols] + [self.period_label(p) for p in periods]
-                for c_index, text in enumerate(headers):
+                labels = [c.header_text or "" for c in layout_cols] + [self.period_label(p) for p in periods]
+                for c_index, text in enumerate(labels):
                     f = fixed.get((r_index, c_index))
                     self.cell(table.id, r_index, c_index, text, "fixed", f.fill_ref if f else None)
                 continue
-            self.cell(table.id, r_index, 0, row.label or "", "fixed", (fixed.get((r_index, 0)).fill_ref if fixed.get((r_index, 0)) else None))
+            if row.kind == "variable":                             # rows that change per deal: one marked slot
+                self.counts["model_drafts"] += 1
+                self.cell(table.id, r_index, 0, f"‹model: {row.label or 'rows'}›", seg_kind="model_draft")
+                continue
+            self.cell(table.id, r_index, 0, row.label or "", "fixed", fill0.fill_ref if fill0 else None)
             if row.kind == "group" or not concept:
-                for c_index in range(1, len(widths)):
+                for c_index in range(1, n_cols):
                     f = fixed.get((r_index, c_index))
                     if f and (f.fixed_text or f.fill_ref):
                         self.cell(table.id, r_index, c_index, f.fixed_text or "", "fixed", f.fill_ref)
@@ -291,28 +348,28 @@ class Generator:
                 family = {p.period: p for p in self.family_of(concept.name)}
                 for k, p in enumerate(periods):
                     v = family.get(p.period)
-                    value = v.number_value if v else None
-                    self.counts["chips"] += 1
-                    if value is None:
-                        self.counts["chips_without_value"] += 1
-                    self.cell(table.id, r_index, len(layout_cols) + k, self.write_value(value, concept.value_kind or (v.value_kind if v else None), "table") if value is not None else "",
-                              chip={"concept_name": concept.name, "record_path": v.path if v else None,
-                                    "value_snapshot": None if value is None else str(value)})
-            else:
-                row_value, value, path = self.concept_value(concept.name)
-                self.counts["chips"] += 1
-                if value is None:
-                    self.counts["chips_without_value"] += 1
-                text = self.write_value(value, concept.value_kind or (row_value.value_kind if row_value else None), "table") if value is not None else f"[no data: {concept.name}]"
-                self.cell(table.id, r_index, 1, text, chip={"concept_name": concept.name, "record_path": path,
-                                                             "value_snapshot": None if value is None else str(value)})
+                    text, chip = self.chip_text(concept, v, v.number_value if v is not None else None)
+                    self.cell(table.id, r_index, len(layout_cols) + k, text, chip=chip)
+                continue
+            family = self.family_of(concept.name)
+            keyed = {r.path.split("[", 1)[-1].split("]", 1)[0].strip().lower(): r for r in family if "[" in r.path}
+            case_cols = [i for i, h in enumerate(headers) if i > 0 and h and h in keyed]
+            if case_cols:                                          # one column per case (Bear, Base, Bull) (12)
+                for i in case_cols:
+                    v = keyed[headers[i]]
+                    value = v.number_value if v.number_value is not None else v.text_value
+                    text, chip = self.chip_text(concept, v, value)
+                    self.cell(table.id, r_index, i, text, chip=chip)
+                continue
+            row_value, value, path = self.concept_value(concept.name)
+            text, chip = self.chip_text(concept, row_value, value)
+            self.cell(table.id, r_index, 1, text or f"[no data: {concept.name}]", chip=chip)
 
     def period_columns(self, rule, rows) -> list:
         """The periods a table shows: the last N actual and first M forecast of its first period concept."""
         for row in rows:
             concept = self.concepts.get(row.concept_id)
-            family = self.family_of(concept.name) if concept else []
-            dated = [r for r in family if r.period]
+            dated = [r for r in (self.family_of(concept.name) if concept else []) if r.period]
             if dated:
                 actual = [r for r in dated if not r.is_forecast][-(rule.actual_periods or 0):] if rule.actual_periods else []
                 forecast = [r for r in dated if r.is_forecast][: rule.forecast_periods or 0]
@@ -322,32 +379,27 @@ class Generator:
     def period_label(self, row) -> str:
         """FY26 → FY26A / FY27F when the firm marks actual and forecast that way (its period examples say)."""
         label = str(row.period)
-        examples = " ".join(f.get("example") or "" for f in self.formats.get(("period", "any"), []))
+        examples = " ".join(f.get("example") or "" for key, fs in self.formats.items() if key[0] == "period" for f in fs)
         m = re.fullmatch(r"FY(\d{2,4})", label)
         if m and re.search(r"FY\d{2}[AF]\b", examples):
             return f"FY{m.group(1)[-2:]}{'F' if row.is_forecast else 'A'}"
         return label
 
     # --- charts --------------------------------------------------------------------------------
-    def add_chart(self, el: Element, src: Element) -> None:
-        template = self.s.scalar(select(S.ChartTemplate).where(S.ChartTemplate.element_id == src.id))
-        if not template:
-            self.counts["charts_without_template"] += 1
-            return
+    def add_chart(self, el: Element, template) -> None:
         self.counts["charts"] += 1
-        chart = self.flush_add(ElementChart(element_id=el.id, chart_template_id=template.id, chart_type=template.chart_type))
+        chart = self.new(ElementChart, element_id=el.id, chart_template_id=template.id, chart_type=template.chart_type)
         n = template.category_count or 6
-        for series in self.s.scalars(select(S.ChartTemplateSeries).where(S.ChartTemplateSeries.chart_template_id == template.id)
-                                     .order_by(S.ChartTemplateSeries.position)):
+        for series in sorted(self.c_series[template.id], key=lambda x: x.position):
             concept = self.concepts.get(series.concept_id)
             family = [r for r in self.family_of(concept.name if concept else None) if r.number_value is not None]
-            cs = self.flush_add(ChartSeries(element_chart_id=chart.id, position=series.position, name=series.label_rule,
-                                            concept_name=concept.name if concept else None, color_ref=series.color_ref))
+            cs = self.new(ChartSeries, element_chart_id=chart.id, position=series.position, name=series.label_rule,
+                          concept_name=concept.name if concept else None, color_ref=series.color_ref)
             if not family:
                 self.counts["chart_series_without_data"] += 1
             for i, r in enumerate(family[-n:]):
-                self.s.add(ChartPoint(chart_series_id=cs.id, position=i, category=self.period_label(r) if r.period else r.path,
-                                      value=r.number_value, is_forecast=r.is_forecast))
+                self.new(ChartPoint, chart_series_id=cs.id, position=i, value=r.number_value, is_forecast=r.is_forecast,
+                         category=self.period_label(r) if r.period else r.path.split("[", 1)[-1].split("]", 1)[0])
 
 
 def generate(firm: str, stage: str, memo_date: str | None = None, team: str | None = None) -> dict:
