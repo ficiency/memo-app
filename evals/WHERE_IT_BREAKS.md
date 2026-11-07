@@ -34,6 +34,30 @@ quality issue; **low** = cosmetic. Grey italic slots (text the agent or a person
 | 22 | Corriemoor tenor shows "12 months" (the deal is 36 months, 12 interest-only) | The binding picks a path that exists and has the right kind, not always the right datum | binding | high | open: needs the person's review of the binding (no check can prove the datum) |
 | 23 | Some chart axes stay unformatted (Merrow market, Corriemoor financial) and long category labels are cut | The series concept has no value kind; small charts truncate labels | onboarding step 4 / painter | medium | open |
 
+## How to see an open issue again
+
+From `backend/` (the spec, binding and record must be loaded; see backend/README.md):
+
+```
+.venv/Scripts/python -m app.services.generator.memo <firm> "<stage>" --date 2026-10-15 --team "A (lead); B"
+.venv/Scripts/python -m app.services.painters.pptx <memo id printed above> <out.pptx>
+```
+
+Open the PPTX (or render it with PowerPoint) and look at:
+
+| # | Firm · stage | Where |
+|---|---|---|
+| 22 | corriemoor · Credit Committee | slide 3 Facility terms, row "Tenor and repayment" (binding of the tenor concept) |
+| 6 | merrow · Final IC | slide 7 Financial performance, rows "Growth" and "Closing ARR" forecast columns |
+| 8 | merrow · Final IC; lumen · Decision | Merrow slide 1 (cover descriptor); Lumen slide 1 (headline over the tiles) |
+| 9 | merrow · Final IC | any content slide: footer "[no data: source_line]" and "[no data: footnotes]" |
+| 17 | corriemoor · Credit Committee | slide 11 Key credit risks, the 5 × 5 matrix |
+| 15, 23 | merrow · Final IC; corriemoor · Credit Committee | Merrow slide 6 Market chart; Corriemoor slide 6 Financial summary chart |
+| 19 | lumen · Decision | any slide, logo at the top right edge |
+
+Binding issues (22) are also visible without painting: list a firm's bindings and the value each path
+resolves to with `app.services.records.Record` (resolve each `bindings.path`).
+
 ## Record gaps (not system errors)
 
 Approver names and capex (Corriemoor), competitors (Merrow), FX rate and fund fit (Lumen): the person
