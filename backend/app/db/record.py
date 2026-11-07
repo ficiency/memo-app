@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, Float, Integer, String, Text
+from sqlalchemy import Boolean, Date, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, created_at, fk, pk
@@ -33,11 +33,15 @@ class RecordRevision(Base):
 
 
 class RecordValue(Base):
-    """One datum of a revision, addressed by its path (e.g. field:arr.live, table:x[col=v].col)."""
+    """One datum of a revision, addressed by its path (app/readers/deal_record.py lists the forms)."""
     __tablename__ = "record_values"
     id: Mapped[uuid.UUID] = pk()
     revision_id: Mapped[uuid.UUID] = fk("record_revisions.id")
     path: Mapped[str] = mapped_column(String, index=True)
+    family: Mapped[str | None] = mapped_column(String, index=True)   # the path without its period
+    label: Mapped[str | None] = mapped_column(Text)
+    value_kind: Mapped[str | None] = mapped_column(String)          # money, percent, count, date, text… as the record says
+    is_forecast: Mapped[bool] = mapped_column(Boolean, default=False)
     kind: Mapped[str] = mapped_column(String)                   # number, text, date
     number_value: Mapped[float | None] = mapped_column(Float)
     text_value: Mapped[str | None] = mapped_column(Text)
