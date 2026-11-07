@@ -203,3 +203,19 @@ log). Everything else is columns and foreign keys.
 
 - Paste from PowerPoint: what the browser actually receives (10-minute test before the canvas).
 - What the firm's blank layout is when the template has none (use the master's zones).
+
+## 11. As implemented (step 1, `backend/app/db/`)
+
+Built as designed, with these small differences:
+- **Enum-like columns are text**, values listed in the model and checked by the services (a new rule type or
+  segment kind needs no migration).
+- **Bindings and memo chips reference concepts by name** (`concept_name`), not by id: a concept id belongs to
+  one spec version, and a binding must survive new versions.
+- **Element extras:** `name` and `placeholder_idx` (to match source shapes and re-imports), `shape_kind`, and
+  `description` (what an empty box is for, e.g. guide-only firms).
+- **Memo tables and charts** have their own `table_columns`, `table_rows` and `chart_points` (value snapshots
+  per category), so they stay data.
+- **Record values are typed columns** (`number_value`, `text_value`, `date_value`); `record_revisions` carries
+  its `record_schema`, the key the binding uses.
+- **Row level security** is on for every table with no policies: only the backend writes; Supabase's public
+  REST API sees nothing.
