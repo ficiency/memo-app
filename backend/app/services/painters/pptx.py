@@ -382,7 +382,8 @@ class Painter:
                 if anchor in ANCHOR:
                     tf.vertical_anchor = ANCHOR[anchor]
                 self.write_text(tf, paras, keep_layout_style=False, page=page)
-        shape.name = f"memo:{el.id}@{el.revision}"
+        # a master box belongs to the firm's spec and repeats on every page: it is not a memo element
+        shape.name = f"master:{el.id}" if master_box else f"memo:{el.id}@{el.revision}"
 
     def master_text(self, el: Element, page: int):
         """Text of a master box from its recipe: fixed words and memo data (stage, date, page number)."""
