@@ -1,0 +1,178 @@
+[
+  {
+    "slide": "-",
+    "layout": "-",
+    "box": "-",
+    "kind": "table style in prose",
+    "detail": "step 1 stores table conventions as sentences; painters cannot apply them (tables fall back to the default style)",
+    "step": "step 1"
+  },
+  {
+    "slide": 2,
+    "layout": "MV Recommendation and ask",
+    "box": "Cheque size",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [12.0, 40.0] inside this box; the spec keeps one style (40.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 2,
+    "layout": "MV Recommendation and ask",
+    "box": "Ownership",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [12.0, 40.0] inside this box; the spec keeps one style (40.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 1 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 2 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 3 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 4 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 5 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 6 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 8,
+    "layout": "MV Unit economics",
+    "box": "Metric 1 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 11.0] inside this box; the spec keeps one style (11.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 8,
+    "layout": "MV Unit economics",
+    "box": "Metric 2 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 11.0] inside this box; the spec keeps one style (11.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 8,
+    "layout": "MV Unit economics",
+    "box": "Metric 3 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 11.0] inside this box; the spec keeps one style (11.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 8,
+    "layout": "MV Unit economics",
+    "box": "Metric 4 label",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 11.0] inside this box; the spec keeps one style (11.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 2,
+    "layout": "MV Recommendation and ask",
+    "box": "Cheque size",
+    "kind": "likely overflow",
+    "detail": "~66 chars at 40.0pt in 2.85x1.70in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 2,
+    "layout": "MV Recommendation and ask",
+    "box": "Ownership",
+    "kind": "likely overflow",
+    "detail": "~82 chars at 40.0pt in 2.85x1.70in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 2 value",
+    "kind": "likely overflow",
+    "detail": "~23 chars at 40.0pt in 3.30x0.85in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 3 value",
+    "kind": "likely overflow",
+    "detail": "~23 chars at 40.0pt in 3.30x0.85in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 5,
+    "layout": "MV Company snapshot – KPI tiles",
+    "box": "KPI 5 value",
+    "kind": "likely overflow",
+    "detail": "~23 chars at 40.0pt in 3.30x0.85in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 6,
+    "layout": "MV Market",
+    "box": "Chart",
+    "kind": "chart without data model",
+    "detail": "no series, concepts or colours",
+    "step": "step 4 (+ step 1 series colours)"
+  },
+  {
+    "slide": 7,
+    "layout": "MV Financial performance – table + chart",
+    "box": "Chart",
+    "kind": "chart without data model",
+    "detail": "no series, concepts or colours",
+    "step": "step 4 (+ step 1 series colours)"
+  },
+  {
+    "slide": 8,
+    "layout": "MV Unit economics",
+    "box": "Metric 3 value",
+    "kind": "likely overflow",
+    "detail": "~23 chars at 30.0pt in 2.38x0.65in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 8,
+    "layout": "MV Unit economics",
+    "box": "Chart",
+    "kind": "chart without data model",
+    "detail": "no series, concepts or colours",
+    "step": "step 4 (+ step 1 series colours)"
+  }
+]

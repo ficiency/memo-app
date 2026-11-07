@@ -1,0 +1,226 @@
+[
+  {
+    "slide": "-",
+    "layout": "-",
+    "box": "-",
+    "kind": "table style in prose",
+    "detail": "step 1 stores table conventions as sentences; painters cannot apply them (tables fall back to the default style)",
+    "step": "step 1"
+  },
+  {
+    "slide": 2,
+    "layout": "CC Executive summary",
+    "box": "Facility",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 9.0, 14.0, 20.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 2,
+    "layout": "CC Executive summary",
+    "box": "Amount",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 2,
+    "layout": "CC Executive summary",
+    "box": "Internal grade",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 2,
+    "layout": "CC Executive summary",
+    "box": "Recommendation",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 11.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 2,
+    "layout": "CC Executive summary",
+    "box": "Credit strengths",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 2,
+    "layout": "CC Executive summary",
+    "box": "Key concerns",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 4,
+    "layout": "CC Sources and uses",
+    "box": "Commentary",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 5,
+    "layout": "CC Borrower overview",
+    "box": "Overview text",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 11.0] inside this box; the spec keeps one style (11.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 6,
+    "layout": "CC Financial summary",
+    "box": "Commentary",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 7,
+    "layout": "CC Leverage and liquidity",
+    "box": "Metric tile 1",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 7,
+    "layout": "CC Leverage and liquidity",
+    "box": "Metric tile 2",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 7,
+    "layout": "CC Leverage and liquidity",
+    "box": "Metric tile 3",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 8,
+    "layout": "CC Covenants",
+    "box": "Commentary",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 9,
+    "layout": "CC Downside case",
+    "box": "Commentary",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 10,
+    "layout": "CC Security and structure",
+    "box": "Structure text",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 11.0] inside this box; the spec keeps one style (11.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 13,
+    "layout": "CC Approval and sign-off",
+    "box": "Decision requested",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 11.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 13,
+    "layout": "CC Approval and sign-off",
+    "box": "Approver 1",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 10.0, 12.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 13,
+    "layout": "CC Approval and sign-off",
+    "box": "Approver 2",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 10.0, 12.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 13,
+    "layout": "CC Approval and sign-off",
+    "box": "Approver 3",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 10.0, 12.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 13,
+    "layout": "CC Approval and sign-off",
+    "box": "Approver 4",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [8.0, 10.0, 12.0] inside this box; the spec keeps one style (8.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 14,
+    "layout": "CC Appendix – free",
+    "box": "Appendix content",
+    "kind": "several text styles in one box",
+    "detail": "the design file uses sizes [10.0, 11.0] inside this box; the spec keeps one style (11.0pt)",
+    "step": "step 3 (+ step 4 paragraph breaks)"
+  },
+  {
+    "slide": 1,
+    "layout": "CC Cover",
+    "box": "Internal grade",
+    "kind": "likely overflow",
+    "detail": "~16 chars at 26.0pt in 1.40x0.62in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 6,
+    "layout": "CC Financial summary",
+    "box": "Financial table",
+    "kind": "abstract table columns",
+    "detail": "header ['£k', 'periods']: the period columns are not stated",
+    "step": "step 4"
+  },
+  {
+    "slide": 6,
+    "layout": "CC Financial summary",
+    "box": "Financial table",
+    "kind": "abstract table rows",
+    "detail": "rows describe categories ('Revenue or ARR metrics'…), not the table's rows",
+    "step": "step 4"
+  },
+  {
+    "slide": 6,
+    "layout": "CC Financial summary",
+    "box": "Financial chart",
+    "kind": "chart without data model",
+    "detail": "no series, concepts or colours",
+    "step": "step 4 (+ step 1 series colours)"
+  },
+  {
+    "slide": 7,
+    "layout": "CC Leverage and liquidity",
+    "box": "Liquidity chart",
+    "kind": "chart without data model",
+    "detail": "no series, concepts or colours",
+    "step": "step 4 (+ step 1 series colours)"
+  },
+  {
+    "slide": 9,
+    "layout": "CC Downside case",
+    "box": "Downside chart",
+    "kind": "chart without data model",
+    "detail": "no series, concepts or colours",
+    "step": "step 4 (+ step 1 series colours)"
+  }
+]

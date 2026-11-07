@@ -1,0 +1,58 @@
+PREVIEW REVIEW · lumen: 49 findings
+
+BY KIND (step it traces back to)
+    27  master box without content         step 4
+    20  likely overflow                    step 3 / painter
+     1  table style in prose               step 1
+     1  chart without data model           step 4 (+ step 1 series colours)
+
+DETAIL
+  s- - / -: table style in prose — step 1 stores table conventions as sentences; painters cannot apply them (tables fall back to the default style)
+  s1 LS Decision on a page / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s1 LS Decision on a page / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s1 LS Decision on a page / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s1 LS Decision on a page / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s1 LS Decision on a page / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in
+  s1 LS Decision on a page / decision_headline: likely overflow — ~161 chars at 17pt in 10.79x0.42in
+  s1 LS Decision on a page / recommendation_band_text: likely overflow — ~125 chars at 17pt in 10.45x0.34in
+  s2 LS Annex – Text / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s2 LS Annex – Text / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s2 LS Annex – Text / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s2 LS Annex – Text / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s2 LS Annex – Text / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in
+  s3 LS Annex – Two columns / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s3 LS Annex – Two columns / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s3 LS Annex – Two columns / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s3 LS Annex – Two columns / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s3 LS Annex – Two columns / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in
+  s4 LS Annex – Table / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s4 LS Annex – Table / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s4 LS Annex – Table / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s4 LS Annex – Table / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s4 LS Annex – Table / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in
+  s5 LS Annex – Table + commentary / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s5 LS Annex – Table + commentary / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s5 LS Annex – Table + commentary / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s5 LS Annex – Table + commentary / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s5 LS Annex – Table + commentary / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in
+  s6 LS Annex – Chart + commentary / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s6 LS Annex – Chart + commentary / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s6 LS Annex – Chart + commentary / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s6 LS Annex – Chart + commentary / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s6 LS Annex – Chart + commentary / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in
+  s6 LS Annex – Chart + commentary / main_chart: chart without data model — no series, concepts or colours
+  s7 LS Annex – Exhibit / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s7 LS Annex – Exhibit / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s7 LS Annex – Exhibit / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s7 LS Annex – Exhibit / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s7 LS Annex – Exhibit / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in
+  s8 LS Blank / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s8 LS Blank / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s8 LS Blank / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s8 LS Blank / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s8 LS Blank / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in
+  s9 LS Annex Z – Sources / master_footer_left: master box without content — shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'
+  s9 LS Annex Z – Sources / master_footer_date: master box without content — shows only its description: 'Decision meeting date as DD.MM.YYYY'
+  s9 LS Annex Z – Sources / master_footer_date: likely overflow — ~37 chars at 8pt in 1.35x0.16in
+  s9 LS Annex Z – Sources / master_footer_page_number: master box without content — shows only its description: 'Bold page number, right aligned'
+  s9 LS Annex Z – Sources / master_footer_page_number: likely overflow — ~33 chars at 8pt in 0.69x0.16in

@@ -1,0 +1,394 @@
+[
+  {
+    "slide": "-",
+    "layout": "-",
+    "box": "-",
+    "kind": "table style in prose",
+    "detail": "step 1 stores table conventions as sentences; painters cannot apply them (tables fall back to the default style)",
+    "step": "step 1"
+  },
+  {
+    "slide": 1,
+    "layout": "LS Decision on a page",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 1,
+    "layout": "LS Decision on a page",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 1,
+    "layout": "LS Decision on a page",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 1,
+    "layout": "LS Decision on a page",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 1,
+    "layout": "LS Decision on a page",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 1,
+    "layout": "LS Decision on a page",
+    "box": "decision_headline",
+    "kind": "likely overflow",
+    "detail": "~161 chars at 17pt in 10.79x0.42in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 1,
+    "layout": "LS Decision on a page",
+    "box": "recommendation_band_text",
+    "kind": "likely overflow",
+    "detail": "~125 chars at 17pt in 10.45x0.34in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 2,
+    "layout": "LS Annex – Text",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 2,
+    "layout": "LS Annex – Text",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 2,
+    "layout": "LS Annex – Text",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 2,
+    "layout": "LS Annex – Text",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 2,
+    "layout": "LS Annex – Text",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 3,
+    "layout": "LS Annex – Two columns",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 3,
+    "layout": "LS Annex – Two columns",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 3,
+    "layout": "LS Annex – Two columns",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 3,
+    "layout": "LS Annex – Two columns",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 3,
+    "layout": "LS Annex – Two columns",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 4,
+    "layout": "LS Annex – Table",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 4,
+    "layout": "LS Annex – Table",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 4,
+    "layout": "LS Annex – Table",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 4,
+    "layout": "LS Annex – Table",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 4,
+    "layout": "LS Annex – Table",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 5,
+    "layout": "LS Annex – Table + commentary",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 5,
+    "layout": "LS Annex – Table + commentary",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 5,
+    "layout": "LS Annex – Table + commentary",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 5,
+    "layout": "LS Annex – Table + commentary",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 5,
+    "layout": "LS Annex – Table + commentary",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 6,
+    "layout": "LS Annex – Chart + commentary",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 6,
+    "layout": "LS Annex – Chart + commentary",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 6,
+    "layout": "LS Annex – Chart + commentary",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 6,
+    "layout": "LS Annex – Chart + commentary",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 6,
+    "layout": "LS Annex – Chart + commentary",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 6,
+    "layout": "LS Annex – Chart + commentary",
+    "box": "main_chart",
+    "kind": "chart without data model",
+    "detail": "no series, concepts or colours",
+    "step": "step 4 (+ step 1 series colours)"
+  },
+  {
+    "slide": 7,
+    "layout": "LS Annex – Exhibit",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 7,
+    "layout": "LS Annex – Exhibit",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 7,
+    "layout": "LS Annex – Exhibit",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 7,
+    "layout": "LS Annex – Exhibit",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 7,
+    "layout": "LS Annex – Exhibit",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 8,
+    "layout": "LS Blank",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 8,
+    "layout": "LS Blank",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 8,
+    "layout": "LS Blank",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 8,
+    "layout": "LS Blank",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 8,
+    "layout": "LS Blank",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 9,
+    "layout": "LS Annex Z – Sources",
+    "box": "master_footer_left",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Company, Decision Note, stage, and Strictly private and conf'",
+    "step": "step 4"
+  },
+  {
+    "slide": 9,
+    "layout": "LS Annex Z – Sources",
+    "box": "master_footer_date",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Decision meeting date as DD.MM.YYYY'",
+    "step": "step 4"
+  },
+  {
+    "slide": 9,
+    "layout": "LS Annex Z – Sources",
+    "box": "master_footer_date",
+    "kind": "likely overflow",
+    "detail": "~37 chars at 8pt in 1.35x0.16in",
+    "step": "step 3 / painter"
+  },
+  {
+    "slide": 9,
+    "layout": "LS Annex Z – Sources",
+    "box": "master_footer_page_number",
+    "kind": "master box without content",
+    "detail": "shows only its description: 'Bold page number, right aligned'",
+    "step": "step 4"
+  },
+  {
+    "slide": 9,
+    "layout": "LS Annex Z – Sources",
+    "box": "master_footer_page_number",
+    "kind": "likely overflow",
+    "detail": "~33 chars at 8pt in 0.69x0.16in",
+    "step": "step 3 / painter"
+  }
+]

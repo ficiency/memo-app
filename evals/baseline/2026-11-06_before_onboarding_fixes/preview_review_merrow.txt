@@ -1,0 +1,31 @@
+PREVIEW REVIEW · merrow: 22 findings
+
+BY KIND (step it traces back to)
+    12  several text styles in one box     step 3 (+ step 4 paragraph breaks)
+     6  likely overflow                    step 3 / painter
+     3  chart without data model           step 4 (+ step 1 series colours)
+     1  table style in prose               step 1
+
+DETAIL
+  s- - / -: table style in prose — step 1 stores table conventions as sentences; painters cannot apply them (tables fall back to the default style)
+  s2 MV Recommendation and ask / Cheque size: several text styles in one box — the design file uses sizes [12.0, 40.0] inside this box; the spec keeps one style (40.0pt)
+  s2 MV Recommendation and ask / Ownership: several text styles in one box — the design file uses sizes [12.0, 40.0] inside this box; the spec keeps one style (40.0pt)
+  s5 MV Company snapshot – KPI tiles / KPI 1 label: several text styles in one box — the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)
+  s5 MV Company snapshot – KPI tiles / KPI 2 label: several text styles in one box — the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)
+  s5 MV Company snapshot – KPI tiles / KPI 3 label: several text styles in one box — the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)
+  s5 MV Company snapshot – KPI tiles / KPI 4 label: several text styles in one box — the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)
+  s5 MV Company snapshot – KPI tiles / KPI 5 label: several text styles in one box — the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)
+  s5 MV Company snapshot – KPI tiles / KPI 6 label: several text styles in one box — the design file uses sizes [10.0, 12.0] inside this box; the spec keeps one style (12.0pt)
+  s8 MV Unit economics / Metric 1 label: several text styles in one box — the design file uses sizes [9.0, 11.0] inside this box; the spec keeps one style (11.0pt)
+  s8 MV Unit economics / Metric 2 label: several text styles in one box — the design file uses sizes [9.0, 11.0] inside this box; the spec keeps one style (11.0pt)
+  s8 MV Unit economics / Metric 3 label: several text styles in one box — the design file uses sizes [9.0, 11.0] inside this box; the spec keeps one style (11.0pt)
+  s8 MV Unit economics / Metric 4 label: several text styles in one box — the design file uses sizes [9.0, 11.0] inside this box; the spec keeps one style (11.0pt)
+  s2 MV Recommendation and ask / Cheque size: likely overflow — ~66 chars at 40.0pt in 2.85x1.70in
+  s2 MV Recommendation and ask / Ownership: likely overflow — ~82 chars at 40.0pt in 2.85x1.70in
+  s5 MV Company snapshot – KPI tiles / KPI 2 value: likely overflow — ~23 chars at 40.0pt in 3.30x0.85in
+  s5 MV Company snapshot – KPI tiles / KPI 3 value: likely overflow — ~23 chars at 40.0pt in 3.30x0.85in
+  s5 MV Company snapshot – KPI tiles / KPI 5 value: likely overflow — ~23 chars at 40.0pt in 3.30x0.85in
+  s6 MV Market / Chart: chart without data model — no series, concepts or colours
+  s7 MV Financial performance – table + chart / Chart: chart without data model — no series, concepts or colours
+  s8 MV Unit economics / Metric 3 value: likely overflow — ~23 chars at 30.0pt in 2.38x0.65in
+  s8 MV Unit economics / Chart: chart without data model — no series, concepts or colours

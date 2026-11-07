@@ -1,0 +1,39 @@
+PREVIEW REVIEW · corriemoor: 28 findings
+
+BY KIND (step it traces back to)
+    21  several text styles in one box     step 3 (+ step 4 paragraph breaks)
+     3  chart without data model           step 4 (+ step 1 series colours)
+     1  table style in prose               step 1
+     1  likely overflow                    step 3 / painter
+     1  abstract table columns             step 4
+     1  abstract table rows                step 4
+
+DETAIL
+  s- - / -: table style in prose — step 1 stores table conventions as sentences; painters cannot apply them (tables fall back to the default style)
+  s2 CC Executive summary / Facility: several text styles in one box — the design file uses sizes [8.0, 9.0, 14.0, 20.0] inside this box; the spec keeps one style (8.0pt)
+  s2 CC Executive summary / Amount: several text styles in one box — the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)
+  s2 CC Executive summary / Internal grade: several text styles in one box — the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)
+  s2 CC Executive summary / Recommendation: several text styles in one box — the design file uses sizes [8.0, 11.0] inside this box; the spec keeps one style (8.0pt)
+  s2 CC Executive summary / Credit strengths: several text styles in one box — the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)
+  s2 CC Executive summary / Key concerns: several text styles in one box — the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)
+  s4 CC Sources and uses / Commentary: several text styles in one box — the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)
+  s5 CC Borrower overview / Overview text: several text styles in one box — the design file uses sizes [10.0, 11.0] inside this box; the spec keeps one style (11.0pt)
+  s6 CC Financial summary / Commentary: several text styles in one box — the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)
+  s7 CC Leverage and liquidity / Metric tile 1: several text styles in one box — the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)
+  s7 CC Leverage and liquidity / Metric tile 2: several text styles in one box — the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)
+  s7 CC Leverage and liquidity / Metric tile 3: several text styles in one box — the design file uses sizes [8.0, 9.0, 20.0] inside this box; the spec keeps one style (8.0pt)
+  s8 CC Covenants / Commentary: several text styles in one box — the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)
+  s9 CC Downside case / Commentary: several text styles in one box — the design file uses sizes [9.0, 10.0] inside this box; the spec keeps one style (10.0pt)
+  s10 CC Security and structure / Structure text: several text styles in one box — the design file uses sizes [10.0, 11.0] inside this box; the spec keeps one style (11.0pt)
+  s13 CC Approval and sign-off / Decision requested: several text styles in one box — the design file uses sizes [8.0, 11.0] inside this box; the spec keeps one style (8.0pt)
+  s13 CC Approval and sign-off / Approver 1: several text styles in one box — the design file uses sizes [8.0, 10.0, 12.0] inside this box; the spec keeps one style (8.0pt)
+  s13 CC Approval and sign-off / Approver 2: several text styles in one box — the design file uses sizes [8.0, 10.0, 12.0] inside this box; the spec keeps one style (8.0pt)
+  s13 CC Approval and sign-off / Approver 3: several text styles in one box — the design file uses sizes [8.0, 10.0, 12.0] inside this box; the spec keeps one style (8.0pt)
+  s13 CC Approval and sign-off / Approver 4: several text styles in one box — the design file uses sizes [8.0, 10.0, 12.0] inside this box; the spec keeps one style (8.0pt)
+  s14 CC Appendix – free / Appendix content: several text styles in one box — the design file uses sizes [10.0, 11.0] inside this box; the spec keeps one style (11.0pt)
+  s1 CC Cover / Internal grade: likely overflow — ~16 chars at 26.0pt in 1.40x0.62in
+  s6 CC Financial summary / Financial table: abstract table columns — header ['£k', 'periods']: the period columns are not stated
+  s6 CC Financial summary / Financial table: abstract table rows — rows describe categories ('Revenue or ARR metrics'…), not the table's rows
+  s6 CC Financial summary / Financial chart: chart without data model — no series, concepts or colours
+  s7 CC Leverage and liquidity / Liquidity chart: chart without data model — no series, concepts or colours
+  s9 CC Downside case / Downside chart: chart without data model — no series, concepts or colours
