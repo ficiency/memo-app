@@ -209,7 +209,7 @@ def import_pptx(memo_id, edited: Path, export_id=None, actor_email: str | None =
         for op in operations(changes):
             r = door.apply(op, actor_type="import", actor_id=user.id if user else None,
                            on_behalf_of=user.id if user else None, change_set_id=change_set.id)
-            results.append({"type": op["type"], "status": r.status, "reason": r.reason})
+            results.append({"type": op["type"], "target": str(op.get("target") or ""), "status": r.status, "reason": r.reason})
         counts = func_count(results)
         session.add(Import(memo_id=memo.id, export_id=exp.id, change_set_id=change_set.id,
                            report="; ".join(f"{k} {v}" for k, v in counts.items()),
