@@ -3,3 +3,7 @@
 /docs/pilots/out/
 __pycache__/
 *.pyc
+.venv/
+node_modules/
+dist/
+.work/
