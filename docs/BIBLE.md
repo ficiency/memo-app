@@ -210,7 +210,7 @@ What the canvas allows (checked on the server):
   belongs to one firm and only sees that firm's specs, records and memos.
 
 **Real time**
-- **One person per box**, lock given by the server, freed on leaving, disconnecting or ~2 min idle.
+- **One person per box**, lock given by the server, freed on leaving the box or disconnecting (no idle timeout; decision 7 Nov).
 - **Own websockets** (one room per memo): typing and dragging shown live (ephemeral), committed as checked
   operations. Catch-up after reconnection later; the operation sequence already supports it.
 

@@ -49,7 +49,7 @@ Decisions below were taken in review on 6 Nov 2026.
    and moves the pin. Applying **never deletes content**: a slide whose layout is gone stays as a free slide,
    a chip whose value is gone shows "no value"; both appear as pendings and are marked ⚠ in "See changes".
 9. **One person per box** (lock given by the server, in memory). Freed when the person leaves the box,
-   disconnects, or after ~2 minutes without typing (what they wrote is saved first). No merging inside a box.
+   or disconnects (no idle timeout). No merging inside a box.
 10. **Real time on our own websockets** (one room per memo in the backend; idea from memo-engine's `live.py`):
     - live channel, ephemeral, never stored: text being typed (sent every ~100 ms), a box being dragged;
     - commit channel: when the person pauses, leaves the box or drops it, the edit goes as an operation,
