@@ -1,0 +1,4849 @@
+{
+  "record_id": "tidewell",
+  "record_version": 1,
+  "as_of": "2026-09-30",
+  "reporting_currency": "GBP",
+  "company": {
+    "name": "Tidewell",
+    "hq": "Bristol, United Kingdom",
+    "founded": 2017,
+    "fiscal_year_end": "31 March",
+    "domain": "tidewell.example",
+    "entities": [
+      {
+        "name": "Tidewell Group Holdings Limited",
+        "role": "Group holding company",
+        "jurisdiction": "England and Wales",
+        "company_number": "11837204"
+      },
+      {
+        "name": "Tidewell Software Ltd",
+        "role": "UK operating company",
+        "jurisdiction": "England and Wales",
+        "company_number": "10482736"
+      },
+      {
+        "name": "Tidewell B.V.",
+        "role": "Netherlands subsidiary",
+        "jurisdiction": "Netherlands"
+      },
+      {
+        "name": "Tidewell GmbH",
+        "role": "Germany subsidiary",
+        "jurisdiction": "Germany"
+      }
+    ],
+    "products": [
+      {
+        "name": "Tidewell Practice",
+        "description": "Cloud practice management system for veterinary practices"
+      },
+      {
+        "name": "Tidewell Pay",
+        "description": "Integrated card payments, operated as registered agent of an authorised e-money institution"
+      }
+    ],
+    "investors": {
+      "seed": "Westcombe Angels",
+      "series_a": "Larkspur Ventures",
+      "series_b": "Orrin Capital"
+    },
+    "reseller_germany": "Vetsana Handels GmbH"
+  },
+  "fields": [
+    {
+      "id": "company.name",
+      "label": "Company name",
+      "kind": "text",
+      "value": "Tidewell",
+      "unit": null,
+      "period": "2026-09-30",
+      "basis": "Trading name of the group",
+      "source": "Company records"
+    },
+    {
+      "id": "company.hq",
+      "label": "Headquarters",
+      "kind": "text",
+      "value": "Bristol, United Kingdom",
+      "unit": null,
+      "period": "2026-09-30",
+      "basis": "Registered and operating base",
+      "source": "Company records"
+    },
+    {
+      "id": "company.founded",
+      "label": "Year founded",
+      "kind": "count",
+      "value": 2017,
+      "unit": "year",
+      "period": "2017",
+      "basis": "Calendar year",
+      "source": "Company records"
+    },
+    {
+      "id": "arr.fy23",
+      "label": "Live subscription ARR, FY2023 year end",
+      "kind": "money",
+      "value": 8050000,
+      "unit": "GBP",
+      "period": "2023-03-31",
+      "basis": "live subscriptions, month end; excludes contracted-not-live",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.fy24",
+      "label": "Live subscription ARR, FY2024 year end",
+      "kind": "money",
+      "value": 11640000,
+      "unit": "GBP",
+      "period": "2024-03-31",
+      "basis": "live subscriptions, month end; excludes contracted-not-live",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.fy25",
+      "label": "Live subscription ARR, FY2025 year end",
+      "kind": "money",
+      "value": 16180000,
+      "unit": "GBP",
+      "period": "2025-03-31",
+      "basis": "live subscriptions, month end; excludes contracted-not-live",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.fy26",
+      "label": "Live subscription ARR, FY2026 year end",
+      "kind": "money",
+      "value": 20110000,
+      "unit": "GBP",
+      "period": "2026-03-31",
+      "basis": "live subscriptions, month end; excludes contracted-not-live",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.aug26",
+      "label": "Live subscription ARR, Aug-26 close",
+      "kind": "money",
+      "value": 22940000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "live subscriptions, month end; excludes contracted-not-live",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.live",
+      "label": "Live subscription ARR, latest month-end close",
+      "kind": "money",
+      "value": 22940000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "live subscriptions, month end; latest close in the record",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "sites.fy24",
+      "label": "Live sites, FY2024 year end",
+      "kind": "count",
+      "value": 820,
+      "unit": "sites",
+      "period": "2024-03-31",
+      "basis": "live sites at month end",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "sites.fy25",
+      "label": "Live sites, FY2025 year end",
+      "kind": "count",
+      "value": 1105,
+      "unit": "sites",
+      "period": "2025-03-31",
+      "basis": "live sites at month end",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "sites.fy26",
+      "label": "Live sites, FY2026 year end",
+      "kind": "count",
+      "value": 1412,
+      "unit": "sites",
+      "period": "2026-03-31",
+      "basis": "live sites at month end",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "sites.live",
+      "label": "Live sites, Aug-26",
+      "kind": "count",
+      "value": 1488,
+      "unit": "sites",
+      "period": "2026-08-31",
+      "basis": "live sites at month end",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "customers.fy24",
+      "label": "Customers, FY2024 year end",
+      "kind": "count",
+      "value": 318,
+      "unit": "customers",
+      "period": "2024-03-31",
+      "basis": "customer groups with at least one live site",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "customers.fy25",
+      "label": "Customers, FY2025 year end",
+      "kind": "count",
+      "value": 412,
+      "unit": "customers",
+      "period": "2025-03-31",
+      "basis": "customer groups with at least one live site",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "customers.fy26",
+      "label": "Customers, FY2026 year end",
+      "kind": "count",
+      "value": 486,
+      "unit": "customers",
+      "period": "2026-03-31",
+      "basis": "customer groups with at least one live site",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "customers.live",
+      "label": "Customers, Aug-26",
+      "kind": "count",
+      "value": 503,
+      "unit": "customers",
+      "period": "2026-08-31",
+      "basis": "customer groups with at least one live site",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.contracted_not_live",
+      "label": "Contracted ARR not yet live, Aug-26",
+      "kind": "money",
+      "value": 1880000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "signed, onboarding not complete; not part of live ARR",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "sites.contracted_not_live",
+      "label": "Contracted sites not yet live, Aug-26",
+      "kind": "count",
+      "value": 131,
+      "unit": "sites",
+      "period": "2026-08-31",
+      "basis": "signed, onboarding not complete; not part of live sites",
+      "source": "Customer_ARR_Export_2026-08-31.csv"
+    },
+    {
+      "id": "arr.per_site.fy26",
+      "label": "ARR per live site, FY2026 year end",
+      "kind": "money",
+      "value": 14242,
+      "unit": "GBP",
+      "period": "2026-03-31",
+      "basis": "live ARR divided by live sites at March 2026",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "arr.fy26",
+        "sites.fy26"
+      ],
+      "formula": "arr.fy26 / sites.fy26"
+    },
+    {
+      "id": "arr.growth.fy26",
+      "label": "Live ARR growth, FY2026",
+      "kind": "percent",
+      "value": 0.242892,
+      "unit": "fraction",
+      "period": "FY2026",
+      "basis": "year-on-year growth in live subscription ARR at year end",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "arr.fy26",
+        "arr.fy25"
+      ],
+      "formula": "arr.fy26 / arr.fy25 - 1"
+    },
+    {
+      "id": "arr.bridge.fy26.new",
+      "label": "FY2026 ARR bridge: new business",
+      "kind": "money",
+      "value": 2409000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "ARR movement in the year, from the month-by-month bridge",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.bridge.fy26.expansion",
+      "label": "FY2026 ARR bridge: expansion",
+      "kind": "money",
+      "value": 2637000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "ARR movement in the year, from the month-by-month bridge",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.bridge.fy26.contraction",
+      "label": "FY2026 ARR bridge: contraction (shown positive)",
+      "kind": "money",
+      "value": 275000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "ARR movement in the year, from the month-by-month bridge",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "arr.bridge.fy26.churn",
+      "label": "FY2026 ARR bridge: churn (shown positive)",
+      "kind": "money",
+      "value": 841000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "ARR movement in the year, from the month-by-month bridge",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "kpi.nrr.fy26",
+      "label": "Net revenue retention, FY2026",
+      "kind": "percent",
+      "value": 1.094005,
+      "unit": "fraction",
+      "period": "FY2026",
+      "basis": "(opening ARR + expansion - contraction - churn) / opening ARR; opening is the FY2025 closing ARR",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "arr.fy25",
+        "arr.bridge.fy26.expansion",
+        "arr.bridge.fy26.contraction",
+        "arr.bridge.fy26.churn"
+      ],
+      "formula": "(arr.fy25 + expansion - contraction - churn) / arr.fy25"
+    },
+    {
+      "id": "kpi.grr.fy26",
+      "label": "Gross revenue retention, FY2026",
+      "kind": "percent",
+      "value": 0.931026,
+      "unit": "fraction",
+      "period": "FY2026",
+      "basis": "(opening ARR - contraction - churn) / opening ARR",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "arr.fy25",
+        "arr.bridge.fy26.contraction",
+        "arr.bridge.fy26.churn"
+      ],
+      "formula": "(arr.fy25 - contraction - churn) / arr.fy25"
+    },
+    {
+      "id": "pay.attach.live",
+      "label": "Tidewell Pay attach rate, Aug-26",
+      "kind": "percent",
+      "value": 0.6,
+      "unit": "fraction",
+      "period": "2026-08-31",
+      "basis": "share of live sites with Tidewell Pay enabled",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    {
+      "id": "pay.sites.live",
+      "label": "Sites with Tidewell Pay enabled, Aug-26",
+      "kind": "count",
+      "value": 893,
+      "unit": "sites",
+      "period": "2026-08-31",
+      "basis": "live sites with payments enabled",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    {
+      "id": "pay.tpv.fy26",
+      "label": "Total payment volume, FY2026",
+      "kind": "money",
+      "value": 616513000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "card volume processed through Tidewell Pay",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    {
+      "id": "pay.gross_fees.fy26",
+      "label": "Gross payment fees, FY2026",
+      "kind": "money",
+      "value": 9248000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "fees charged to practices before pass-through costs (1.50% of volume)",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    {
+      "id": "pay.pass_through.fy26",
+      "label": "Payment pass-through costs, FY2026",
+      "kind": "money",
+      "value": 5455000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "interchange, scheme and acquirer fees passed through; netted off revenue",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    {
+      "id": "pay.take_rate.net",
+      "label": "Net take rate on payment volume",
+      "kind": "percent",
+      "value": 0.00615,
+      "unit": "fraction",
+      "period": "FY2026",
+      "basis": "1.50% gross take less 0.885% pass-through",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    {
+      "id": "pl.fy24.revenue",
+      "label": "Net revenue, FY2024",
+      "kind": "money",
+      "value": 12093000,
+      "unit": "GBP",
+      "period": "FY2024",
+      "basis": "net of payment pass-through costs; management accounts",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "pl.fy25.revenue",
+      "label": "Net revenue, FY2025",
+      "kind": "money",
+      "value": 17380000,
+      "unit": "GBP",
+      "period": "FY2025",
+      "basis": "audited basis: onboarding fees deferred over contract term (management basis was £17,740,000 before the £360,000 deferral)",
+      "source": "Tidewell_Group_Audited_Accounts_FY2025.pdf"
+    },
+    {
+      "id": "pl.fy26.revenue",
+      "label": "Net revenue, FY2026",
+      "kind": "money",
+      "value": 23963000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "net of payment pass-through costs; management accounts, audit in progress",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "pl.fy26.gross_margin_software",
+      "label": "Software gross margin, FY2026",
+      "kind": "percent",
+      "value": 0.81,
+      "unit": "fraction",
+      "period": "FY2026",
+      "basis": "subscription revenue less hosting, support and licences; software only, not blended",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy26.opex_sm",
+      "label": "Sales and marketing expense, FY2026",
+      "kind": "money",
+      "value": 8900000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "fully loaded sales and marketing, including share-based pay",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "pl.ltm_aug26.revenue",
+      "label": "Net revenue, twelve months to Aug-26",
+      "kind": "money",
+      "value": 26724000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "last twelve months, Sep-25 to Aug-26",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy27.q1_revenue_actual",
+      "label": "Net revenue, Q1 FY2027 actual",
+      "kind": "money",
+      "value": 7023000,
+      "unit": "GBP",
+      "period": "Q1 FY2027",
+      "basis": "April to June 2026",
+      "source": "Board_Pack_Q1_FY27_Jul26.pptx"
+    },
+    {
+      "id": "pl.fy27.q1_revenue_budget",
+      "label": "Net revenue, Q1 FY2027 budget",
+      "kind": "money",
+      "value": 7640000,
+      "unit": "GBP",
+      "period": "Q1 FY2027",
+      "basis": "board-approved FY2027 budget, April to June 2026",
+      "source": "Board_Pack_Q1_FY27_Jul26.pptx"
+    },
+    {
+      "id": "pl.fy26.growth",
+      "label": "Net revenue growth, FY2026",
+      "kind": "percent",
+      "value": 0.378769,
+      "unit": "fraction",
+      "period": "FY2026",
+      "basis": "year-on-year, FY2025 on the audited basis",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "pl.fy26.revenue",
+        "pl.fy25.revenue"
+      ],
+      "formula": "pl.fy26.revenue / pl.fy25.revenue - 1"
+    },
+    {
+      "id": "pl.fy27.revenue",
+      "label": "Net revenue, FY2027 latest forecast",
+      "kind": "money",
+      "value": 31500000,
+      "unit": "GBP",
+      "period": "FY2027",
+      "basis": "management latest forecast, model v4.3; assumes Kinmoor renews at full value",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy28.revenue",
+      "label": "Net revenue, FY2028 forecast",
+      "kind": "money",
+      "value": 42210000,
+      "unit": "GBP",
+      "period": "FY2028",
+      "basis": "management latest forecast, model v4.3; assumes Kinmoor renews at full value",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy29.revenue",
+      "label": "Net revenue, FY2029 forecast",
+      "kind": "money",
+      "value": 54873000,
+      "unit": "GBP",
+      "period": "FY2029",
+      "basis": "management latest forecast, model v4.3; assumes Kinmoor renews at full value",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy30.revenue",
+      "label": "Net revenue, FY2030 forecast",
+      "kind": "money",
+      "value": 69140000,
+      "unit": "GBP",
+      "period": "FY2030",
+      "basis": "management latest forecast, model v4.3; assumes Kinmoor renews at full value",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy31.revenue",
+      "label": "Net revenue, FY2031 forecast",
+      "kind": "money",
+      "value": 84351000,
+      "unit": "GBP",
+      "period": "FY2031",
+      "basis": "management latest forecast, model v4.3; assumes Kinmoor renews at full value",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy24.gross_margin",
+      "label": "Blended gross margin, FY2024 actual",
+      "kind": "percent",
+      "value": 0.702969,
+      "unit": "fraction",
+      "period": "FY2024",
+      "basis": "gross profit / net revenue, blended across subscription, payments and services; management accounts",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "pl.fy25.gross_margin",
+      "label": "Blended gross margin, FY2025 actual",
+      "kind": "percent",
+      "value": 0.692635,
+      "unit": "fraction",
+      "period": "FY2025",
+      "basis": "gross profit / net revenue, blended across subscription, payments and services; audited basis",
+      "source": "Tidewell_Group_Audited_Accounts_FY2025.pdf"
+    },
+    {
+      "id": "pl.fy26.gross_margin",
+      "label": "Blended gross margin, FY2026 actual",
+      "kind": "percent",
+      "value": 0.699579,
+      "unit": "fraction",
+      "period": "FY2026",
+      "basis": "gross profit / net revenue, blended across subscription, payments and services; management accounts, audit in progress",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "pl.fy27.gross_margin",
+      "label": "Blended gross margin, FY2027 latest forecast",
+      "kind": "percent",
+      "value": 0.668,
+      "unit": "fraction",
+      "period": "FY2027",
+      "basis": "gross profit / net revenue, blended across subscription, payments and services; management latest forecast, model v4.3",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy28.gross_margin",
+      "label": "Blended gross margin, FY2028 forecast",
+      "kind": "percent",
+      "value": 0.684,
+      "unit": "fraction",
+      "period": "FY2028",
+      "basis": "gross profit / net revenue, blended across subscription, payments and services; management latest forecast, model v4.3",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy29.gross_margin",
+      "label": "Blended gross margin, FY2029 forecast",
+      "kind": "percent",
+      "value": 0.701,
+      "unit": "fraction",
+      "period": "FY2029",
+      "basis": "gross profit / net revenue, blended across subscription, payments and services; management latest forecast, model v4.3",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy30.gross_margin",
+      "label": "Blended gross margin, FY2030 forecast",
+      "kind": "percent",
+      "value": 0.715,
+      "unit": "fraction",
+      "period": "FY2030",
+      "basis": "gross profit / net revenue, blended across subscription, payments and services; management latest forecast, model v4.3",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy31.gross_margin",
+      "label": "Blended gross margin, FY2031 forecast",
+      "kind": "percent",
+      "value": 0.726,
+      "unit": "fraction",
+      "period": "FY2031",
+      "basis": "gross profit / net revenue, blended across subscription, payments and services; management latest forecast, model v4.3",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy24.adj_ebitda",
+      "label": "Adjusted EBITDA, FY2024 actual",
+      "kind": "money",
+      "value": -2699000,
+      "unit": "GBP",
+      "period": "FY2024",
+      "basis": "management accounts",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "pl.fy25.adj_ebitda",
+      "label": "Adjusted EBITDA, FY2025 actual",
+      "kind": "money",
+      "value": -3162000,
+      "unit": "GBP",
+      "period": "FY2025",
+      "basis": "audited basis: lower by the onboarding-fee deferral",
+      "source": "Tidewell_Group_Audited_Accounts_FY2025.pdf"
+    },
+    {
+      "id": "pl.fy26.adj_ebitda",
+      "label": "Adjusted EBITDA, FY2026 actual",
+      "kind": "money",
+      "value": -2886000,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "management accounts; reported EBITDA plus share-based pay, restructuring and transaction costs",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "pl.fy27.adj_ebitda",
+      "label": "Adjusted EBITDA, FY2027 latest forecast",
+      "kind": "money",
+      "value": -2677500,
+      "unit": "GBP",
+      "period": "FY2027",
+      "basis": "management latest forecast, model v4.3; FY2027 loss held, later years margin-driven",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy28.adj_ebitda",
+      "label": "Adjusted EBITDA, FY2028 forecast",
+      "kind": "money",
+      "value": 633000,
+      "unit": "GBP",
+      "period": "FY2028",
+      "basis": "management latest forecast, model v4.3; FY2027 loss held, later years margin-driven",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy29.adj_ebitda",
+      "label": "Adjusted EBITDA, FY2029 forecast",
+      "kind": "money",
+      "value": 4664000,
+      "unit": "GBP",
+      "period": "FY2029",
+      "basis": "management latest forecast, model v4.3; FY2027 loss held, later years margin-driven",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy30.adj_ebitda",
+      "label": "Adjusted EBITDA, FY2030 forecast",
+      "kind": "money",
+      "value": 9680000,
+      "unit": "GBP",
+      "period": "FY2030",
+      "basis": "management latest forecast, model v4.3; FY2027 loss held, later years margin-driven",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "pl.fy31.adj_ebitda",
+      "label": "Adjusted EBITDA, FY2031 forecast",
+      "kind": "money",
+      "value": 15183000,
+      "unit": "GBP",
+      "period": "FY2031",
+      "basis": "management latest forecast, model v4.3; FY2027 loss held, later years margin-driven",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "debt.rcf.limit",
+      "label": "Revolving credit facility limit",
+      "kind": "money",
+      "value": 5000000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "facility with Severn Commercial Bank plc dated 18 June 2025, secured by a debenture over the UK companies",
+      "source": "Tidewell_Group_Audited_Accounts_FY2025.pdf"
+    },
+    {
+      "id": "debt.rcf.drawn",
+      "label": "Revolving credit facility drawn",
+      "kind": "money",
+      "value": 2000000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "drawn 11 February 2026 and still outstanding",
+      "source": "Board_Minutes_2026-06-12_signed.pdf"
+    },
+    {
+      "id": "debt.rcf.draw_date",
+      "label": "Date the facility was drawn",
+      "kind": "date",
+      "value": "2026-02-11",
+      "unit": null,
+      "period": "2026-02-11",
+      "basis": "drawdown date",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "debt.rcf.lender",
+      "label": "Revolving credit facility lender",
+      "kind": "text",
+      "value": "Severn Commercial Bank plc",
+      "unit": null,
+      "period": "2026-08-31",
+      "basis": "existing lender",
+      "source": "Tidewell_Group_Audited_Accounts_FY2025.pdf"
+    },
+    {
+      "id": "debt.rcf.cov.min_cash",
+      "label": "Existing facility: minimum month-end cash",
+      "kind": "money",
+      "value": 3000000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "covenant tested monthly",
+      "source": "Tidewell_Group_Audited_Accounts_FY2025.pdf"
+    },
+    {
+      "id": "debt.rcf.cov.min_arr",
+      "label": "Existing facility: minimum annualised recurring revenue",
+      "kind": "money",
+      "value": 15000000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "covenant tested monthly",
+      "source": "Tidewell_Group_Audited_Accounts_FY2025.pdf"
+    },
+    {
+      "id": "cash.fy26",
+      "label": "Cash, FY2026 year end",
+      "kind": "money",
+      "value": 14210000,
+      "unit": "GBP",
+      "period": "2026-03-31",
+      "basis": "includes the £2.0m facility draw of 11 February 2026",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf"
+    },
+    {
+      "id": "cash.aug26",
+      "label": "Cash, Aug-26",
+      "kind": "money",
+      "value": 10860000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "month-end cash; the £2.0m facility drawing is outstanding against it",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "cash.burn.recent",
+      "label": "Average monthly net cash burn, Mar-26 to Aug-26",
+      "kind": "money",
+      "value": 670000,
+      "unit": "GBP per month",
+      "period": "2026-08-31",
+      "basis": "cash at March 2026 less cash at August 2026, over five months",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "cash.fy26",
+        "cash.aug26"
+      ],
+      "formula": "(cash.fy26 - cash.aug26) / 5"
+    },
+    {
+      "id": "cash.runway.computed",
+      "label": "Cash runway at current burn",
+      "kind": "months",
+      "value": 16.21,
+      "unit": "months",
+      "period": "2026-08-31",
+      "basis": "Aug-26 cash divided by recent monthly burn; gross of the facility",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "cash.aug26",
+        "cash.burn.recent"
+      ],
+      "formula": "cash.aug26 / cash.burn.recent"
+    },
+    {
+      "id": "cash.runway.net_of_rcf",
+      "label": "Cash runway net of the revolving credit facility",
+      "kind": "months",
+      "value": 13.22,
+      "unit": "months",
+      "period": "2026-08-31",
+      "basis": "Aug-26 cash less the drawn facility, divided by recent monthly burn",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "cash.aug26",
+        "debt.rcf.drawn",
+        "cash.burn.recent"
+      ],
+      "formula": "(cash.aug26 - debt.rcf.drawn) / cash.burn.recent"
+    },
+    {
+      "id": "debt.rcf.undrawn",
+      "label": "Revolving credit facility undrawn",
+      "kind": "money",
+      "value": 3000000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "limit less drawn; cancelled if the facility is refinanced",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "debt.rcf.limit",
+        "debt.rcf.drawn"
+      ],
+      "formula": "debt.rcf.limit - debt.rcf.drawn"
+    },
+    {
+      "id": "hc.heads.fy26",
+      "label": "Headcount, FY2026 year end",
+      "kind": "count",
+      "value": 214,
+      "unit": "people",
+      "period": "2026-03-31",
+      "basis": "people employed, not FTE",
+      "source": "Headcount_and_Hiring_Plan_FY27.xlsx"
+    },
+    {
+      "id": "hc.heads.aug26",
+      "label": "Headcount, Aug-26",
+      "kind": "count",
+      "value": 226,
+      "unit": "people",
+      "period": "2026-08-31",
+      "basis": "people employed, not FTE",
+      "source": "Headcount_and_Hiring_Plan_FY27.xlsx"
+    },
+    {
+      "id": "hc.fte.aug26",
+      "label": "Full-time equivalents, Aug-26",
+      "kind": "number",
+      "value": 214.0,
+      "unit": "FTE",
+      "period": "2026-08-31",
+      "basis": "full-time equivalents; differs from headcount by design",
+      "source": "Headcount_and_Hiring_Plan_FY27.xlsx"
+    },
+    {
+      "id": "hc.hires.fy27_plan",
+      "label": "Planned hires, FY2027",
+      "kind": "count",
+      "value": 62,
+      "unit": "people",
+      "period": "FY2027",
+      "basis": "hiring plan",
+      "source": "Headcount_and_Hiring_Plan_FY27.xlsx"
+    },
+    {
+      "id": "hc.hiring_cost.fy27",
+      "label": "In-year cost of planned hires, FY2027",
+      "kind": "money",
+      "value": 3910000,
+      "unit": "GBP",
+      "period": "FY2027",
+      "basis": "in-year cost of the planned hires per the hiring plan",
+      "source": "Headcount_and_Hiring_Plan_FY27.xlsx"
+    },
+    {
+      "id": "ue.churned_sites.fy26",
+      "label": "Sites churned, FY2026",
+      "kind": "count",
+      "value": 74,
+      "unit": "sites",
+      "period": "FY2026",
+      "basis": "gross site losses in the year",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    {
+      "id": "ue.new_sites.fy26",
+      "label": "Gross new sites, FY2026",
+      "kind": "count",
+      "value": 381,
+      "unit": "sites",
+      "period": "FY2026",
+      "basis": "net site growth plus churned sites",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "sites.fy26",
+        "sites.fy25",
+        "ue.churned_sites.fy26"
+      ],
+      "formula": "sites.fy26 - sites.fy25 + ue.churned_sites.fy26"
+    },
+    {
+      "id": "ue.cac.fully_loaded",
+      "label": "Fully loaded CAC per new site, FY2026",
+      "kind": "money",
+      "value": 23360,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "all sales and marketing expense divided by gross new sites",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "pl.fy26.opex_sm",
+        "ue.new_sites.fy26"
+      ],
+      "formula": "pl.fy26.opex_sm / ue.new_sites.fy26"
+    },
+    {
+      "id": "ue.contribution_per_site",
+      "label": "Annual gross contribution per site, FY2026",
+      "kind": "money",
+      "value": 9963,
+      "unit": "GBP",
+      "period": "FY2026",
+      "basis": "ARR per site times blended gross margin",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "arr.per_site.fy26",
+        "pl.fy26.gross_margin"
+      ],
+      "formula": "arr.per_site.fy26 * pl.fy26.gross_margin"
+    },
+    {
+      "id": "ue.cac_payback.months",
+      "label": "Fully loaded CAC payback",
+      "kind": "months",
+      "value": 28.14,
+      "unit": "months",
+      "period": "FY2026",
+      "basis": "fully loaded CAC divided by annual blended contribution per site, in months",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "ue.cac.fully_loaded",
+        "ue.contribution_per_site"
+      ],
+      "formula": "ue.cac.fully_loaded / ue.contribution_per_site * 12"
+    },
+    {
+      "id": "ue.ltv_cac",
+      "label": "LTV to CAC, fully loaded",
+      "kind": "multiple",
+      "value": 6.18,
+      "unit": "x",
+      "period": "FY2026",
+      "basis": "annual contribution divided by gross revenue churn gives lifetime value; divided by fully loaded CAC",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "ue.contribution_per_site",
+        "kpi.grr.fy26",
+        "ue.cac.fully_loaded"
+      ],
+      "formula": "ue.contribution_per_site / (1 - kpi.grr.fy26) / ue.cac.fully_loaded"
+    },
+    {
+      "id": "market.clinics.uk",
+      "label": "Veterinary clinics, United Kingdom",
+      "kind": "count",
+      "value": 5200,
+      "unit": "clinics",
+      "period": "2026-06-30",
+      "basis": "addressable clinics, bottom-up clinic count",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "market.clinics.nl",
+      "label": "Veterinary clinics, Netherlands",
+      "kind": "count",
+      "value": 1100,
+      "unit": "clinics",
+      "period": "2026-06-30",
+      "basis": "addressable clinics, bottom-up clinic count",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "market.clinics.de",
+      "label": "Veterinary clinics, Germany",
+      "kind": "count",
+      "value": 11000,
+      "unit": "clinics",
+      "period": "2026-06-30",
+      "basis": "addressable clinics, bottom-up clinic count",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "market.arpa_software",
+      "label": "Software revenue per clinic per year",
+      "kind": "money",
+      "value": 14500,
+      "unit": "GBP",
+      "period": "2026-06-30",
+      "basis": "assumed software ARPA used in the bottom-up",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    {
+      "id": "market.tpv_per_clinic_month",
+      "label": "Payment volume per enabled site per month",
+      "kind": "money",
+      "value": 77000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "average monthly volume per payments-enabled site",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    {
+      "id": "market.clinics.total",
+      "label": "Veterinary clinics, three markets",
+      "kind": "count",
+      "value": 17300,
+      "unit": "clinics",
+      "period": "2026-06-30",
+      "basis": "sum of UK, Netherlands and Germany",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "market.clinics.uk",
+        "market.clinics.nl",
+        "market.clinics.de"
+      ],
+      "formula": "uk + nl + de"
+    },
+    {
+      "id": "market.sam.software",
+      "label": "Bottom-up SAM: software",
+      "kind": "money",
+      "value": 250850000,
+      "unit": "GBP",
+      "period": "2026-06-30",
+      "basis": "clinics times software revenue per clinic",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "market.clinics.total",
+        "market.arpa_software"
+      ],
+      "formula": "market.clinics.total * market.arpa_software"
+    },
+    {
+      "id": "market.sam.payments",
+      "label": "Bottom-up SAM: payments net revenue",
+      "kind": "money",
+      "value": 98308980,
+      "unit": "GBP",
+      "period": "2026-06-30",
+      "basis": "clinics times annual volume times net take rate",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "market.clinics.total",
+        "market.tpv_per_clinic_month",
+        "pay.take_rate.net"
+      ],
+      "formula": "market.clinics.total * market.tpv_per_clinic_month * 12 * pay.take_rate.net"
+    },
+    {
+      "id": "market.sam.total",
+      "label": "Bottom-up serviceable addressable market",
+      "kind": "money",
+      "value": 349158980,
+      "unit": "GBP",
+      "period": "2026-06-30",
+      "basis": "software plus payments net revenue",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "market.sam.software",
+        "market.sam.payments"
+      ],
+      "formula": "market.sam.software + market.sam.payments"
+    },
+    {
+      "id": "kinmoor.customer",
+      "label": "Customer that served notice",
+      "kind": "text",
+      "value": "Kinmoor Veterinary Group",
+      "unit": null,
+      "period": "2026-06-03",
+      "basis": "largest customer by ARR",
+      "source": "Board_Minutes_2026-06-12_signed.pdf"
+    },
+    {
+      "id": "kinmoor.arr",
+      "label": "Kinmoor ARR at Aug-26",
+      "kind": "money",
+      "value": 2610000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "annual recurring revenue across all Kinmoor sites",
+      "source": "Customer_ARR_Export_2026-08-31.csv"
+    },
+    {
+      "id": "kinmoor.sites",
+      "label": "Kinmoor live sites",
+      "kind": "count",
+      "value": 212,
+      "unit": "sites",
+      "period": "2026-08-31",
+      "basis": "live sites",
+      "source": "Customer_ARR_Export_2026-08-31.csv"
+    },
+    {
+      "id": "kinmoor.notice_date",
+      "label": "Kinmoor notice of non-renewal received",
+      "kind": "date",
+      "value": "2026-06-03",
+      "unit": null,
+      "period": "2026-06-03",
+      "basis": "written notice",
+      "source": "Board_Minutes_2026-06-12_signed.pdf"
+    },
+    {
+      "id": "kinmoor.effective_date",
+      "label": "Kinmoor non-renewal effective",
+      "kind": "date",
+      "value": "2026-12-31",
+      "unit": null,
+      "period": "2026-12-31",
+      "basis": "contract ends; revenue stops from 1 January 2027",
+      "source": "Board_Minutes_2026-06-12_signed.pdf"
+    },
+    {
+      "id": "kinmoor.retained_sites",
+      "label": "Kinmoor sites retained after the notice",
+      "kind": "count",
+      "value": 0,
+      "unit": "sites",
+      "period": "2026-09-30",
+      "basis": "sites that have agreed to renew; sites beyond this number leave on the effective date",
+      "source": "Board_Minutes_2026-06-12_signed.pdf"
+    },
+    {
+      "id": "kinmoor.share_of_arr",
+      "label": "Kinmoor share of live ARR",
+      "kind": "percent",
+      "value": 0.113775,
+      "unit": "fraction",
+      "period": "2026-08-31",
+      "basis": "Kinmoor ARR divided by live subscription ARR",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "kinmoor.arr",
+        "arr.live"
+      ],
+      "formula": "kinmoor.arr / arr.live"
+    },
+    {
+      "id": "kinmoor.arr_at_risk",
+      "label": "Kinmoor ARR leaving on the effective date",
+      "kind": "money",
+      "value": 2610000,
+      "unit": "GBP",
+      "period": "2026-12-31",
+      "basis": "Kinmoor ARR scaled by the share of sites not retained",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "kinmoor.arr",
+        "kinmoor.sites",
+        "kinmoor.retained_sites"
+      ],
+      "formula": "kinmoor.arr * (kinmoor.sites - kinmoor.retained_sites) / kinmoor.sites"
+    },
+    {
+      "id": "kinmoor.fy27_revenue_at_risk",
+      "label": "FY2027 revenue lost from Kinmoor",
+      "kind": "money",
+      "value": 652500,
+      "unit": "GBP",
+      "period": "FY2027",
+      "basis": "ARR leaving, for January to March 2027 (three months)",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "kinmoor.arr_at_risk"
+      ],
+      "formula": "kinmoor.arr_at_risk * 3 / 12"
+    },
+    {
+      "id": "kinmoor.renewal_offer_discount",
+      "label": "Discount offered on a three-year Kinmoor renewal",
+      "kind": "percent",
+      "value": 0.15,
+      "unit": "fraction",
+      "period": "2026-06-12",
+      "basis": "group-wide renewal offer under discussion; not accepted",
+      "source": "Board_Minutes_2026-06-12_signed.pdf"
+    },
+    {
+      "id": "de.reseller",
+      "label": "German exclusive reseller",
+      "kind": "text",
+      "value": "Vetsana Handels GmbH",
+      "unit": null,
+      "period": "2024-11-14",
+      "basis": "reseller agreement dated 14 November 2024",
+      "source": "Reseller_Agreement_Vetsana_DE.pdf"
+    },
+    {
+      "id": "de.min_sites",
+      "label": "Reseller minimum live sites",
+      "kind": "count",
+      "value": 150,
+      "unit": "sites",
+      "period": "2027-03-31",
+      "basis": "minimum commitment in the agreement",
+      "source": "Reseller_Agreement_Vetsana_DE.pdf"
+    },
+    {
+      "id": "de.min_sites_deadline",
+      "label": "Reseller minimum deadline",
+      "kind": "date",
+      "value": "2027-03-31",
+      "unit": null,
+      "period": "2027-03-31",
+      "basis": "if missed, Tidewell may convert the appointment to non-exclusive",
+      "source": "Reseller_Agreement_Vetsana_DE.pdf"
+    },
+    {
+      "id": "de.sites_live_jun26",
+      "label": "German reseller-introduced sites live, 30 June 2026",
+      "kind": "count",
+      "value": 41,
+      "unit": "sites",
+      "period": "2026-06-30",
+      "basis": "excludes direct German customers",
+      "source": "Board_Pack_Q1_FY27_Jul26.pptx"
+    },
+    {
+      "id": "de.exclusivity_end",
+      "label": "German exclusivity ends",
+      "kind": "date",
+      "value": "2028-12-31",
+      "unit": null,
+      "period": "2028-12-31",
+      "basis": "end of the exclusivity period",
+      "source": "Reseller_Agreement_Vetsana_DE.pdf"
+    },
+    {
+      "id": "de.sites_gap",
+      "label": "Sites still needed to reach the minimum",
+      "kind": "count",
+      "value": 109,
+      "unit": "sites",
+      "period": "2026-06-30",
+      "basis": "minimum less sites live at 30 June 2026",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "de.min_sites",
+        "de.sites_live_jun26"
+      ],
+      "formula": "de.min_sites - de.sites_live_jun26"
+    },
+    {
+      "id": "cap.issued_shares",
+      "label": "Issued shares",
+      "kind": "count",
+      "value": 32475325,
+      "unit": "shares",
+      "period": "2026-09-30",
+      "basis": "ordinary and preferred shares in issue",
+      "source": "Tidewell_Cap_Table_Sep26.xlsx"
+    },
+    {
+      "id": "cap.options_granted",
+      "label": "Options granted",
+      "kind": "count",
+      "value": 3420000,
+      "unit": "shares",
+      "period": "2026-09-30",
+      "basis": "granted and outstanding",
+      "source": "Tidewell_Cap_Table_Sep26.xlsx"
+    },
+    {
+      "id": "cap.pool_unallocated",
+      "label": "Unallocated option pool",
+      "kind": "count",
+      "value": 1180000,
+      "unit": "shares",
+      "period": "2026-09-30",
+      "basis": "before the Series C top-up",
+      "source": "Tidewell_Cap_Table_Sep26.xlsx"
+    },
+    {
+      "id": "cap.fd_shares",
+      "label": "Fully diluted shares before Series C",
+      "kind": "count",
+      "value": 37075325,
+      "unit": "shares",
+      "period": "2026-09-30",
+      "basis": "issued plus granted options plus unallocated pool",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "cap.issued_shares",
+        "cap.options_granted",
+        "cap.pool_unallocated"
+      ],
+      "formula": "cap.issued_shares + cap.options_granted + cap.pool_unallocated"
+    },
+    {
+      "id": "round.b.price",
+      "label": "Series B price per share",
+      "kind": "number",
+      "value": 3.85,
+      "unit": "GBP per share",
+      "period": "2024-06-30",
+      "basis": "Series B issue price, June 2024",
+      "source": "Tidewell_Cap_Table_Sep26.xlsx"
+    },
+    {
+      "id": "round.c.raise",
+      "label": "Series C primary raise",
+      "kind": "money",
+      "value": 30000000,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "total new money in the round",
+      "source": "Series_C_Term_Sheet_DRAFT_v3.pdf"
+    },
+    {
+      "id": "round.c.lead_ticket",
+      "label": "Series C lead investor ticket",
+      "kind": "money",
+      "value": 22000000,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "lead investor allocation",
+      "source": "Series_C_Term_Sheet_DRAFT_v3.pdf"
+    },
+    {
+      "id": "round.c.pre_money",
+      "label": "Series C pre-money valuation",
+      "kind": "money",
+      "value": 150000000,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "fully diluted, including the option pool top-up",
+      "source": "Series_C_Term_Sheet_DRAFT_v3.pdf"
+    },
+    {
+      "id": "round.c.pool_target_post",
+      "label": "Unallocated pool target after completion",
+      "kind": "percent",
+      "value": 0.08,
+      "unit": "fraction",
+      "period": "2026-09-22",
+      "basis": "share of post-money fully diluted shares",
+      "source": "Series_C_Term_Sheet_DRAFT_v3.pdf"
+    },
+    {
+      "id": "round.c.secondary_size",
+      "label": "Secondary sale size",
+      "kind": "money",
+      "value": 6000000,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "shares existing holders may sell to the investors, conditional on the primary",
+      "source": "Series_C_Term_Sheet_DRAFT_v3.pdf"
+    },
+    {
+      "id": "round.c.secondary_discount",
+      "label": "Secondary discount to the Series C price",
+      "kind": "percent",
+      "value": 0.15,
+      "unit": "fraction",
+      "period": "2026-09-22",
+      "basis": "discount to the original issue price",
+      "source": "Series_C_Term_Sheet_DRAFT_v3.pdf"
+    },
+    {
+      "id": "round.c.borrowing_consent_threshold",
+      "label": "Borrowing above which Series C investors must consent",
+      "kind": "money",
+      "value": 7500000,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "protective provision in the term sheet",
+      "source": "Series_C_Term_Sheet_DRAFT_v3.pdf"
+    },
+    {
+      "id": "round.c.other_investors",
+      "label": "Series C amount from investors other than the lead",
+      "kind": "money",
+      "value": 8000000,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "raise less the lead ticket: co-investment and existing holders",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.raise",
+        "round.c.lead_ticket"
+      ],
+      "formula": "round.c.raise - round.c.lead_ticket"
+    },
+    {
+      "id": "round.c.post_money",
+      "label": "Series C post-money valuation",
+      "kind": "money",
+      "value": 180000000,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "pre-money plus new money (the draft term sheet wording is being conformed)",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.pre_money",
+        "round.c.raise"
+      ],
+      "formula": "round.c.pre_money + round.c.raise"
+    },
+    {
+      "id": "round.c.pool_increase_shares",
+      "label": "Option pool top-up",
+      "kind": "count",
+      "value": 2631893,
+      "unit": "shares",
+      "period": "2026-09-22",
+      "basis": "shares added so the unallocated pool is the target share of post-money fully diluted shares",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.pool_target_post",
+        "round.c.raise",
+        "round.c.pre_money",
+        "cap.fd_shares",
+        "cap.pool_unallocated"
+      ],
+      "formula": "solve (pool + T) = target * (1 + raise / pre) * (fd + T) for T"
+    },
+    {
+      "id": "round.c.fd_pre_incl_pool",
+      "label": "Pre-money fully diluted shares including the top-up",
+      "kind": "count",
+      "value": 39707218,
+      "unit": "shares",
+      "period": "2026-09-22",
+      "basis": "fully diluted shares plus the pool top-up",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "cap.fd_shares",
+        "round.c.pool_increase_shares"
+      ],
+      "formula": "cap.fd_shares + round.c.pool_increase_shares"
+    },
+    {
+      "id": "round.c.price_per_share",
+      "label": "Series C price per share",
+      "kind": "number",
+      "value": 3.777651,
+      "unit": "GBP per share",
+      "period": "2026-09-22",
+      "basis": "pre-money divided by pre-money fully diluted shares including the top-up",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.pre_money",
+        "round.c.fd_pre_incl_pool"
+      ],
+      "formula": "round.c.pre_money / round.c.fd_pre_incl_pool"
+    },
+    {
+      "id": "round.c.new_shares",
+      "label": "Series C new shares issued",
+      "kind": "count",
+      "value": 7941444,
+      "unit": "shares",
+      "period": "2026-09-22",
+      "basis": "raise divided by the price per share",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.raise",
+        "round.c.fd_pre_incl_pool",
+        "round.c.pre_money"
+      ],
+      "formula": "round(round.c.raise * fd_pre_incl_pool / pre_money)"
+    },
+    {
+      "id": "round.c.fd_post",
+      "label": "Post-money fully diluted shares",
+      "kind": "count",
+      "value": 47648662,
+      "unit": "shares",
+      "period": "2026-09-22",
+      "basis": "pre-money fully diluted shares including the top-up plus new shares",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.fd_pre_incl_pool",
+        "round.c.new_shares"
+      ],
+      "formula": "round.c.fd_pre_incl_pool + round.c.new_shares"
+    },
+    {
+      "id": "round.c.effective_pre_money",
+      "label": "Effective pre-money for existing holders",
+      "kind": "money",
+      "value": 140057628,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "price per share times fully diluted shares before the top-up: what existing holders' shares are worth",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.pre_money",
+        "cap.fd_shares",
+        "round.c.fd_pre_incl_pool"
+      ],
+      "formula": "round.c.pre_money * cap.fd_shares / round.c.fd_pre_incl_pool"
+    },
+    {
+      "id": "round.c.secondary_price",
+      "label": "Secondary price per share",
+      "kind": "number",
+      "value": 3.211003,
+      "unit": "GBP per share",
+      "period": "2026-09-22",
+      "basis": "Series C price less the secondary discount",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.pre_money",
+        "round.c.fd_pre_incl_pool",
+        "round.c.secondary_discount"
+      ],
+      "formula": "round.c.pre_money / round.c.fd_pre_incl_pool * (1 - round.c.secondary_discount)"
+    },
+    {
+      "id": "round.c.price_vs_series_b",
+      "label": "Series C price against Series B price",
+      "kind": "percent",
+      "value": -0.018792,
+      "unit": "fraction",
+      "period": "2026-09-22",
+      "basis": "negative means a lower price per share than Series B",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.price_per_share",
+        "round.b.price"
+      ],
+      "formula": "round.c.price_per_share / round.b.price - 1"
+    },
+    {
+      "id": "val.net_cash_pro_forma",
+      "label": "Pro forma net cash after the Series C",
+      "kind": "money",
+      "value": 38860000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "Aug-26 cash plus the raise less the drawn facility; excludes any growth loan",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "cash.aug26",
+        "round.c.raise",
+        "debt.rcf.drawn"
+      ],
+      "formula": "cash.aug26 + round.c.raise - debt.rcf.drawn"
+    },
+    {
+      "id": "val.ev_post_money",
+      "label": "Implied enterprise value at the Series C post-money",
+      "kind": "money",
+      "value": 141140000,
+      "unit": "GBP",
+      "period": "2026-09-22",
+      "basis": "post-money less pro forma net cash",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.post_money",
+        "val.net_cash_pro_forma"
+      ],
+      "formula": "round.c.post_money - val.net_cash_pro_forma"
+    },
+    {
+      "id": "val.ev_to_arr",
+      "label": "Implied EV to live ARR at the Series C post-money",
+      "kind": "multiple",
+      "value": 6.15,
+      "unit": "x",
+      "period": "2026-08-31",
+      "basis": "implied enterprise value divided by latest live ARR",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "val.ev_post_money",
+        "arr.live"
+      ],
+      "formula": "val.ev_post_money / arr.live"
+    },
+    {
+      "id": "eq.cheque",
+      "label": "Co-investment cheque",
+      "kind": "money",
+      "value": 8000000,
+      "unit": "GBP",
+      "period": "2026-09-30",
+      "basis": "proposed co-investment alongside the lead",
+      "source": "Proposed terms (Merrow Vale Partners)"
+    },
+    {
+      "id": "eq.close_date",
+      "label": "Assumed completion date",
+      "kind": "date",
+      "value": "2026-12-15",
+      "unit": null,
+      "period": "2026-12-15",
+      "basis": "assumption for returns",
+      "source": "Proposed terms (Merrow Vale Partners)"
+    },
+    {
+      "id": "eq.exit_date",
+      "label": "Assumed exit date",
+      "kind": "date",
+      "value": "2031-03-31",
+      "unit": null,
+      "period": "2031-03-31",
+      "basis": "end of FY2031, on FY2031 revenue",
+      "source": "Proposed terms (Merrow Vale Partners)"
+    },
+    {
+      "id": "eq.cheque_shares",
+      "label": "Series C shares for the co-investment",
+      "kind": "count",
+      "value": 2117718,
+      "unit": "shares",
+      "period": "2026-12-15",
+      "basis": "cheque divided by the price per share",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "eq.cheque",
+        "round.c.fd_pre_incl_pool",
+        "round.c.pre_money"
+      ],
+      "formula": "round(eq.cheque * fd_pre_incl_pool / pre_money)"
+    },
+    {
+      "id": "eq.ownership_fd_post",
+      "label": "Ownership, fully diluted post-money",
+      "kind": "percent",
+      "value": 0.044444,
+      "unit": "fraction",
+      "period": "2026-12-15",
+      "basis": "co-investment shares over post-money fully diluted shares including the pool",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "eq.cheque_shares",
+        "round.c.fd_post"
+      ],
+      "formula": "eq.cheque_shares / round.c.fd_post"
+    },
+    {
+      "id": "eq.hold_years",
+      "label": "Assumed hold period",
+      "kind": "number",
+      "value": 4.29,
+      "unit": "years",
+      "period": "2031-03-31",
+      "basis": "completion to exit, in years of 365.25 days",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "eq.exit_date",
+        "eq.close_date"
+      ],
+      "formula": "(eq.exit_date - eq.close_date) / 365.25"
+    },
+    {
+      "id": "loan.amount",
+      "label": "Growth term loan amount",
+      "kind": "money",
+      "value": 8000000,
+      "unit": "GBP",
+      "period": "2026-09-30",
+      "basis": "senior secured term loan",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.tenor_months",
+      "label": "Loan tenor",
+      "kind": "months",
+      "value": 36,
+      "unit": "months",
+      "period": "2026-09-30",
+      "basis": "from completion",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.io_months",
+      "label": "Interest-only period",
+      "kind": "months",
+      "value": 12,
+      "unit": "months",
+      "period": "2026-09-30",
+      "basis": "then equal monthly principal instalments to maturity",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.sonia",
+      "label": "SONIA assumption",
+      "kind": "percent",
+      "value": 0.04,
+      "unit": "fraction",
+      "period": "2026-09-30",
+      "basis": "held flat for the term",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.margin",
+      "label": "Margin over SONIA",
+      "kind": "percent",
+      "value": 0.075,
+      "unit": "fraction",
+      "period": "2026-09-30",
+      "basis": "per annum",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.fee_pct",
+      "label": "Arrangement fee",
+      "kind": "percent",
+      "value": 0.015,
+      "unit": "fraction",
+      "period": "2026-09-30",
+      "basis": "of the facility, paid at close",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.warrants_pct",
+      "label": "Warrant coverage",
+      "kind": "percent",
+      "value": 0.005,
+      "unit": "fraction",
+      "period": "2026-09-30",
+      "basis": "of post-money fully diluted shares, exercisable at the Series C price",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.cov.min_cash",
+      "label": "Covenant: minimum month-end cash",
+      "kind": "money",
+      "value": 5000000,
+      "unit": "GBP",
+      "period": "2026-09-30",
+      "basis": "tested monthly from the first month end after close",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.cov.min_arr",
+      "label": "Covenant: minimum live subscription ARR",
+      "kind": "money",
+      "value": 18000000,
+      "unit": "GBP",
+      "period": "2026-09-30",
+      "basis": "tested monthly from the first month end after close",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.costs_est",
+      "label": "Lender legal and diligence costs (estimate)",
+      "kind": "money",
+      "value": 100000,
+      "unit": "GBP",
+      "period": "2026-09-30",
+      "basis": "borne by the borrower at close; deal team estimate",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.close_date",
+      "label": "Assumed loan completion",
+      "kind": "date",
+      "value": "2026-12-31",
+      "unit": null,
+      "period": "2026-12-31",
+      "basis": "assumption: refinancing at the end of December 2026",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.internal_grade",
+      "label": "Internal credit grade",
+      "kind": "text",
+      "value": "CC4",
+      "unit": null,
+      "period": "2026-09-30",
+      "basis": "scale CC1 (strongest) to CC7 (weakest)",
+      "source": "Proposed terms (Corriemoor Credit)"
+    },
+    {
+      "id": "loan.all_in_rate",
+      "label": "All-in interest rate",
+      "kind": "percent",
+      "value": 0.115,
+      "unit": "fraction",
+      "period": "2026-09-30",
+      "basis": "SONIA plus margin",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.sonia",
+        "loan.margin"
+      ],
+      "formula": "loan.sonia + loan.margin"
+    },
+    {
+      "id": "loan.fee",
+      "label": "Arrangement fee amount",
+      "kind": "money",
+      "value": 120000,
+      "unit": "GBP",
+      "period": "2026-12-31",
+      "basis": "amount times fee percentage",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.amount",
+        "loan.fee_pct"
+      ],
+      "formula": "loan.amount * loan.fee_pct"
+    },
+    {
+      "id": "loan.warrant_shares",
+      "label": "Warrant shares",
+      "kind": "count",
+      "value": 238243,
+      "unit": "shares",
+      "period": "2026-12-31",
+      "basis": "warrant coverage times post-money fully diluted shares",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.warrants_pct",
+        "round.c.fd_post"
+      ],
+      "formula": "loan.warrants_pct * round.c.fd_post"
+    },
+    {
+      "id": "loan.debt_to_arr",
+      "label": "Loan to live ARR",
+      "kind": "multiple",
+      "value": 0.35,
+      "unit": "x",
+      "period": "2026-08-31",
+      "basis": "loan amount over latest live ARR",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.amount",
+        "arr.live"
+      ],
+      "formula": "loan.amount / arr.live"
+    },
+    {
+      "id": "loan.consent_required",
+      "label": "Series C investor consent needed for the loan",
+      "kind": "text",
+      "value": "Yes",
+      "unit": null,
+      "period": "2026-09-30",
+      "basis": "yes if the loan exceeds the borrowing consent threshold in the Series C term sheet",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.amount",
+        "round.c.borrowing_consent_threshold"
+      ],
+      "formula": "loan.amount > round.c.borrowing_consent_threshold"
+    },
+    {
+      "id": "loan.cash_to_balance_sheet",
+      "label": "Net cash to the balance sheet at close",
+      "kind": "money",
+      "value": 5780000,
+      "unit": "GBP",
+      "period": "2026-12-31",
+      "basis": "loan less facility repayment, arrangement fee and costs",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.amount",
+        "debt.rcf.drawn",
+        "loan.fee",
+        "loan.costs_est"
+      ],
+      "formula": "loan.amount - debt.rcf.drawn - loan.fee - loan.costs_est"
+    },
+    {
+      "id": "loan.cash_at_close",
+      "label": "Pro forma cash at close, no Series C",
+      "kind": "money",
+      "value": 14070042,
+      "unit": "GBP",
+      "period": "2026-12-31",
+      "basis": "Aug-26 cash rolled forward at the base-case burn to 31 December 2026, plus net loan proceeds",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.amount",
+        "loan.tenor_months",
+        "loan.io_months",
+        "loan.all_in_rate",
+        "loan.fee",
+        "loan.costs_est",
+        "debt.rcf.drawn",
+        "loan.cov.min_cash",
+        "loan.cov.min_arr",
+        "arr.aug26",
+        "cash.aug26",
+        "cash.burn.recent",
+        "pl.fy26.gross_margin",
+        "arr.fy26",
+        "arr.fy25",
+        "pl.fy28.adj_ebitda",
+        "pl.fy27.adj_ebitda",
+        "pl.fy28.revenue",
+        "pl.fy27.revenue"
+      ],
+      "formula": "loan_model base path, December 2026"
+    },
+    {
+      "id": "loan.cov.arr_headroom_now",
+      "label": "ARR covenant headroom on latest live ARR",
+      "kind": "money",
+      "value": 4940000,
+      "unit": "GBP",
+      "period": "2026-08-31",
+      "basis": "latest live ARR less the minimum ARR covenant",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "arr.live",
+        "loan.cov.min_arr"
+      ],
+      "formula": "arr.live - loan.cov.min_arr"
+    },
+    {
+      "id": "loan.down.min_cash",
+      "label": "Downside: lowest month-end cash in the 12 test months",
+      "kind": "money",
+      "value": 4383625,
+      "unit": "GBP",
+      "period": "2027-12-31",
+      "basis": "Kinmoor leaves, German ramp at half pace, no Series C",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.amount",
+        "loan.tenor_months",
+        "loan.io_months",
+        "loan.all_in_rate",
+        "loan.fee",
+        "loan.costs_est",
+        "debt.rcf.drawn",
+        "loan.cov.min_cash",
+        "loan.cov.min_arr",
+        "arr.aug26",
+        "cash.aug26",
+        "cash.burn.recent",
+        "pl.fy26.gross_margin",
+        "arr.fy26",
+        "arr.fy25",
+        "pl.fy28.adj_ebitda",
+        "pl.fy27.adj_ebitda",
+        "pl.fy28.revenue",
+        "pl.fy27.revenue",
+        "kinmoor.arr_at_risk",
+        "de.min_sites",
+        "de.sites_live_jun26"
+      ],
+      "formula": "loan_model downside path, Jan-27 to Dec-27"
+    },
+    {
+      "id": "loan.down.first_breach",
+      "label": "Downside: first month cash falls below the covenant",
+      "kind": "text",
+      "value": "2027-12",
+      "unit": null,
+      "period": "2027-12-31",
+      "basis": "first test month in which downside cash is under the minimum cash covenant",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "loan.amount",
+        "loan.tenor_months",
+        "loan.io_months",
+        "loan.all_in_rate",
+        "loan.fee",
+        "loan.costs_est",
+        "debt.rcf.drawn",
+        "loan.cov.min_cash",
+        "loan.cov.min_arr",
+        "arr.aug26",
+        "cash.aug26",
+        "cash.burn.recent",
+        "pl.fy26.gross_margin",
+        "arr.fy26",
+        "arr.fy25",
+        "pl.fy28.adj_ebitda",
+        "pl.fy27.adj_ebitda",
+        "pl.fy28.revenue",
+        "pl.fy27.revenue",
+        "kinmoor.arr_at_risk",
+        "de.min_sites",
+        "de.sites_live_jun26"
+      ],
+      "formula": "loan_model downside path, Jan-27 to Dec-27"
+    },
+    {
+      "id": "sec.shares_acquired",
+      "label": "Shares acquired in the secondary",
+      "kind": "count",
+      "value": 1868574,
+      "unit": "shares",
+      "period": "2026-12-15",
+      "basis": "sum of the shares bought from each seller at the secondary price",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.pre_money",
+        "round.c.fd_pre_incl_pool",
+        "round.c.secondary_discount",
+        "round.c.secondary_size"
+      ],
+      "formula": "sum of seller amounts / secondary price"
+    },
+    {
+      "id": "sec.ownership_fd_post",
+      "label": "Ownership acquired, fully diluted post-money",
+      "kind": "percent",
+      "value": 0.039216,
+      "unit": "fraction",
+      "period": "2026-12-15",
+      "basis": "secondary shares over post-money fully diluted shares",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "sec.shares_acquired",
+        "round.c.fd_post"
+      ],
+      "formula": "sec.shares_acquired / round.c.fd_post"
+    },
+    {
+      "id": "sec.implied_post_money",
+      "label": "Implied entry valuation, post-money fully diluted",
+      "kind": "money",
+      "value": 153000000,
+      "unit": "GBP",
+      "period": "2026-12-15",
+      "basis": "Series C post-money less the secondary discount (equals secondary price times post-money fully diluted shares)",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "round.c.post_money",
+        "round.c.secondary_discount"
+      ],
+      "formula": "round.c.post_money * (1 - round.c.secondary_discount)"
+    },
+    {
+      "id": "sec.implied_ev_to_arr",
+      "label": "Implied EV to live ARR at the secondary price",
+      "kind": "multiple",
+      "value": 4.98,
+      "unit": "x",
+      "period": "2026-08-31",
+      "basis": "implied entry valuation less pro forma net cash, over latest live ARR",
+      "source": "Deal team calculation",
+      "derived_from": [
+        "sec.implied_post_money",
+        "val.net_cash_pro_forma",
+        "arr.live"
+      ],
+      "formula": "(sec.implied_post_money - val.net_cash_pro_forma) / arr.live"
+    }
+  ],
+  "tables": {
+    "pl_summary": {
+      "columns": [
+        {
+          "id": "fy",
+          "label": "Fiscal year",
+          "kind": "text"
+        },
+        {
+          "id": "basis",
+          "label": "Basis",
+          "kind": "text"
+        },
+        {
+          "id": "revenue",
+          "label": "Net revenue",
+          "kind": "money"
+        },
+        {
+          "id": "growth",
+          "label": "Growth",
+          "kind": "percent"
+        },
+        {
+          "id": "gross_margin",
+          "label": "Gross margin",
+          "kind": "percent"
+        },
+        {
+          "id": "gross_profit",
+          "label": "Gross profit",
+          "kind": "money"
+        },
+        {
+          "id": "adj_ebitda",
+          "label": "Adjusted EBITDA",
+          "kind": "money"
+        },
+        {
+          "id": "adj_ebitda_margin",
+          "label": "Adjusted EBITDA margin",
+          "kind": "percent"
+        }
+      ],
+      "rows": [
+        [
+          "FY24",
+          "Actual",
+          12093000,
+          null,
+          0.702969,
+          8501004,
+          -2699000,
+          -0.223187
+        ],
+        [
+          "FY25",
+          "Actual (audited)",
+          17380000,
+          0.437195,
+          0.692635,
+          12037996,
+          -3162000,
+          -0.181933
+        ],
+        [
+          "FY26",
+          "Actual (management accounts)",
+          23963000,
+          0.378769,
+          0.699579,
+          16764012,
+          -2886000,
+          -0.120436
+        ],
+        [
+          "FY27",
+          "Latest forecast (model v4.3)",
+          31500000,
+          0.314527,
+          0.668,
+          21042000,
+          -2677500,
+          -0.085
+        ],
+        [
+          "FY28",
+          "Forecast (model v4.3)",
+          42210000,
+          0.34,
+          0.684,
+          28871640,
+          633000,
+          0.014996
+        ],
+        [
+          "FY29",
+          "Forecast (model v4.3)",
+          54873000,
+          0.3,
+          0.701,
+          38465973,
+          4664000,
+          0.084996
+        ],
+        [
+          "FY30",
+          "Forecast (model v4.3)",
+          69140000,
+          0.26,
+          0.715,
+          49435100,
+          9680000,
+          0.140006
+        ],
+        [
+          "FY31",
+          "Forecast (model v4.3)",
+          84351000,
+          0.220003,
+          0.726,
+          61238826,
+          15183000,
+          0.179998
+        ]
+      ],
+      "unit": "GBP",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx",
+      "note": "Fiscal year ends 31 March. FY2025 on the audited basis; FY2027 onwards is management's latest forecast, which assumes Kinmoor renews at full value.",
+      "derived_from": [
+        "pl.fy24.revenue",
+        "pl.fy24.gross_margin",
+        "pl.fy24.adj_ebitda",
+        "pl.fy25.revenue",
+        "pl.fy25.gross_margin",
+        "pl.fy25.adj_ebitda",
+        "pl.fy26.revenue",
+        "pl.fy26.gross_margin",
+        "pl.fy26.adj_ebitda",
+        "pl.fy27.revenue",
+        "pl.fy27.gross_margin",
+        "pl.fy27.adj_ebitda",
+        "pl.fy28.revenue",
+        "pl.fy28.gross_margin",
+        "pl.fy28.adj_ebitda",
+        "pl.fy29.revenue",
+        "pl.fy29.gross_margin",
+        "pl.fy29.adj_ebitda",
+        "pl.fy30.revenue",
+        "pl.fy30.gross_margin",
+        "pl.fy30.adj_ebitda",
+        "pl.fy31.revenue",
+        "pl.fy31.gross_margin",
+        "pl.fy31.adj_ebitda"
+      ]
+    },
+    "revenue_mix": {
+      "columns": [
+        {
+          "id": "fy",
+          "label": "Fiscal year",
+          "kind": "text"
+        },
+        {
+          "id": "subscription",
+          "label": "Subscription",
+          "kind": "money"
+        },
+        {
+          "id": "payments_net",
+          "label": "Payments (net)",
+          "kind": "money"
+        },
+        {
+          "id": "services",
+          "label": "Services",
+          "kind": "money"
+        },
+        {
+          "id": "audit_deferral",
+          "label": "Audit deferral",
+          "kind": "money"
+        },
+        {
+          "id": "revenue_reported",
+          "label": "Net revenue as reported",
+          "kind": "money"
+        },
+        {
+          "id": "payments_gross_fees",
+          "label": "Memo: gross payment fees",
+          "kind": "money"
+        },
+        {
+          "id": "payments_pass_through",
+          "label": "Memo: pass-through costs",
+          "kind": "money"
+        },
+        {
+          "id": "tpv",
+          "label": "Memo: payment volume",
+          "kind": "money"
+        }
+      ],
+      "rows": [
+        [
+          "FY24",
+          9741000,
+          1229000,
+          1123000,
+          0,
+          12093000,
+          2997000,
+          1768000,
+          199707000
+        ],
+        [
+          "FY25",
+          13788000,
+          2312000,
+          1640000,
+          -360000,
+          17380000,
+          5640000,
+          3328000,
+          376069000
+        ],
+        [
+          "FY26",
+          18075000,
+          3793000,
+          2095000,
+          0,
+          23963000,
+          9248000,
+          5455000,
+          616513000
+        ]
+      ],
+      "unit": "GBP",
+      "source": "Tidewell_Management_Accounts_Mar26.pdf",
+      "note": "FY2025 on the audited basis; management basis before the deferral was higher.",
+      "derived_from": [
+        "pl.fy24.revenue",
+        "pl.fy25.revenue",
+        "pl.fy26.revenue"
+      ]
+    },
+    "arr_bridge": {
+      "columns": [
+        {
+          "id": "fy",
+          "label": "Fiscal year",
+          "kind": "text"
+        },
+        {
+          "id": "opening",
+          "label": "Opening ARR",
+          "kind": "money"
+        },
+        {
+          "id": "new",
+          "label": "New business",
+          "kind": "money"
+        },
+        {
+          "id": "expansion",
+          "label": "Expansion",
+          "kind": "money"
+        },
+        {
+          "id": "contraction",
+          "label": "Contraction",
+          "kind": "money"
+        },
+        {
+          "id": "churn",
+          "label": "Churn",
+          "kind": "money"
+        },
+        {
+          "id": "closing",
+          "label": "Closing ARR",
+          "kind": "money"
+        },
+        {
+          "id": "nrr",
+          "label": "NRR",
+          "kind": "percent"
+        },
+        {
+          "id": "grr",
+          "label": "GRR",
+          "kind": "percent"
+        }
+      ],
+      "rows": [
+        [
+          "FY24",
+          8050000,
+          2761000,
+          1248000,
+          97000,
+          322000,
+          11640000,
+          1.102981,
+          0.94795
+        ],
+        [
+          "FY25",
+          11640000,
+          3166000,
+          2049000,
+          163000,
+          512000,
+          16180000,
+          1.118041,
+          0.94201
+        ],
+        [
+          "FY26",
+          16180000,
+          2409000,
+          2637000,
+          275000,
+          841000,
+          20110000,
+          1.094005,
+          0.931026
+        ]
+      ],
+      "unit": "GBP",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx",
+      "note": "Contraction and churn are shown as positive amounts and subtracted.",
+      "derived_from": [
+        "arr.fy24",
+        "arr.fy25",
+        "arr.bridge.fy26.new",
+        "arr.bridge.fy26.expansion",
+        "arr.bridge.fy26.contraction",
+        "arr.bridge.fy26.churn",
+        "arr.fy26"
+      ]
+    },
+    "cap_table": {
+      "columns": [
+        {
+          "id": "holder",
+          "label": "Holder",
+          "kind": "text"
+        },
+        {
+          "id": "class",
+          "label": "Class",
+          "kind": "text"
+        },
+        {
+          "id": "shares",
+          "label": "Shares",
+          "kind": "count"
+        },
+        {
+          "id": "pct_fd",
+          "label": "% fully diluted",
+          "kind": "percent"
+        },
+        {
+          "id": "issue_price",
+          "label": "Issue price (GBP)",
+          "kind": "number"
+        }
+      ],
+      "rows": [
+        [
+          "Imogen Hale",
+          "Ordinary",
+          7600000,
+          0.204988,
+          0.0001
+        ],
+        [
+          "Tomasz Brenner",
+          "Ordinary",
+          6600000,
+          0.178016,
+          0.0001
+        ],
+        [
+          "Early employees and angels",
+          "Ordinary",
+          2900000,
+          0.078219,
+          0.0001
+        ],
+        [
+          "Westcombe Angels",
+          "Seed Preferred",
+          3600000,
+          0.0971,
+          0.5
+        ],
+        [
+          "Larkspur Ventures",
+          "Series A Preferred",
+          5850000,
+          0.157787,
+          1.338
+        ],
+        [
+          "Other Series A investors",
+          "Series A Preferred",
+          1250000,
+          0.033715,
+          1.338
+        ],
+        [
+          "Orrin Capital",
+          "Series B Preferred",
+          3400000,
+          0.091705,
+          3.85
+        ],
+        [
+          "Larkspur Ventures",
+          "Series B Preferred",
+          795325,
+          0.021452,
+          3.85
+        ],
+        [
+          "Other Series B investors",
+          "Series B Preferred",
+          480000,
+          0.012947,
+          3.85
+        ],
+        [
+          "Options granted",
+          "Options",
+          3420000,
+          0.092245,
+          null
+        ],
+        [
+          "Unallocated option pool",
+          "Pool",
+          1180000,
+          0.031827,
+          null
+        ],
+        [
+          "Total fully diluted",
+          "",
+          37075325,
+          1.0,
+          null
+        ]
+      ],
+      "unit": "shares",
+      "source": "Tidewell_Cap_Table_Sep26.xlsx",
+      "note": "Percentages use the fully diluted denominator including options and the unallocated pool, so they sum to 100%.",
+      "derived_from": [
+        "cap.fd_shares",
+        "cap.options_granted",
+        "cap.pool_unallocated"
+      ]
+    },
+    "cap_table_post_series_c": {
+      "columns": [
+        {
+          "id": "holder",
+          "label": "Holder",
+          "kind": "text"
+        },
+        {
+          "id": "class",
+          "label": "Class",
+          "kind": "text"
+        },
+        {
+          "id": "shares_pre",
+          "label": "Shares before",
+          "kind": "count"
+        },
+        {
+          "id": "shares_new",
+          "label": "New shares",
+          "kind": "count"
+        },
+        {
+          "id": "shares_post",
+          "label": "Shares after",
+          "kind": "count"
+        },
+        {
+          "id": "pct_post",
+          "label": "% fully diluted after",
+          "kind": "percent"
+        }
+      ],
+      "rows": [
+        [
+          "Imogen Hale",
+          "Ordinary",
+          7600000,
+          0,
+          7600000,
+          0.159501
+        ],
+        [
+          "Tomasz Brenner",
+          "Ordinary",
+          6600000,
+          0,
+          6600000,
+          0.138514
+        ],
+        [
+          "Early employees and angels",
+          "Ordinary",
+          2900000,
+          0,
+          2900000,
+          0.060862
+        ],
+        [
+          "Westcombe Angels",
+          "Seed Preferred",
+          3600000,
+          0,
+          3600000,
+          0.075553
+        ],
+        [
+          "Larkspur Ventures",
+          "Series A and B Preferred",
+          6645325,
+          0,
+          6645325,
+          0.139465
+        ],
+        [
+          "Orrin Capital",
+          "Series B Preferred",
+          3400000,
+          0,
+          3400000,
+          0.071356
+        ],
+        [
+          "Other Series A and B investors",
+          "Series A and B Preferred",
+          1730000,
+          0,
+          1730000,
+          0.036307
+        ],
+        [
+          "Options granted",
+          "Options",
+          3420000,
+          0,
+          3420000,
+          0.071775
+        ],
+        [
+          "Unallocated option pool (including top-up)",
+          "Pool",
+          1180000,
+          2631893,
+          3811893,
+          0.08
+        ],
+        [
+          "Series C lead investor",
+          "Series C Preferred",
+          0,
+          5823726,
+          5823726,
+          0.122222
+        ],
+        [
+          "Merrow Vale Partners (co-investment)",
+          "Series C Preferred",
+          0,
+          2117718,
+          2117718,
+          0.044444
+        ],
+        [
+          "Total fully diluted",
+          "",
+          37075325,
+          10573337,
+          47648662,
+          1.0
+        ]
+      ],
+      "unit": "shares",
+      "source": "Tidewell_Cap_Table_Sep26.xlsx",
+      "note": "Post-money fully diluted basis including the pool top-up.",
+      "derived_from": [
+        "round.c.fd_post",
+        "round.c.pool_increase_shares",
+        "eq.cheque_shares",
+        "round.c.new_shares",
+        "cap.options_granted",
+        "cap.pool_unallocated",
+        "cap.fd_shares"
+      ]
+    },
+    "market_sam": {
+      "columns": [
+        {
+          "id": "country",
+          "label": "Country",
+          "kind": "text"
+        },
+        {
+          "id": "clinics",
+          "label": "Clinics",
+          "kind": "count"
+        },
+        {
+          "id": "software_sam",
+          "label": "Software SAM",
+          "kind": "money"
+        },
+        {
+          "id": "payments_sam",
+          "label": "Payments SAM",
+          "kind": "money"
+        },
+        {
+          "id": "total_sam",
+          "label": "Total SAM",
+          "kind": "money"
+        }
+      ],
+      "rows": [
+        [
+          "United Kingdom",
+          5200,
+          75400000,
+          29549520,
+          104949520
+        ],
+        [
+          "Netherlands",
+          1100,
+          15950000,
+          6250860,
+          22200860
+        ],
+        [
+          "Germany",
+          11000,
+          159500000,
+          62508600,
+          222008600
+        ],
+        [
+          "Total",
+          17300,
+          250850000,
+          98308980,
+          349158980
+        ]
+      ],
+      "unit": "GBP",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx",
+      "note": "Bottom-up from clinic counts: software at a fixed revenue per clinic, payments at the net take rate on average volume per site.",
+      "derived_from": [
+        "market.clinics.total",
+        "market.arpa_software",
+        "market.tpv_per_clinic_month",
+        "pay.take_rate.net",
+        "market.clinics.uk",
+        "market.clinics.nl",
+        "market.clinics.de",
+        "market.sam.software",
+        "market.sam.payments",
+        "market.sam.total"
+      ]
+    }
+  },
+  "series": {
+    "arr_monthly": {
+      "x": [
+        "2023-04",
+        "2023-05",
+        "2023-06",
+        "2023-07",
+        "2023-08",
+        "2023-09",
+        "2023-10",
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08"
+      ],
+      "y": [
+        8307000,
+        8568000,
+        8853000,
+        9124000,
+        9374000,
+        9665000,
+        9961000,
+        10286000,
+        10604000,
+        10970000,
+        11317000,
+        11640000,
+        11943000,
+        12276000,
+        12666000,
+        13022000,
+        13378000,
+        13684000,
+        14124000,
+        14458000,
+        14931000,
+        15341000,
+        15706000,
+        16180000,
+        16505000,
+        16814000,
+        17083000,
+        17344000,
+        17766000,
+        18052000,
+        18331000,
+        18738000,
+        19059000,
+        19366000,
+        19714000,
+        20110000,
+        20642000,
+        21159000,
+        21748000,
+        22309000,
+        22940000
+      ],
+      "unit": "GBP",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    "sites_monthly": {
+      "x": [
+        "2023-04",
+        "2023-05",
+        "2023-06",
+        "2023-07",
+        "2023-08",
+        "2023-09",
+        "2023-10",
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08"
+      ],
+      "y": [
+        625,
+        640,
+        656,
+        673,
+        689,
+        709,
+        724,
+        742,
+        762,
+        780,
+        802,
+        820,
+        841,
+        861,
+        883,
+        904,
+        927,
+        951,
+        977,
+        1002,
+        1024,
+        1050,
+        1079,
+        1105,
+        1126,
+        1150,
+        1176,
+        1200,
+        1224,
+        1250,
+        1275,
+        1301,
+        1326,
+        1358,
+        1385,
+        1412,
+        1427,
+        1441,
+        1459,
+        1472,
+        1488
+      ],
+      "unit": "sites",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    "customers_monthly": {
+      "x": [
+        "2023-04",
+        "2023-05",
+        "2023-06",
+        "2023-07",
+        "2023-08",
+        "2023-09",
+        "2023-10",
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08"
+      ],
+      "y": [
+        242,
+        248,
+        255,
+        261,
+        267,
+        274,
+        281,
+        287,
+        295,
+        303,
+        311,
+        318,
+        325,
+        332,
+        339,
+        347,
+        354,
+        362,
+        370,
+        378,
+        387,
+        395,
+        404,
+        412,
+        417,
+        423,
+        430,
+        435,
+        441,
+        447,
+        453,
+        461,
+        467,
+        473,
+        479,
+        486,
+        490,
+        493,
+        495,
+        499,
+        503
+      ],
+      "unit": "customers",
+      "source": "ARR_Bridge_and_Cohorts_Aug26.xlsx"
+    },
+    "tpv_monthly": {
+      "x": [
+        "2023-04",
+        "2023-05",
+        "2023-06",
+        "2023-07",
+        "2023-08",
+        "2023-09",
+        "2023-10",
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08"
+      ],
+      "y": [
+        11734000,
+        12925000,
+        13574000,
+        14785000,
+        15452000,
+        15829000,
+        16857000,
+        17444000,
+        21340000,
+        18383000,
+        19040000,
+        22344000,
+        23065000,
+        25167000,
+        26217000,
+        28345000,
+        29564000,
+        29863000,
+        31781000,
+        32745000,
+        39622000,
+        33921000,
+        34954000,
+        40825000,
+        41333000,
+        44558000,
+        45731000,
+        48763000,
+        49968000,
+        49724000,
+        52029000,
+        52773000,
+        62843000,
+        53145000,
+        53812000,
+        61834000,
+        61877000,
+        65743000,
+        66667000,
+        69954000,
+        70824000
+      ],
+      "unit": "GBP",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    "pay_attach_monthly": {
+      "x": [
+        "2023-04",
+        "2023-05",
+        "2023-06",
+        "2023-07",
+        "2023-08",
+        "2023-09",
+        "2023-10",
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08"
+      ],
+      "y": [
+        0.3079,
+        0.316,
+        0.3244,
+        0.3329,
+        0.3417,
+        0.3507,
+        0.36,
+        0.3695,
+        0.3792,
+        0.3892,
+        0.3995,
+        0.41,
+        0.4182,
+        0.4266,
+        0.4351,
+        0.4438,
+        0.4527,
+        0.4617,
+        0.471,
+        0.4804,
+        0.49,
+        0.4998,
+        0.5098,
+        0.52,
+        0.5248,
+        0.5296,
+        0.5344,
+        0.5393,
+        0.5442,
+        0.5492,
+        0.5542,
+        0.5593,
+        0.5644,
+        0.5695,
+        0.5747,
+        0.58,
+        0.5839,
+        0.5879,
+        0.5919,
+        0.5959,
+        0.6
+      ],
+      "unit": "fraction",
+      "source": "Tidewell_Pay_Monthly_Volumes.csv"
+    },
+    "revenue_monthly_net": {
+      "x": [
+        "2023-04",
+        "2023-05",
+        "2023-06",
+        "2023-07",
+        "2023-08",
+        "2023-09",
+        "2023-10",
+        "2023-11",
+        "2023-12",
+        "2024-01",
+        "2024-02",
+        "2024-03",
+        "2024-04",
+        "2024-05",
+        "2024-06",
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+        "2025-04",
+        "2025-05",
+        "2025-06",
+        "2025-07",
+        "2025-08",
+        "2025-09",
+        "2025-10",
+        "2025-11",
+        "2025-12",
+        "2026-01",
+        "2026-02",
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08"
+      ],
+      "y": [
+        830000,
+        870000,
+        900000,
+        927000,
+        964000,
+        985000,
+        1015000,
+        1042000,
+        1105000,
+        1111000,
+        1146000,
+        1198000,
+        1243000,
+        1293000,
+        1322000,
+        1365000,
+        1421000,
+        1448000,
+        1499000,
+        1521000,
+        1616000,
+        1631000,
+        1654000,
+        1727000,
+        1764000,
+        1816000,
+        1867000,
+        1898000,
+        1936000,
+        1973000,
+        2033000,
+        2053000,
+        2135000,
+        2103000,
+        2168000,
+        2217000,
+        2262000,
+        2349000,
+        2412000,
+        2471000,
+        2548000
+      ],
+      "unit": "GBP",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    },
+    "cash_monthly": {
+      "x": [
+        "2026-03",
+        "2026-04",
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08"
+      ],
+      "y": [
+        14210000,
+        13590000,
+        12880000,
+        12150000,
+        11540000,
+        10860000
+      ],
+      "unit": "GBP",
+      "source": "TDW_Financial_Model_v4.3_Sep26.xlsx"
+    }
+  },
+  "narrative": {
+    "thesis": [
+      {
+        "id": "thesis.1",
+        "title": "Sticky subscription revenue that expands inside the customer base",
+        "text": "Live subscription ARR reached £20.1m at March 2026, up 24% in the year, across 1,412 sites. FY2026 net revenue retention was 109% and gross revenue retention 93%: expansion of £2.6m more than offset £1.1m of churn and downgrades. Subscription is 75% of net revenue and carries an 81% software gross margin."
+      },
+      {
+        "id": "thesis.2",
+        "title": "Payments attach is a second revenue engine on the same customers",
+        "text": "Tidewell Pay was enabled at 60% of live sites in August 2026 (58% at March 2026 and 30% at March 2023) and processed £616.5m in FY2026 at a net take rate of 0.615%. Net payments revenue was £3.8m, 16% of net revenue, earned on customers who already pay for the software."
+      },
+      {
+        "id": "thesis.3",
+        "title": "A funded route to breakeven in a market that is largely unpenetrated",
+        "text": "A bottom-up serviceable market of £349m across 17,300 clinics in the UK, the Netherlands and Germany compares with 1,488 live sites today. The Series C funds product development and the German expansion, and management's forecast reaches positive adjusted EBITDA in FY2028, subject to the risks on Kinmoor and the German reseller."
+      }
+    ],
+    "risks": [
+      {
+        "id": "risk.kinmoor",
+        "risk": "Kinmoor Veterinary Group, the largest customer at about 11% of live ARR (212 sites), served written notice of non-renewal on 3 June 2026, effective 31 December 2026. The latest forecast (model v4.3) still assumes renewal at full value.",
+        "mitigant": "The Board has asked the CEO and the CRO to offer a three-year renewal at a 15% discount to current pricing; no offer has been accepted. The loan downside removes Kinmoor in full, and terms for any investor should be tested on a forecast that excludes it rather than on the management forecast.",
+        "severity": "high",
+        "probability": "high"
+      },
+      {
+        "id": "risk.germany",
+        "risk": "The exclusive German reseller, Vetsana Handels GmbH, had 41 sites live at 30 June 2026 against a commitment of 150 by 31 March 2027, which needs about 12 go-lives a month. If it misses, Tidewell may convert the appointment to non-exclusive, and German growth then rests more on direct sales.",
+        "mitigant": "Tidewell holds the option to convert to non-exclusive if the minimum is missed, and Tidewell GmbH can sell directly. The Board asked for a recovery plan in March and reviewed progress in July; exclusivity otherwise runs to 31 December 2028.",
+        "severity": "medium",
+        "probability": "high"
+      },
+      {
+        "id": "risk.forecast",
+        "risk": "The latest FY2027 forecast needs a second-half ramp well above the August run-rate after Q1 revenue came in 8% behind budget, and it assumes Kinmoor renews at full value. The FY2027 hiring plan costs more than the model carries.",
+        "mitigant": "Test returns, covenants and sizing on the downside cases in this record rather than on the management forecast; obtain the Q2 board pack and a reconciled hiring plan before final approval.",
+        "severity": "high",
+        "probability": "medium"
+      },
+      {
+        "id": "risk.liquidity",
+        "risk": "Cash was £10.9m at 31 August 2026 with £2.0m of the £5.0m revolving credit facility drawn. Runway is about 16 months on the March to August burn and 13 months net of the facility; at the current burn cash reaches the existing £3.0m minimum cash covenant in about 12 months.",
+        "mitigant": "The Series C is in process with a lead investor and exclusivity in place, the proposed loan would refinance the facility and add liquidity, and the Board asked in June for a monthly covenant forecast.",
+        "severity": "high",
+        "probability": "medium"
+      },
+      {
+        "id": "risk.cfo",
+        "risk": "The CFO, Daniel Okafor, has resigned and leaves on 31 October 2026, during the Series C and before the FY2026 audit completes. A search for a successor is under way.",
+        "mitigant": "The Board has asked for an interim plan covering the audit and the round, and the Head of FP&A runs the model and the board pack. Make delivery of audited FY2026 accounts and a named finance lead conditions of completion.",
+        "severity": "medium",
+        "probability": "high"
+      },
+      {
+        "id": "risk.security",
+        "risk": "Tidewell holds a SOC 2 Type I report issued on 14 May 2026. The Type II observation window runs from 1 June to 30 November 2026 and ISO 27001 is at readiness stage only. Group customers may require the stronger certification.",
+        "mitigant": "The Type II report is expected after the window closes; make it a post-completion undertaking and obtain the 2026 penetration test report, which is listed in the data room index but not provided.",
+        "severity": "medium",
+        "probability": "medium"
+      },
+      {
+        "id": "risk.price_per_share",
+        "risk": "At the proposed terms the Series C price per share is below the Series B price. The headline step-up in valuation is absorbed by the option pool top-up inside the pre-money, and the Series B broad-based weighted-average anti-dilution protection is triggered.",
+        "mitigant": "Quantify the Series B adjustment in the closing cap table. The effective pre-money for existing holders after the top-up is in this record, and price is a point to settle with the lead.",
+        "severity": "low",
+        "probability": "high"
+      },
+      {
+        "id": "risk.payments_partner",
+        "risk": "Tidewell Pay relies on its authorised e-money institution partner for acquiring and settlement. A change in the partner's status or terms would affect payments revenue, which is 16% of FY2026 net revenue and the main driver of attach.",
+        "mitigant": "Tidewell acts as registered agent under an existing arrangement. Review the agency agreement and the partner's terms in legal diligence.",
+        "severity": "high",
+        "probability": "low"
+      },
+      {
+        "id": "risk.ico",
+        "risk": "A complaint to the Information Commissioner's Office was lodged in February 2025 about a 2024 incident and its outcome is pending. The legal questionnaire response does not mention it.",
+        "mitigant": "Request the ICO correspondence and current status, and seek a specific warranty and indemnity from the company.",
+        "severity": "medium",
+        "probability": "low"
+      }
+    ],
+    "company_description": "Tidewell is a Bristol-based software business serving veterinary practices in the United Kingdom, the Netherlands and Germany. Tidewell Practice is a cloud practice management system covering appointments, clinical records, stock and invoicing. Tidewell Pay adds card payments inside the same workflow and operates as the registered agent of an authorised e-money institution, so Tidewell does not hold client money. Founded in 2017 and still led by its two co-founders, the group served 503 customers across 1,488 live sites at 31 August 2026 and employed 226 people. Revenue is recognised net of payment pass-through costs: FY2026 net revenue was £24.0m, of which 75% was subscription.",
+    "market": "Tidewell's bottom-up serviceable market is £349m a year across 17,300 clinics: 5,200 in the UK, 1,100 in the Netherlands and 11,000 in Germany. It is built from software at £14.5k per clinic a year (£251m) plus payments at a net take rate of 0.615% on £77k of monthly volume per site (£98m). Tidewell's 1,488 live sites are about 9% of that clinic universe, so most of the opportunity is unpenetrated, but it is concentrated in Germany, where growth depends on an exclusive reseller that is behind its site commitment.",
+    "team": [
+      {
+        "name": "Imogen Hale",
+        "role": "Co-founder and Chief Executive Officer",
+        "note": "Co-founder; selling about half of the secondary."
+      },
+      {
+        "name": "Tomasz Brenner",
+        "role": "Co-founder and Chief Technology Officer",
+        "note": "Co-founder."
+      },
+      {
+        "name": "Daniel Okafor",
+        "role": "Chief Financial Officer",
+        "note": "Resigned; leaves on 31 October 2026."
+      },
+      {
+        "name": "Priya Natarajan",
+        "role": "Chief Operating Officer",
+        "note": "Owns the German recovery plan."
+      },
+      {
+        "name": "Callum Reid",
+        "role": "Chief Revenue Officer",
+        "note": "Leads the Kinmoor account."
+      },
+      {
+        "name": "Hannah Pryce",
+        "role": "Head of FP&A",
+        "note": "Runs the financial model and board pack."
+      },
+      {
+        "name": "Martin Lowry",
+        "role": "Independent Chair",
+        "note": ""
+      },
+      {
+        "name": "Sofia Lindqvist",
+        "role": "Investor Director, Larkspur Ventures",
+        "note": "Board director."
+      },
+      {
+        "name": "Rahul Mehta",
+        "role": "Investor Director, Orrin Capital",
+        "note": "Board director."
+      }
+    ],
+    "diligence_status": [
+      {
+        "workstream": "Financial",
+        "status": "amber",
+        "note": "FY2026 audited accounts are not yet delivered. FY2025 audited revenue reconciles to management accounts after a £0.36m onboarding-fee deferral. The model reconciles to the management accounts."
+      },
+      {
+        "workstream": "Commercial and customers",
+        "status": "red",
+        "note": "Largest customer has served notice (see risks). Top-20 customer contracts are listed as provided but are not in the data room."
+      },
+      {
+        "workstream": "Forecast and model",
+        "status": "amber",
+        "note": "Forecast assumes Kinmoor renews at full value, needs a second-half ramp after an 8% Q1 miss, and the FY2027 hiring plan costs more than the model carries."
+      },
+      {
+        "workstream": "Legal",
+        "status": "amber",
+        "note": "ICO complaint pending (February 2025). The German reseller agreement names a counterparty that is not a group entity and needs correcting. German reseller behind its minimum."
+      },
+      {
+        "workstream": "Technology and security",
+        "status": "amber",
+        "note": "SOC 2 Type I only; Type II window to 30 November 2026; ISO 27001 readiness only; penetration test report not provided."
+      },
+      {
+        "workstream": "Management and people",
+        "status": "amber",
+        "note": "CFO leaves on 31 October 2026 and a successor search is under way; 62 hires are planned in FY2027."
+      },
+      {
+        "workstream": "Capitalisation and terms",
+        "status": "green",
+        "note": "Cap table recomputed on a fully diluted basis including the unallocated pool. Post-money equals pre-money plus new money. Price per share is below Series B."
+      },
+      {
+        "workstream": "Payments and regulatory",
+        "status": "amber",
+        "note": "Registered-agent arrangement with an authorised e-money institution still to be reviewed by counsel."
+      }
+    ],
+    "series_c_terms": [
+      {
+        "term": "Security",
+        "text": "Series C Preferred Shares of £0.0001 each, convertible 1:1 into Ordinary Shares."
+      },
+      {
+        "term": "Liquidation preference",
+        "text": "In priority to all other shares: the greater of 1x the original issue price plus declared dividends and the amount receivable on conversion (non-participating)."
+      },
+      {
+        "term": "Anti-dilution",
+        "text": "Broad-based weighted average, with customary exceptions for the option pool."
+      },
+      {
+        "term": "Option pool",
+        "text": "Unallocated pool increased before completion to 8% of the fully diluted share capital after completion. The increase is inside the pre-money valuation."
+      },
+      {
+        "term": "Board",
+        "text": "The lead may appoint one director; the board is up to seven directors including an independent chair."
+      },
+      {
+        "term": "Protective provisions",
+        "text": "Changes to share rights, new senior securities, borrowing above the consent threshold in the record, and any sale of the company."
+      },
+      {
+        "term": "Secondary",
+        "text": "Existing shareholders may sell up to £6.0m of shares to the investors at a 15% discount to the original issue price, conditional on completion of the primary issue."
+      },
+      {
+        "term": "Founders",
+        "text": "New service agreements with 12-month non-compete and non-solicit; no re-vesting of founder shares."
+      },
+      {
+        "term": "Conditions",
+        "text": "Satisfactory due diligence, delivery of audited consolidated accounts for the year ended 31 March 2026, lead investor committee approval, new articles and customary warranties."
+      },
+      {
+        "term": "Exclusivity and costs",
+        "text": "45 days from countersignature; the company pays the lead's reasonable costs up to £150,000 plus VAT."
+      },
+      {
+        "term": "Status",
+        "text": "Draft v3 dated 22 September 2026; non-binding save for exclusivity, costs, confidentiality and governing law."
+      }
+    ],
+    "use_of_proceeds": "Product and engineering, expansion in Germany and other markets, and general working capital."
+  },
+  "angles": {
+    "equity_coinvest": {
+      "firm": "Merrow Vale Partners",
+      "memo_name": "Investment Committee Memorandum",
+      "summary": "Merrow Vale co-invests alongside the lead in the Series C Preferred round. Ownership is measured on a fully diluted post-money basis, including the option pool top-up.",
+      "field_prefixes": [
+        "eq.",
+        "round.c.",
+        "val.",
+        "cap."
+      ],
+      "assumptions": [
+        "Completion on 15 December 2026; exit on 31 March 2031 on FY2031 revenue.",
+        "Exit equity value equals enterprise value; net cash at exit is assumed nil.",
+        "Proceeds are the greater of the as-converted value and the 1x non-participating preference.",
+        "Exit multiples are EV to revenue and are stated per scenario in the returns table.",
+        "The lead's ticket and the co-investment come from the term sheet draft v3 other-investor tranche, to be amended to admit a co-investor."
+      ],
+      "tables": {
+        "returns": {
+          "columns": [
+            {
+              "id": "scenario",
+              "label": "Scenario",
+              "kind": "text"
+            },
+            {
+              "id": "description",
+              "label": "Description",
+              "kind": "text"
+            },
+            {
+              "id": "exit_year",
+              "label": "Exit year",
+              "kind": "text"
+            },
+            {
+              "id": "exit_date",
+              "label": "Exit date",
+              "kind": "date"
+            },
+            {
+              "id": "revenue_vs_plan",
+              "label": "FY2031 revenue vs forecast",
+              "kind": "percent"
+            },
+            {
+              "id": "exit_revenue",
+              "label": "FY2031 revenue",
+              "kind": "money"
+            },
+            {
+              "id": "ev_revenue_multiple",
+              "label": "EV / revenue multiple",
+              "kind": "multiple"
+            },
+            {
+              "id": "exit_ev",
+              "label": "Exit enterprise value",
+              "kind": "money"
+            },
+            {
+              "id": "extra_dilution",
+              "label": "Further dilution",
+              "kind": "percent"
+            },
+            {
+              "id": "ownership_at_exit",
+              "label": "Ownership at exit",
+              "kind": "percent"
+            },
+            {
+              "id": "proceeds_as_converted",
+              "label": "Proceeds as converted",
+              "kind": "money"
+            },
+            {
+              "id": "proceeds_preference",
+              "label": "Proceeds on 1x preference",
+              "kind": "money"
+            },
+            {
+              "id": "proceeds",
+              "label": "Proceeds",
+              "kind": "money"
+            },
+            {
+              "id": "moic",
+              "label": "MOIC",
+              "kind": "multiple"
+            },
+            {
+              "id": "irr",
+              "label": "IRR",
+              "kind": "percent"
+            }
+          ],
+          "rows": [
+            [
+              "Bear",
+              "Kinmoor lost, German ramp and attach behind plan, bridge round needed",
+              "FY2031",
+              "2031-03-31",
+              0.8,
+              67480800,
+              2.5,
+              168702000,
+              0.1,
+              0.04,
+              6748080,
+              8000000,
+              8000000,
+              1.0,
+              0.0
+            ],
+            [
+              "Base",
+              "Management forecast delivered",
+              "FY2031",
+              "2031-03-31",
+              1.0,
+              84351000,
+              4.5,
+              379579500,
+              0.0,
+              0.044444,
+              16870031,
+              8000000,
+              16870031,
+              2.11,
+              0.1901
+            ],
+            [
+              "Bull",
+              "Plan beaten on Germany and payments attach",
+              "FY2031",
+              "2031-03-31",
+              1.1,
+              92786100,
+              6.0,
+              556716600,
+              0.0,
+              0.044444,
+              24742713,
+              8000000,
+              24742713,
+              3.09,
+              0.3008
+            ]
+          ],
+          "unit": "GBP",
+          "source": "Deal team calculation",
+          "note": "Equity value is taken as enterprise value (net cash at exit assumed nil). Proceeds are the greater of the as-converted value and the 1x non-participating preference, provided exit value exceeds the preference stack. IRR assumes one outflow at completion and one inflow at exit.",
+          "derived_from": [
+            "eq.ownership_fd_post",
+            "eq.cheque",
+            "eq.hold_years",
+            "pl.fy31.revenue",
+            "round.c.raise",
+            "eq.exit_date"
+          ]
+        },
+        "round_participation": {
+          "columns": [
+            {
+              "id": "investor",
+              "label": "Investor",
+              "kind": "text"
+            },
+            {
+              "id": "role",
+              "label": "Role",
+              "kind": "text"
+            },
+            {
+              "id": "amount",
+              "label": "Amount",
+              "kind": "money"
+            },
+            {
+              "id": "shares",
+              "label": "Series C shares",
+              "kind": "count"
+            },
+            {
+              "id": "pct_post",
+              "label": "% fully diluted post-money",
+              "kind": "percent"
+            },
+            {
+              "id": "pct_of_round",
+              "label": "% of the round",
+              "kind": "percent"
+            }
+          ],
+          "rows": [
+            [
+              "Series C lead investor",
+              "Lead",
+              22000000,
+              5823726,
+              0.122222,
+              0.733333
+            ],
+            [
+              "Merrow Vale Partners",
+              "Co-investor",
+              8000000,
+              2117718,
+              0.044444,
+              0.266667
+            ]
+          ],
+          "unit": "GBP",
+          "source": "Series_C_Term_Sheet_DRAFT_v3.pdf",
+          "note": "Lead shares are the balance of new shares after the other investors, so shares sum exactly.",
+          "derived_from": [
+            "round.c.pre_money",
+            "round.c.fd_pre_incl_pool",
+            "round.c.fd_post",
+            "round.c.new_shares",
+            "eq.cheque",
+            "round.c.raise",
+            "eq.cheque_shares",
+            "round.c.lead_ticket"
+          ]
+        }
+      }
+    },
+    "growth_loan": {
+      "firm": "Corriemoor Credit",
+      "memo_name": "Credit Approval Paper",
+      "summary": "A senior secured growth term loan to Tidewell, repaying and cancelling the existing revolving credit facility at completion: 36 months, interest-only for the first 12, then equal monthly principal instalments, priced over SONIA with an arrangement fee and warrants.",
+      "borrower": "Tidewell Software Ltd, guaranteed by Tidewell Group Holdings Limited",
+      "field_prefixes": [
+        "loan.",
+        "debt.rcf.",
+        "kinmoor.",
+        "de."
+      ],
+      "security": [
+        "First-ranking debenture over all assets of Tidewell Software Ltd and Tidewell Group Holdings Limited, replacing the existing debenture on repayment of the revolving credit facility.",
+        "Cross-guarantee from Tidewell Group Holdings Limited and Tidewell Software Ltd.",
+        "Share pledges over the Dutch and German subsidiaries are not proposed at this stage."
+      ],
+      "conditions_precedent": [
+        "Repayment in full and cancellation of the existing revolving credit facility and release of its security.",
+        "Satisfactory legal, financial and commercial diligence, including a written update on Kinmoor.",
+        "Consent of the Series C investors to the borrowing, where required by the protective provisions.",
+        "Delivery of audited consolidated accounts for the year ended 31 March 2026.",
+        "Confirmation of finance leadership after the CFO's departure.",
+        "Executed warrant instrument, security documents and know-your-customer checks."
+      ],
+      "covenant_definitions": [
+        {
+          "covenant": "Minimum cash",
+          "definition": "Cash at bank at each month end; tested monthly from the first month end after completion."
+        },
+        {
+          "covenant": "Minimum live subscription ARR",
+          "definition": "Live subscription ARR as defined in this record, excluding contracted-not-live; tested monthly."
+        }
+      ],
+      "downside_definition": "Kinmoor leaves on 31 December 2026 (net of any retained sites) and the German reseller adds sites at half the pace needed for its 150-site minimum. Neither the downside nor the base case includes Series C proceeds, so the covenants are tested as a stand-alone credit.",
+      "grade_rationale": "Recurring-revenue business with good gross retention, but one customer notice, a thin stand-alone cash path in the downside, a pending equity round and a finance-leadership gap.",
+      "tables": {
+        "sources_uses": {
+          "columns": [
+            {
+              "id": "side",
+              "label": "Side",
+              "kind": "text"
+            },
+            {
+              "id": "item",
+              "label": "Item",
+              "kind": "text"
+            },
+            {
+              "id": "amount",
+              "label": "Amount",
+              "kind": "money"
+            },
+            {
+              "id": "pct",
+              "label": "% of loan",
+              "kind": "percent"
+            }
+          ],
+          "rows": [
+            [
+              "Source",
+              "Growth term loan",
+              8000000,
+              1.0
+            ],
+            [
+              "Use",
+              "Repay the revolving credit facility drawn balance",
+              2000000,
+              0.25
+            ],
+            [
+              "Use",
+              "Arrangement fee",
+              120000,
+              0.015
+            ],
+            [
+              "Use",
+              "Lender legal and diligence costs (estimate)",
+              100000,
+              0.0125
+            ],
+            [
+              "Use",
+              "Cash to the balance sheet",
+              5780000,
+              0.7225
+            ],
+            [
+              "Total sources",
+              "",
+              8000000,
+              1.0
+            ],
+            [
+              "Total uses",
+              "",
+              8000000,
+              1.0
+            ]
+          ],
+          "unit": "GBP",
+          "source": "Proposed terms (Corriemoor Credit)",
+          "note": "The undrawn part of the existing facility is cancelled on refinancing.",
+          "derived_from": [
+            "loan.amount",
+            "debt.rcf.drawn",
+            "loan.fee",
+            "loan.costs_est",
+            "loan.cash_to_balance_sheet"
+          ]
+        },
+        "covenants": {
+          "columns": [
+            {
+              "id": "covenant",
+              "label": "Covenant",
+              "kind": "text"
+            },
+            {
+              "id": "threshold",
+              "label": "Threshold",
+              "kind": "money"
+            },
+            {
+              "id": "frequency",
+              "label": "Test frequency",
+              "kind": "text"
+            },
+            {
+              "id": "latest",
+              "label": "Latest (cash: pro forma at close)",
+              "kind": "money"
+            },
+            {
+              "id": "headroom",
+              "label": "Headroom",
+              "kind": "money"
+            },
+            {
+              "id": "headroom_pct",
+              "label": "Headroom % of latest",
+              "kind": "percent"
+            },
+            {
+              "id": "base_minimum",
+              "label": "Base case: lowest in 12 test months",
+              "kind": "money"
+            },
+            {
+              "id": "base_headroom",
+              "label": "Base case headroom at lowest",
+              "kind": "money"
+            },
+            {
+              "id": "downside_minimum",
+              "label": "Downside: lowest in 12 test months",
+              "kind": "money"
+            },
+            {
+              "id": "downside_headroom",
+              "label": "Downside headroom at lowest",
+              "kind": "money"
+            },
+            {
+              "id": "downside_first_breach",
+              "label": "Downside: first breach",
+              "kind": "text"
+            }
+          ],
+          "rows": [
+            [
+              "Minimum month-end cash",
+              5000000,
+              "Monthly",
+              14070042,
+              9070042,
+              0.644635,
+              6612825,
+              1612825,
+              4383625,
+              -616375,
+              "2027-12"
+            ],
+            [
+              "Minimum live subscription ARR",
+              18000000,
+              "Monthly",
+              22940000,
+              4940000,
+              0.215344,
+              25115436,
+              7115436,
+              22251103,
+              4251103,
+              "none in the 12 test months"
+            ]
+          ],
+          "unit": "GBP",
+          "source": "Deal team calculation",
+          "note": "Cash headroom is measured on pro forma cash at 31 December 2026; ARR headroom on the latest live ARR. Both cases exclude Series C proceeds.",
+          "derived_from": [
+            "loan.amount",
+            "loan.tenor_months",
+            "loan.io_months",
+            "loan.all_in_rate",
+            "loan.fee",
+            "loan.costs_est",
+            "debt.rcf.drawn",
+            "loan.cov.min_cash",
+            "loan.cov.min_arr",
+            "arr.aug26",
+            "cash.aug26",
+            "cash.burn.recent",
+            "pl.fy26.gross_margin",
+            "arr.fy26",
+            "arr.fy25",
+            "pl.fy28.adj_ebitda",
+            "pl.fy27.adj_ebitda",
+            "pl.fy28.revenue",
+            "pl.fy27.revenue",
+            "kinmoor.arr_at_risk",
+            "de.min_sites",
+            "de.sites_live_jun26",
+            "arr.live"
+          ]
+        },
+        "amortisation": {
+          "columns": [
+            {
+              "id": "month",
+              "label": "Month after close",
+              "kind": "count"
+            },
+            {
+              "id": "date",
+              "label": "Month end",
+              "kind": "date"
+            },
+            {
+              "id": "opening",
+              "label": "Opening balance",
+              "kind": "money"
+            },
+            {
+              "id": "interest",
+              "label": "Interest",
+              "kind": "money"
+            },
+            {
+              "id": "principal",
+              "label": "Principal",
+              "kind": "money"
+            },
+            {
+              "id": "closing",
+              "label": "Closing balance",
+              "kind": "money"
+            }
+          ],
+          "rows": [
+            [
+              1,
+              "2027-01-31",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              2,
+              "2027-02-28",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              3,
+              "2027-03-31",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              4,
+              "2027-04-30",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              5,
+              "2027-05-31",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              6,
+              "2027-06-30",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              7,
+              "2027-07-31",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              8,
+              "2027-08-31",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              9,
+              "2027-09-30",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              10,
+              "2027-10-31",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              11,
+              "2027-11-30",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              12,
+              "2027-12-31",
+              8000000,
+              76667,
+              0,
+              8000000
+            ],
+            [
+              13,
+              "2028-01-31",
+              8000000,
+              76667,
+              333333,
+              7666667
+            ],
+            [
+              14,
+              "2028-02-29",
+              7666667,
+              73472,
+              333333,
+              7333334
+            ],
+            [
+              15,
+              "2028-03-31",
+              7333334,
+              70278,
+              333333,
+              7000001
+            ],
+            [
+              16,
+              "2028-04-30",
+              7000001,
+              67083,
+              333333,
+              6666668
+            ],
+            [
+              17,
+              "2028-05-31",
+              6666668,
+              63889,
+              333333,
+              6333335
+            ],
+            [
+              18,
+              "2028-06-30",
+              6333335,
+              60694,
+              333333,
+              6000002
+            ],
+            [
+              19,
+              "2028-07-31",
+              6000002,
+              57500,
+              333333,
+              5666669
+            ],
+            [
+              20,
+              "2028-08-31",
+              5666669,
+              54306,
+              333333,
+              5333336
+            ],
+            [
+              21,
+              "2028-09-30",
+              5333336,
+              51111,
+              333333,
+              5000003
+            ],
+            [
+              22,
+              "2028-10-31",
+              5000003,
+              47917,
+              333333,
+              4666670
+            ],
+            [
+              23,
+              "2028-11-30",
+              4666670,
+              44722,
+              333333,
+              4333337
+            ],
+            [
+              24,
+              "2028-12-31",
+              4333337,
+              41528,
+              333333,
+              4000004
+            ],
+            [
+              25,
+              "2029-01-31",
+              4000004,
+              38333,
+              333333,
+              3666671
+            ],
+            [
+              26,
+              "2029-02-28",
+              3666671,
+              35139,
+              333333,
+              3333338
+            ],
+            [
+              27,
+              "2029-03-31",
+              3333338,
+              31944,
+              333333,
+              3000005
+            ],
+            [
+              28,
+              "2029-04-30",
+              3000005,
+              28750,
+              333333,
+              2666672
+            ],
+            [
+              29,
+              "2029-05-31",
+              2666672,
+              25556,
+              333333,
+              2333339
+            ],
+            [
+              30,
+              "2029-06-30",
+              2333339,
+              22361,
+              333333,
+              2000006
+            ],
+            [
+              31,
+              "2029-07-31",
+              2000006,
+              19167,
+              333333,
+              1666673
+            ],
+            [
+              32,
+              "2029-08-31",
+              1666673,
+              15972,
+              333333,
+              1333340
+            ],
+            [
+              33,
+              "2029-09-30",
+              1333340,
+              12778,
+              333333,
+              1000007
+            ],
+            [
+              34,
+              "2029-10-31",
+              1000007,
+              9583,
+              333333,
+              666674
+            ],
+            [
+              35,
+              "2029-11-30",
+              666674,
+              6389,
+              333333,
+              333341
+            ],
+            [
+              36,
+              "2029-12-31",
+              333341,
+              3195,
+              333341,
+              0
+            ]
+          ],
+          "unit": "GBP",
+          "source": "Deal team calculation",
+          "note": "Interest-only for the first months, then equal principal instalments; interest at one twelfth of the all-in rate on the opening balance.",
+          "derived_from": [
+            "loan.amount",
+            "loan.tenor_months",
+            "loan.io_months",
+            "loan.all_in_rate"
+          ]
+        },
+        "downside_path": {
+          "columns": [
+            {
+              "id": "month",
+              "label": "Month",
+              "kind": "text"
+            },
+            {
+              "id": "phase",
+              "label": "Phase",
+              "kind": "text"
+            },
+            {
+              "id": "arr_base",
+              "label": "ARR: base",
+              "kind": "money"
+            },
+            {
+              "id": "arr_downside",
+              "label": "ARR: downside",
+              "kind": "money"
+            },
+            {
+              "id": "cash_base",
+              "label": "Cash: base",
+              "kind": "money"
+            },
+            {
+              "id": "cash_downside",
+              "label": "Cash: downside",
+              "kind": "money"
+            },
+            {
+              "id": "min_cash",
+              "label": "Minimum cash covenant",
+              "kind": "money"
+            },
+            {
+              "id": "cash_headroom_base",
+              "label": "Cash headroom: base",
+              "kind": "money"
+            },
+            {
+              "id": "cash_headroom_downside",
+              "label": "Cash headroom: downside",
+              "kind": "money"
+            },
+            {
+              "id": "arr_headroom_downside",
+              "label": "ARR headroom: downside",
+              "kind": "money"
+            },
+            {
+              "id": "cash_breach_downside",
+              "label": "Cash covenant breached in downside",
+              "kind": "text"
+            }
+          ],
+          "rows": [
+            [
+              "2026-08",
+              "actual",
+              22940000,
+              22940000,
+              10860000,
+              10860000,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "2026-09",
+              "pre-close",
+              23359464,
+              23308597,
+              10200805,
+              10197839,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "2026-10",
+              "pre-close",
+              23786598,
+              23684865,
+              9552612,
+              9543716,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "2026-11",
+              "pre-close",
+              24221543,
+              24068943,
+              8915623,
+              8897830,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "2026-12",
+              "close",
+              24664440,
+              24460974,
+              14070042,
+              14040388,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "2027-01",
+              "covenant test",
+              25115436,
+              22251103,
+              13379412,
+              13182772,
+              5000000,
+              8379412,
+              8182772,
+              4251103,
+              "No"
+            ],
+            [
+              "2027-02",
+              "covenant test",
+              25574679,
+              22659479,
+              12700611,
+              12334020,
+              5000000,
+              7700611,
+              7334020,
+              4659479,
+              "No"
+            ],
+            [
+              "2027-03",
+              "covenant test",
+              26042319,
+              23076252,
+              12033856,
+              11494348,
+              5000000,
+              7033856,
+              6494348,
+              5076252,
+              "No"
+            ],
+            [
+              "2027-04",
+              "covenant test",
+              26518510,
+              23501576,
+              11379366,
+              10663977,
+              5000000,
+              6379366,
+              5663977,
+              5501576,
+              "No"
+            ],
+            [
+              "2027-05",
+              "covenant test",
+              27003408,
+              23935608,
+              10737368,
+              9843131,
+              5000000,
+              5737368,
+              4843131,
+              5935608,
+              "No"
+            ],
+            [
+              "2027-06",
+              "covenant test",
+              27497173,
+              24378506,
+              10108088,
+              9032038,
+              5000000,
+              5108088,
+              4032038,
+              6378506,
+              "No"
+            ],
+            [
+              "2027-07",
+              "covenant test",
+              27999966,
+              24830433,
+              9491759,
+              8230931,
+              5000000,
+              4491759,
+              3230931,
+              6830433,
+              "No"
+            ],
+            [
+              "2027-08",
+              "covenant test",
+              28511953,
+              25291553,
+              8888618,
+              7440046,
+              5000000,
+              3888618,
+              2440046,
+              7291553,
+              "No"
+            ],
+            [
+              "2027-09",
+              "covenant test",
+              29033302,
+              25762035,
+              8298906,
+              6659626,
+              5000000,
+              3298906,
+              1659626,
+              7762035,
+              "No"
+            ],
+            [
+              "2027-10",
+              "covenant test",
+              29564184,
+              26242050,
+              7722870,
+              5889914,
+              5000000,
+              2722870,
+              889914,
+              8242050,
+              "No"
+            ],
+            [
+              "2027-11",
+              "covenant test",
+              30104773,
+              26731773,
+              7160758,
+              5131163,
+              5000000,
+              2160758,
+              131163,
+              8731773,
+              "No"
+            ],
+            [
+              "2027-12",
+              "covenant test",
+              30655247,
+              27231380,
+              6612825,
+              4383625,
+              5000000,
+              1612825,
+              -616375,
+              9231380,
+              "Yes"
+            ]
+          ],
+          "unit": "GBP",
+          "source": "Deal team calculation",
+          "note": "Aug-26 is actual. The loan completes at the end of Dec-26 and covenants are tested monthly from Jan-27. Neither case includes Series C proceeds.",
+          "derived_from": [
+            "loan.amount",
+            "loan.tenor_months",
+            "loan.io_months",
+            "loan.all_in_rate",
+            "loan.fee",
+            "loan.costs_est",
+            "debt.rcf.drawn",
+            "loan.cov.min_cash",
+            "loan.cov.min_arr",
+            "arr.aug26",
+            "cash.aug26",
+            "cash.burn.recent",
+            "pl.fy26.gross_margin",
+            "arr.fy26",
+            "arr.fy25",
+            "pl.fy28.adj_ebitda",
+            "pl.fy27.adj_ebitda",
+            "pl.fy28.revenue",
+            "pl.fy27.revenue",
+            "kinmoor.arr_at_risk",
+            "de.min_sites",
+            "de.sites_live_jun26"
+          ]
+        },
+        "downside_assumptions": {
+          "columns": [
+            {
+              "id": "assumption",
+              "label": "Assumption",
+              "kind": "text"
+            },
+            {
+              "id": "value",
+              "label": "Value",
+              "kind": "number"
+            },
+            {
+              "id": "unit",
+              "label": "Unit",
+              "kind": "text"
+            }
+          ],
+          "rows": [
+            [
+              "Monthly ARR growth in both cases (FY2026 compound rate)",
+              0.018285,
+              "per month"
+            ],
+            [
+              "Monthly net cash burn at Aug-26 (March to August average)",
+              670000,
+              "GBP per month"
+            ],
+            [
+              "Incremental cash margin on ARR growth (management FY2027 to FY2028 forecast)",
+              0.3091,
+              "ratio"
+            ],
+            [
+              "Gross margin applied to ARR lost in the downside (FY2026 blended)",
+              0.699579,
+              "ratio"
+            ],
+            [
+              "Kinmoor ARR removed from January 2027, net of retained sites",
+              2610000,
+              "GBP of ARR"
+            ],
+            [
+              "German go-lives a month needed to reach the minimum by 31 March 2027",
+              12.11,
+              "sites per month"
+            ],
+            [
+              "German ramp in the downside as a share of the required pace",
+              0.5,
+              "ratio"
+            ],
+            [
+              "Net ARR per German reseller site after the 30% reseller margin",
+              8400,
+              "GBP of ARR"
+            ],
+            [
+              "Series C proceeds included",
+              0,
+              "GBP"
+            ]
+          ],
+          "unit": "mixed",
+          "source": "Deal team calculation",
+          "note": "German ARR per site is a deal-team assumption: £12,000 gross, smaller than the UK average, less the 30% reseller margin.",
+          "derived_from": [
+            "loan.amount",
+            "loan.tenor_months",
+            "loan.io_months",
+            "loan.all_in_rate",
+            "loan.fee",
+            "loan.costs_est",
+            "debt.rcf.drawn",
+            "loan.cov.min_cash",
+            "loan.cov.min_arr",
+            "arr.aug26",
+            "cash.aug26",
+            "cash.burn.recent",
+            "pl.fy26.gross_margin",
+            "arr.fy26",
+            "arr.fy25",
+            "pl.fy28.adj_ebitda",
+            "pl.fy27.adj_ebitda",
+            "pl.fy28.revenue",
+            "pl.fy27.revenue",
+            "kinmoor.arr_at_risk",
+            "de.min_sites",
+            "de.sites_live_jun26"
+          ]
+        }
+      }
+    },
+    "secondary": {
+      "firm": "Not yet named",
+      "summary": "A secondary buyer purchases shares from early holders at a discount to the Series C price, conditional on completion of the primary issue.",
+      "field_prefixes": [
+        "sec.",
+        "round.c.",
+        "val.",
+        "cap."
+      ],
+      "seller_selection": "Sellers are the pre-Series A holders: the CEO (half), the seed investor and the early employees and angels. All three hold shares that rank behind the later preferred classes.",
+      "notes": [
+        "The secondary is conditional on completion of the primary issue and does not change the fully diluted share count.",
+        "Ordinary and Seed Preferred shares are acquired. The draft term sheet does not say whether they are re-designated into Series C Preferred on transfer; this is an open point.",
+        "GBP deal data is converted at the planning rate stated in the record, not the billing rate."
+      ],
+      "tables": {
+        "sellers": {
+          "columns": [
+            {
+              "id": "holder",
+              "label": "Seller",
+              "kind": "text"
+            },
+            {
+              "id": "class",
+              "label": "Share class",
+              "kind": "text"
+            },
+            {
+              "id": "role",
+              "label": "Role",
+              "kind": "text"
+            },
+            {
+              "id": "pct_of_secondary",
+              "label": "% of the secondary",
+              "kind": "percent"
+            },
+            {
+              "id": "amount_gbp",
+              "label": "Amount (GBP)",
+              "kind": "money"
+            },
+            {
+              "id": "shares_sold",
+              "label": "Shares sold",
+              "kind": "count"
+            },
+            {
+              "id": "holding_before",
+              "label": "Holding before",
+              "kind": "count"
+            },
+            {
+              "id": "pct_of_holding",
+              "label": "% of holding sold",
+              "kind": "percent"
+            }
+          ],
+          "rows": [
+            [
+              "Imogen Hale",
+              "Ordinary",
+              "Co-founder and CEO",
+              0.5,
+              3000000,
+              934287,
+              7600000,
+              0.122933
+            ],
+            [
+              "Westcombe Angels",
+              "Seed Preferred",
+              "Seed investor",
+              0.3,
+              1800000,
+              560572,
+              3600000,
+              0.155714
+            ],
+            [
+              "Early employees and angels",
+              "Ordinary",
+              "Early holders",
+              0.2,
+              1200000,
+              373715,
+              2900000,
+              0.128867
+            ]
+          ],
+          "unit": "mixed",
+          "source": "Tidewell_Cap_Table_Sep26.xlsx",
+          "note": "Sellers are early holders; the CEO provides half. Shares sold at the secondary price. Founder and employee shares are Ordinary; the angels hold Seed Preferred.",
+          "derived_from": [
+            "round.c.pre_money",
+            "round.c.fd_pre_incl_pool",
+            "round.c.secondary_discount",
+            "round.c.secondary_size"
+          ]
+        }
+      }
+    }
+  }
+}
