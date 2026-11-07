@@ -225,6 +225,12 @@ What the canvas allows (checked on the server):
   risk rating (Merrow), GBP→EUR rate and "fund fit" (Lumen): record data, human input or an approved calculation.
 - ⬜ Paste from PowerPoint: what the browser receives (test before the canvas).
 - ⬜ The blank layout when a template has none (use the master's zones).
+- ⬜ **Before the canvas (React) connects** (noted 7 Nov; the services exist, their routes and one move do not):
+  1. one shared "resolved memo" service (role → font, size, colour; palette name → hex; inches) used by both
+     painters: today the resolution lives inside the PPTX painter, and a second copy in React would drift;
+  2. `GET /memos/{id}` returning that resolved memo (slides, elements, paragraphs, chips, tables, charts);
+  3. the door returning the element's new state with each result (what real time broadcasts);
+  4. routes to generate a memo, export and import a PPTX (upload and download), and list kept-aside conflicts.
 
 ---
 
