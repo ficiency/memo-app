@@ -94,7 +94,8 @@ class Door:
 
     # --- helpers --------------------------------------------------------------------------------
     def _is_element(self, op) -> bool:
-        return op.get("type") in ("set_text", "set_frame", "set_style", "delete_element", "set_user_lock")
+        return op.get("type") in ("set_text", "set_cell", "set_chart_data", "set_frame", "set_style", "delete_element",
+                                  "set_user_lock")
 
     def element(self, op) -> Element:
         el = self.s.get(Element, _uuid(op.get("target")))
@@ -189,6 +190,51 @@ class Door:
             if cursor < len(text) or pos == 0:
                 self.s.add(Segment(paragraph_id=para.id, position=pos, kind="text", text=text[cursor:]))
         self.bump(el, actor_id)
+
+    def _set_cell(self, op, actor_type, actor_id):
+        """Change one table cell's text. A cell that holds a record figure cannot be typed over; header and
+        label cells belong to the firm's table."""
+        el = self.element(op)
+        self.fresh(el, op)
+        payload = op.get("payload") or {}
+        table = self.s.scalar(select(ElementTable).where(ElementTable.element_id == el.id))
+        if table is None:
+            raise Refuse("this element is not a table")
+        cell = self.s.scalar(select(TableCell).where(TableCell.element_table_id == table.id,
+                                                     TableCell.row == int(payload.get("row", -1)),
+                                                     TableCell.col == int(payload.get("col", -1))))
+        new_text = str(payload.get("text", ""))
+        if cell is None:
+            raise Refuse("no such cell in the firm's table")
+        para = self.s.scalar(select(ElementParagraph).where(ElementParagraph.table_cell_id == cell.id))
+        segs = self.s.scalars(select(Segment).where(Segment.paragraph_id == para.id).order_by(Segment.position)).all() if para else []
+        old_text = "".join(x.text or "" for x in segs)
+        if new_text.strip() == old_text.strip():
+            return
+        if any(x.kind == "chip" for x in segs):
+            raise Refuse(f"the figure {old_text!r} comes from the deal record and cannot be typed over; change it in the record")
+        if cell.kind == "fixed":
+            raise Refuse("this cell is part of the firm's table")
+        for x in segs:
+            self.s.delete(x)
+        self.s.flush()
+        if para is None:
+            para = ElementParagraph(table_cell_id=cell.id, position=0)
+            self.s.add(para)
+            self.s.flush()
+        self.s.add(Segment(paragraph_id=para.id, position=0, kind="text", text=new_text))
+        self.bump(el, actor_id)
+
+    def _set_chart_data(self, op, actor_type, actor_id):
+        """Chart values come from the deal record: a chart edited by hand is refused."""
+        self.element(op)
+        raise Refuse("chart values come from the deal record; change them in the record")
+
+    def _keep_aside(self, op, actor_type, actor_id):
+        """Something from PowerPoint the memo cannot take as it is (a new slide, a box moved to another
+        slide): kept for a person to decide."""
+        raise KeepAside((op.get("payload") or {}).get("reason") or "kept for a person to decide",
+                        (op.get("payload") or {}).get("kind"))
 
     def _set_frame(self, op, actor_type, actor_id):
         el = self.element(op)
