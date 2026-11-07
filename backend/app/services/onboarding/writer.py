@@ -272,6 +272,10 @@ class SpecWriter:
     def recipes(self) -> None:
         for name, c in (self.step4.get("catalogue") or {}).items():
             self.concept(name, c.get("type"), c.get("kind"))
+            # what the binding needs to recognise the concept: where it is used and how past memos wrote it
+            examples = "; ".join(f"{memo}: {', '.join(v[:2])}" for memo, v in list((c.get("examples") or {}).items())[:2] if v)
+            row = self.s.get(S.Concept, self.concepts[name])
+            row.description = f"used in {', '.join(c.get('used_in') or [])[:200]}" + (f"; examples {examples[:300]}" if examples else "")
         for c in (self.step4["answer"].get("extra_concepts") or []):
             self.concept(c.get("concept"), c.get("type"), c.get("kind"))
         for r in self.step4["answer"].get("recipes") or []:
