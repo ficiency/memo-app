@@ -7,7 +7,7 @@ FastAPI + SQLAlchemy 2 + Alembic on Postgres (Supabase). Settings come from the 
 python -m venv .venv
 .venv/Scripts/pip install -r requirements.txt
 .venv/Scripts/alembic upgrade head                 # create / update the tables
-.venv/Scripts/python -m scripts.load_pilot_specs   # load the three firms' pilot specs
+.venv/Scripts/python -m app.services.onboarding.writer <firm>   # write a firm's approved onboarding as a new spec version
 .venv/Scripts/uvicorn app.main:app --reload        # http://localhost:8000/health
 ```
 
