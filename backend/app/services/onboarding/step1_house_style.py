@@ -19,6 +19,7 @@ import sys
 from app.services.onboarding import slices
 from app.services.onboarding.common import load_step, save_result, save_step
 from app.services.onboarding.checks import guide_quote_errors
+from app.services.formats import SCALES, reproduces
 from app.services.onboarding.llm import call_with_checks
 
 CITATION_SCHEMES = ("per_slide_letters", "per_slide_numbered_notes", "global_numbered_references", "none", "other")
@@ -42,7 +43,16 @@ Return JSON only, with this shape (angle brackets describe what goes there):
                  "font": "<font>", "size_pt": <usual size>, "min_size_pt": <number or null>, "max_size_pt": <number or null>,
                  "bold": <true/false>, "caps": <true/false>, "color": "<a palette name>", "evidence": <E>}}],
  "formats": [{{"item": "<one of {', '.join(FORMAT_ITEMS)}>", "context": "<prose|table|chart|any>",
-              "rule": "<the rule in one line>", "examples": ["<examples as the firm writes them>"], "evidence": <E>}}],
+              "rule": "<the rule in one line>", "applies_to": "<which figures, when the firm writes this kind of
+              figure in more than one way (e.g. returns), else null>",
+              "examples": ["<the figure only, exactly as the firm writes it: 25.2% not IRR 25.2%>"],
+              "decimals": <n or null>, "symbol": "<currency symbol, or null>", "symbol_position": "<before|after|null>",
+              "unit_display": "<inline (£22.9m) | header (the unit is written in the column header) | null>",
+              "negative_style": "<minus|parentheses|unicode_minus|null>",
+              "thousands_separator": "<',' or ' ' or '.' or '' or null>", "decimal_separator": "<'.' or ',' or null>",
+              "suffix": "<'x' for multiples, or null>", "pattern": "<dates only, with YYYY YY MMMM MMM MM M DD D>",
+              "scales": [{{"scale": "<units|k|m|bn>", "from_value": <smallest value in whole currency units>,
+                          "decimals": <n>}}], "evidence": <E>}}],
  "tables": {{"header_fill": "<palette name, or null when header cells have no fill>", "header_text": "<palette name>", "header_bold": <true/false>,
             "forecast_header_fill": "<palette name for header cells of forecast periods, or null>",
             "body_text": "<palette name>", "banding": "<palette name of alternate-row fill, or null>",
@@ -81,6 +91,11 @@ Rules:
   file (listed below when there is one) show how the firm really paints headers; if the materials say
   otherwise, add a conflict.
 - Grid columns and gutter: fill them only when a material states them; otherwise null.
+- Formats are fields a program writes numbers with: every example must come out exactly as written when
+  its value is formatted with the fields. Money: one scale rule per range ("£k below £1m, £m from £1m":
+  k from 0, m from 1000000), with its decimals. Percent values are fractions (0.25 is 25%). Examples are the
+  figure alone, without the words around it. When the firm writes one kind of figure in two ways (whole
+  percentages in general, one decimal for returns), give one format for each, with applies_to.
 - When two materials say different things, add a conflict with each version; do not choose silently.
 - Text roles: cover the kinds of text the materials define (titles, body, tables, notes, footer, labels,
   key figures...). Use the text looks in use to see what is really there.
@@ -92,6 +107,27 @@ TABLE_COLOURS = ("header_fill", "header_text", "forecast_header_fill", "body_tex
                  "highlight_color")
 TABLE_NUMBERS = ("rule_width_pt", "header_rule_width_pt", "min_size_pt")
 TABLE_REQUIRED = ("header_text", "body_text")
+
+
+def format_errors(f: dict) -> list[str]:
+    """A format is right when it writes every example back exactly as the firm wrote it."""
+    where = f"format {f.get('item')}/{f.get('context')}"
+    errors = []
+    for key, allowed in (("symbol_position", ("before", "after", None)), ("unit_display", ("inline", "header", None)),
+                         ("negative_style", ("minus", "parentheses", "unicode_minus", None))):
+        if f.get(key) not in allowed:
+            errors.append(f"{where}: {key} must be one of {allowed}")
+    for rule in f.get("scales") or []:
+        if rule.get("scale") not in SCALES or not isinstance(rule.get("from_value"), (int, float)) \
+                or not isinstance(rule.get("decimals"), int):
+            errors.append(f"{where}: each scale rule needs scale (units|k|m|bn), a numeric from_value and integer decimals")
+    if errors:
+        return errors
+    for example in f.get("examples") or []:
+        ok, out = reproduces(str(example), f)
+        if not ok:
+            errors.append(f"{where}: example {example!r} comes out as {out!r} with these fields; fix the fields")
+    return errors
 
 
 def table_and_chart_errors(answer: dict, names: list[str], hex_by_name: dict[str, str],
@@ -182,6 +218,7 @@ def make_validate(guide: str | None, used_colours: set[str], headers_in_use=None
                 errors.append(f"format item {f.get('item')!r} is not one of {FORMAT_ITEMS}")
             if not f.get("examples"):
                 errors.append(f"format {f.get('item')}/{f.get('context')} has no examples")
+            errors += format_errors(f)
         page = answer.get("page") or {}
         if not all(isinstance(page.get(k), (int, float)) and page[k] > 0 for k in ("width_in", "height_in")):
             errors.append("page needs positive width_in and height_in")
@@ -254,6 +291,10 @@ def review(firm: str, result: dict) -> str:
     out += ["", "FORMATS"]
     for f in a.get("formats") or []:
         out.append(f"  {f.get('item'):<9} {f.get('context'):<6} {' · '.join(f.get('examples') or []):<36} {f.get('rule')}")
+        fields = {k: f.get(k) for k in ("decimals", "symbol", "unit_display", "negative_style", "suffix", "pattern") if f.get(k) is not None}
+        scales = ", ".join(f"{r.get('scale')} from {r.get('from_value'):g} ({r.get('decimals')} dp)" for r in f.get("scales") or []
+                           if isinstance(r.get("from_value"), (int, float)))
+        out.append(f"            fields {fields}" + (f"; scales: {scales}" if scales else ""))
     t = a.get("tables") or {}
     out += ["", "TABLES"] + [f"  {k:<22} {t.get(k)}" for k in (*TABLE_COLOURS, "header_bold", "total_bold", "highlight_bold",
                                                                *TABLE_NUMBERS, "number_align") if t.get(k) is not None]
@@ -286,6 +327,37 @@ def headers_in_use(firm: str):
     return slices.table_headers(data) if data else None
 
 
+FORMATS_ONLY = """
+This time return only the "formats" key: {"formats": [...]}, with the shape and rules above. Every other part
+of the house style is already approved and must not change."""
+
+
+def run_formats_only(firm: str) -> None:
+    """Re-extract only the formats and put them into the approved step 1 result: palette and role names
+    that later steps already use stay as they are."""
+    text, images, _ = build_package(firm)
+    guide = slices.guide_text(firm)
+
+    def validate(answer: dict) -> list[str]:
+        errors = []
+        for f in answer.get("formats") or []:
+            if f.get("item") not in FORMAT_ITEMS:
+                errors.append(f"format item {f.get('item')!r} is not one of {FORMAT_ITEMS}")
+            if not f.get("examples"):
+                errors.append(f"format {f.get('item')}/{f.get('context')} has no examples")
+            errors += format_errors(f)
+        return errors + guide_quote_errors(answer, guide) if answer.get("formats") else ["formats is empty"]
+
+    call = call_with_checks(INSTRUCTIONS + FORMATS_ONLY, text, images, validate)
+    result = load_step(firm, 1)
+    result["answer"]["formats"] = call["answer"].get("formats") or []
+    result["unresolved"] = [e for e in result.get("unresolved") or [] if not e.startswith("format")] + call["unresolved"]
+    result["attempts"] = (result.get("attempts") or []) + [dict(a, call="formats") for a in call["attempts"]]
+    save_result(firm, 1, result)
+    path = save_step(firm, 1, result, review(firm, result))
+    sys.stdout.write(f"{path}\n")
+
+
 def run(firm: str) -> None:
     text, images, used = build_package(firm)
     result = call_with_checks(INSTRUCTIONS, text, images,
@@ -299,7 +371,9 @@ def run(firm: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("firm")
-    run(parser.parse_args().firm)
+    parser.add_argument("--formats-only", action="store_true", help="re-extract only the formats")
+    args = parser.parse_args()
+    run_formats_only(args.firm) if args.formats_only else run(args.firm)
 
 
 if __name__ == "__main__":
