@@ -175,6 +175,7 @@ def run_firm(firm: str, rounds: int) -> dict:
         totals["lost"] += result["changes"] - len(got)
         for e in edits:
             totals["edits"] += 1
+            totals.setdefault("seen", set()).add((e["edit"], e["expect"]))   # which edit and outcome the round exercised
             match = next((g for g in got if g["type"] == e["op"] and (not e.get("element") or g.get("target") == e["element"])), None)
             if match is not None:
                 got.remove(match)
@@ -244,7 +245,32 @@ def report(results: list[dict]) -> str:
     out += ["", "## Where it breaks", ""]
     lines = [f"- {r['firm']} · {b}" for r in results for b in r["breaks"]]
     out += lines or ["Nothing broke."]
+    out += ["", "## Not covered yet", "",
+            "Cases this run could not exercise, computed from what it did; each closes when the build step named",
+            "makes it possible.", ""]
+    out += not_covered(results) or ["Every case was exercised."]
     return "\n".join(out) + "\n"
+
+
+# Outcomes the suite should see for each edit, and what makes the missing ones possible.
+WANTED = {
+    ("duplicate a slide", "applied"): "a section that allows several slides in the memo (optional sections such as the appendix are not generated yet)",
+    ("duplicate a slide", "refused"): "a section the firm allows once",
+    ("drop an image", "applied"): "a free slide, where boxes may be added (build step 9, canvas toolbox and blank slides)",
+    ("drop an image", "kept_aside"): "a template slide",
+    ("paste a chart as a picture", "kept_aside"): "a native chart in the memo's stage",
+}
+
+
+def not_covered(results: list[dict]) -> list[str]:
+    lines = []
+    for (edit, outcome), needs in WANTED.items():
+        missing = [r["firm"] for r in results if (edit, outcome) not in r.get("seen", set())]
+        if missing:
+            lines.append(f"- {edit} → {outcome.replace('_', ' ')}: not exercised for {', '.join(missing)}; needs {needs}")
+    lines.append("- two people editing at once: these rounds have one person; the two-person rounds come with real time "
+                 "(build step 5)")
+    return lines
 
 
 def main() -> None:
