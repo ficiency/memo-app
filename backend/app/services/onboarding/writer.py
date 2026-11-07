@@ -43,6 +43,14 @@ def evidence(item) -> dict:
     return {"source": ev.get("source"), "evidence_quote": ev.get("quote") or None, "evidence_ref": ev.get("ref")}
 
 
+def row_key(label) -> str:
+    """A row label for matching: case and spaces ignored, and a footnote letter after a capital, a digit or
+    a bracket dropped ("Closing ARRa" matches "Closing ARR")."""
+    s = re.sub(r"\s+", " ", str(label or "")).strip()
+    s = re.sub(r"(?<=[A-Z0-9)%])[a-z]$", "", s)
+    return s.lower()
+
+
 def text(v) -> str | None:
     if v is None:
         return None
@@ -310,27 +318,43 @@ class SpecWriter:
             kind = "label" if i == 0 else "period" if PERIOD.match(str(h).strip()) else "data"
             self.add(S.TableTemplateColumn(table_template_id=t.id, position=i, width_in=widths[i] if i < len(widths) else None,
                                            header_text=h, kind=kind))
-        recipe_rows = {str(r.get("label") or "").strip().lower(): r for r in p.get("rows") or [] if isinstance(r, dict)}
-        used = set()
-        for i, row in enumerate(sample.get("rows") or []):
+        # The recipe says which rows are real; the template gives structure (header and group rows, heights,
+        # fills). A template data row stays only when a recipe row matches it (its sample labels, such as
+        # "Name" or "Guidance: …", are placeholders); rows that change per deal become "variable" rows.
+        recipe_rows = [r for r in p.get("rows") or [] if isinstance(r, dict)]
+        by_label = {row_key(r.get("label")): r for r in recipe_rows if r.get("label")}
+        used, position = set(), 0
+        for row in sample.get("rows") or []:
             cells = row.get("cells") or []
             label = cells[0].get("text", "") if cells else ""
-            match = recipe_rows.get(label.strip().lower())
+            kind = row.get("kind") or "data"
+            match = by_label.get(row_key(label))
+            if kind == "data" and not match:
+                continue
             if match:
-                used.add(label.strip().lower())
-            self.add(S.TableTemplateRow(table_template_id=t.id, position=i, kind=row.get("kind") or "data", label=label,
+                used.add(row_key(label))
+            self.add(S.TableTemplateRow(table_template_id=t.id, position=position, kind=kind, label=label,
                                         height_in=row.get("height_in"),
                                         concept_id=self.concept(match.get("concept"), match.get("cells")) if match else None))
             for j, c in enumerate(cells):
-                fixed = row.get("kind") in ("header", "group") or j == 0
+                fixed = kind in ("header", "group") or j == 0
                 if c.get("spanned") or not (fixed or c.get("fill")):
                     continue
-                self.add(S.TableTemplateCell(table_template_id=t.id, row=i, col=j, kind="fixed" if fixed else "data",
+                self.add(S.TableTemplateCell(table_template_id=t.id, row=position, col=j, kind="fixed" if fixed else "data",
                                              fixed_text=c.get("text") if fixed else None, fill_ref=self.colour(c.get("fill"))))
-        start = len(sample.get("rows") or [])
-        for k, (lab, r) in enumerate((lab, r) for lab, r in recipe_rows.items() if lab not in used):
-            self.add(S.TableTemplateRow(table_template_id=t.id, position=start + k, kind="data", label=r.get("label"),
-                                        concept_id=self.concept(r.get("concept"), r.get("cells"))))
+            position += 1
+        if not sample and p.get("header"):                      # no template table: a header row from the recipe
+            self.add(S.TableTemplateRow(table_template_id=t.id, position=position, kind="header", label=p["header"][0]))
+            for j, h in enumerate(p["header"]):
+                self.add(S.TableTemplateCell(table_template_id=t.id, row=position, col=j, kind="fixed", fixed_text=h))
+            position += 1
+        for r in recipe_rows:
+            if row_key(r.get("label")) in used:
+                continue
+            fixed_label = r.get("label_type", "fixed") == "fixed"
+            self.add(S.TableTemplateRow(table_template_id=t.id, position=position, kind="data" if fixed_label else "variable",
+                                        label=r.get("label"), concept_id=self.concept(r.get("concept"), r.get("cells"))))
+            position += 1
         rule = p.get("column_rule")
         if isinstance(rule, dict):
             self.add(S.TableColumnRule(table_template_id=t.id, actual_periods=rule.get("actual_periods"),
