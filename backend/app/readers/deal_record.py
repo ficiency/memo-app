@@ -111,7 +111,12 @@ def read(path: str | Path) -> dict:
     for key, v in (record.get("narrative") or {}).items():
         if isinstance(v, list):
             for i, item in enumerate(v):
-                ident = item.get("id", i) if isinstance(item, dict) else i
+                # an item is named by its id, else by its first short text (a term, a workstream), else its index,
+                # so a path says which item it is: narrative:series_c_terms[Anti-dilution].text
+                ident = i
+                if isinstance(item, dict):
+                    first = next((x for x in item.values() if isinstance(x, str) and len(x) <= 60), None)
+                    ident = item.get("id") or first or i
                 if isinstance(item, dict):
                     for k, val in item.items():
                         if k != "id":

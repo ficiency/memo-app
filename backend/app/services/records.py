@@ -87,13 +87,10 @@ class Record:
         return [r for r in self.by_path.values() if r.family == path and r.path != path]
 
     def resolve(self, path: str) -> RecordValue | None:
-        """The value a path points at, or None. Relative paths pick a period from the family; a family path
-        (a whole column or list) resolves to its first value."""
+        """The one value a path points at, or None. Relative paths pick a period from the family. A family
+        path (a whole column or list) is not one value: use rows() for it."""
         if path in self.by_path:
             return self.by_path[path]
-        family = self.rows(path)
-        if family:
-            return family[0]
         m = RELATIVE.match(path)
         if not m:
             return None
