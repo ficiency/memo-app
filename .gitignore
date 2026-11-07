@@ -1,4 +1,5 @@
 .env
-docs/pilots/out/
 /docs/discovery
-/docs/pilots
+/docs/pilots/out/
+__pycache__/
+*.pyc
