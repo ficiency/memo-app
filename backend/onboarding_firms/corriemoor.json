@@ -1,0 +1,8 @@
+{"firm": "corriemoor",
+ "materials": [
+  {"kind": "guide", "file": "data/firms/corriemoor/Corriemoor_Brand_and_Paper_Guide.pdf"},
+  {"kind": "template", "file": "data/firms/corriemoor/Corriemoor_Credit_Paper_Template.pptx"},
+  {"kind": "memo", "file": "data/firms/corriemoor/Past_Papers/Brightmere_Kitchen_Services_Credit_Approval_Paper_Jun2025.pptx"},
+  {"kind": "memo", "file": "data/firms/corriemoor/Past_Papers/Cairnvale_Logistics_Credit_Approval_Paper_Nov2024.pptx"},
+  {"kind": "logo", "file": "data/firms/corriemoor/Corriemoor_logo.png"},
+  {"kind": "logo", "file": "data/firms/corriemoor/Corriemoor_logo_white.png"}]}

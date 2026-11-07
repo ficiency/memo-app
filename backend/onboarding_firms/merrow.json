@@ -1,0 +1,8 @@
+{"firm": "merrow",
+ "materials": [
+  {"kind": "guide", "file": "data/firms/merrow/Merrow_Vale_Brand_and_Memo_Guide.pdf"},
+  {"kind": "template", "file": "data/firms/merrow/Merrow_Vale_Memo_Template.pptx"},
+  {"kind": "memo", "file": "data/firms/merrow/Past_Memos/Fieldloom_Final_IC_Memo_2025-03.pptx"},
+  {"kind": "memo", "file": "data/firms/merrow/Past_Memos/Rostrella_Final_IC_Memo_2024-10.pptx"},
+  {"kind": "logo", "file": "data/firms/merrow/Merrow_Vale_logo.png"},
+  {"kind": "logo", "file": "data/firms/merrow/Merrow_Vale_logo_reversed.png"}]}
