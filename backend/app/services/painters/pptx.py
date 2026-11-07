@@ -34,6 +34,7 @@ from app.db import spec as S
 from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
                          Segment, Slide, TableCell, TableColumn, TableRow)
 from app.db.session import SessionLocal
+from app.services.formats import format_date
 
 SLOT = "#8A8A8A"                       # marked slots (model, person, conditional): grey italic, never final text
 NO_DATA = "#B26A00"                    # a chip without a record value
@@ -108,6 +109,17 @@ class Painter:
         self.concept_names = {c.id: c.name for c in q(select(S.Concept).where(S.Concept.spec_version_id == self.version.id))}
         self.stage_name = session.get(S.Stage, self.memo.stage_id).name if self.memo.stage_id else ""
         self.layout_rows = {l.id: l for l in q(select(S.Layout).where(S.Layout.spec_version_id == self.version.id))}
+        formats = q(select(S.Format).where(S.Format.spec_version_id == self.version.id)).all()
+        dates = [f for f in formats if f.item == "date" and f.pattern]
+        general = [f for f in dates if f.context == "any"] or dates
+        self.date_format = {"pattern": general[0].pattern} if general else None
+        money = [f for f in formats if f.item == "money" and f.unit_display != "header"]
+        self.money_format = money[0] if money else None
+        self.money_scales = []
+        if self.money_format:
+            scales = q(select(S.FormatScale).where(S.FormatScale.format_id == self.money_format.id)).all()
+            self.money_scales = scales
+        self.concept_kind = {c.name: c.value_kind for c in q(select(S.Concept).where(S.Concept.spec_version_id == self.version.id))}
 
     # --- helpers --------------------------------------------------------------------------------
     def rgb(self, ref: str | None):
@@ -210,10 +222,35 @@ class Painter:
                     ser.format.fill.solid()
                     ser.format.fill.fore_color.rgb = colour
                     ser.format.line.color.rgb = colour
+        self.axis_format(chart, series)
         chart.has_legend = len(series) > 1
         if chart.has_legend:
             chart.legend.position = XL_LEGEND_POSITION.BOTTOM
             chart.legend.include_in_layout = False
+
+    def axis_format(self, chart, series) -> None:
+        """Value axis and labels in the firm's way (15): money in its symbol and the scale its values need (the
+        firm's scale rules applied to the largest value), percentages as %."""
+        kinds = {self.concept_kind.get(x.concept_name or "") for x in series} - {None}
+        if not kinds or len(kinds) > 1 or not hasattr(chart, "value_axis"):
+            return
+        kind = kinds.pop()
+        code = None
+        if kind == "percent":
+            code = "0%"
+        elif kind == "money" and self.money_format is not None:
+            top = max((abs(p.value) for x in series for p in self.points_of.get(x.id, []) if p.value is not None), default=0)
+            scale = max((r for r in self.money_scales if top >= r.from_value), key=lambda r: r.from_value, default=None)
+            scale = scale.scale if scale is not None else None
+            divide = {"k": ",", "m": ",,", "bn": ",,,"}.get(scale or "", "")
+            unit = {"k": "k", "m": "m", "bn": "bn"}.get(scale or "", "")
+            symbol = self.money_format.symbol or ""
+            code = f'"{symbol}"#,##0{divide}"{unit}"' if symbol else f'#,##0{divide}"{unit}"'
+        elif kind == "multiple":
+            code = '0.0"x"'
+        if code:
+            chart.value_axis.tick_labels.number_format = code
+            chart.value_axis.tick_labels.number_format_is_linked = False
 
     # --- run -----------------------------------------------------------------------------------
     def paint(self, out: Path) -> dict:
@@ -360,8 +397,15 @@ class Painter:
             name = (concepts.get(r.concept_id) or "").lower()
             text = r.text or ""
             if r.kind == "memo_data":
-                text = stage if "stage" in name else self.memo.memo_date or "" if "date" in name else \
-                    str(page) if any(w in name for w in ("page", "number")) else ""
+                if "stage" in name:
+                    text = stage
+                elif "date" in name:                            # the firm's date format, not ISO (18)
+                    text = format_date(self.memo.memo_date, self.date_format) if self.memo.memo_date and self.date_format \
+                        else self.memo.memo_date or ""
+                elif any(w in name for w in ("page", "number")):
+                    text = str(page)
+                else:
+                    text = ""
             segs.append(Segment(position=len(segs), kind="text", text=text))
         return [(style, segs)]
 
