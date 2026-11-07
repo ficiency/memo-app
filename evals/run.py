@@ -22,16 +22,16 @@ from app.db import spec as S  # noqa: E402
 from app.db.memo import Element  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
 
-PILOT_OUT = REPO / "docs" / "pilots" / "out" / "onboarding"
-MANIFESTS = REPO / "docs" / "pilots" / "onboarding_pilot" / "firms"
+ONBOARDING_OUT = REPO / "backend" / ".work" / "onboarding"      # approved step results the writer puts in the DB
+MANIFESTS = REPO / "backend" / "onboarding_firms"
 CODE_DIRS = [REPO / "backend" / "app", REPO / "backend" / "scripts", REPO / "evals"]
 
 
 def schema_fits() -> tuple[list[str], list[dict]]:
-    """Step 1: every item the pilot produced for each firm has a row in the spec tables."""
+    """Every item the onboarding produced for each firm has a row in its latest spec version."""
     lines, failures = [], []
     with SessionLocal() as s:
-        for folder in sorted(p for p in PILOT_OUT.iterdir() if p.is_dir() and (p / "step_5.json").exists()):
+        for folder in sorted(p for p in ONBOARDING_OUT.iterdir() if p.is_dir() and (p / "step_5.json").exists()):
             step = {n: json.loads((folder / f"step_{n}.json").read_text(encoding="utf-8")) for n in range(1, 6)}
             a = {n: step[n].get("answer", step[n]) for n in step}
             name = json.loads((MANIFESTS / f"{folder.name}.json").read_text(encoding="utf-8"))["firm"]
@@ -64,12 +64,12 @@ def schema_fits() -> tuple[list[str], list[dict]]:
                 "rules (+ unmapped)": (len(a[5].get("rules") or []) + len(a[5].get("unmapped") or []),
                                        count(S.Rule, S.Rule.spec_version_id == v)),
             }
-            lines.append(f"\n**{name}** (spec version {str(v)[:8]})\n\n| Item | In pilot | In DB | |\n|---|---|---|---|")
+            lines.append(f"\n**{name}** (spec version {version.number}, {version.label})\n\n| Item | Onboarding | In DB | |\n|---|---|---|---|")
             for item, (want, got) in expected.items():
                 ok = want == got
                 lines.append(f"| {item} | {want} | {got} | {'✅' if ok else '❌'} |")
                 if not ok:
-                    failures.append({"firm": name, "what": f"{item}: pilot {want}, DB {got}"})
+                    failures.append({"firm": name, "what": f"{item}: onboarding {want}, DB {got}"})
     return lines, failures
 
 
@@ -114,10 +114,12 @@ def spec_completeness() -> tuple[list[str], list[dict]]:
                 .where(Element.layout_id.in_(layouts)).group_by(ElementParagraph.element_id)
                 .having(func.count(func.distinct(ElementParagraph.size_pt)) > 1).subquery()))
             master_text = select(Element.id).where(Element.layout_id.in_(master), Element.type == "text")
-            master_filled = n(select(func.count(func.distinct(S.RecipeSegment.element_id)))
-                              .where(S.RecipeSegment.element_id.in_(master_text)))
-            master_fixed = n(select(func.count(func.distinct(ElementParagraph.element_id)))
-                             .where(ElementParagraph.element_id.in_(master_text)))
+            # a master text box has content when it has a recipe or fixed text (a paragraph with a segment)
+            from app.db.memo import Segment
+            with_recipe = select(S.RecipeSegment.element_id).where(S.RecipeSegment.element_id.in_(master_text))
+            with_text = (select(ElementParagraph.element_id).join(Segment, Segment.paragraph_id == ElementParagraph.id)
+                         .where(ElementParagraph.element_id.in_(master_text)))
+            master_content = n(select(func.count()).select_from(with_recipe.union(with_text).subquery()))
             cols = n(select(func.count()).where(S.TableTemplateColumn.table_template_id.in_(templates)))
             cols_w = n(select(func.count()).where(S.TableTemplateColumn.table_template_id.in_(templates),
                                                   S.TableTemplateColumn.width_in.is_not(None)))
@@ -135,7 +137,7 @@ def spec_completeness() -> tuple[list[str], list[dict]]:
                 "G5 table column rules": n(select(func.count()).where(S.TableColumnRule.table_template_id.in_(templates))),
                 "G6 chart templates (chart boxes)": f"{n(select(func.count()).where(S.ChartTemplate.spec_version_id == v))}"
                                                     f" ({n(select(func.count()).where(Element.layout_id.in_(layouts), Element.type == 'chart'))})",
-                "G7 master text boxes with content": f"{max(master_filled, master_fixed)} / {n(select(func.count()).select_from(master_text.subquery()))}",
+                "G7 master text boxes with content": f"{master_content} / {n(select(func.count()).select_from(master_text.subquery()))}",
             }))
     if not rows:
         return ["No spec loaded."], []
@@ -146,7 +148,7 @@ def spec_completeness() -> tuple[list[str], list[dict]]:
 
 
 CHECKS = [
-    ("Step 1 · The three firms fit the schema with no special cases", schema_fits),
+    ("Onboarding → DB · every item lands in the tables, no special cases", schema_fits),
     ("Spec completeness · what painters need (G1–G7)", spec_completeness),
     ("Configuration vs code · no firm names in code", no_firm_names_in_code),
 ]
