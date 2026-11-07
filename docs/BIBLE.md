@@ -259,6 +259,14 @@ Full results in [pilots/README.md](pilots/README.md). The essentials:
 - The preview from the spec found gaps **G1–G7** (styles inside a box, background, table style, table
   structure, abstract tables, charts, master content) and four painter gaps. They are requirements of the
   schema and are fixed when the onboarding is ported.
+- **G8, found when real figures were first written (7 Nov):** number and date formats were sentences, so
+  nothing could write "£22.9m". The preview never wrote a figure, so it never showed. Fixed: formats are
+  fields (scales with thresholds, decimals, symbol, unit inline or in the header, negatives, separators,
+  date pattern, applies_to), and code checks that they write every example of the firm back exactly. One
+  formatter (`app/services/formats.py`) serves the check and the generator.
+- Lesson: a gap only shows when something **uses** the data. Two firm-specific-looking problems had one
+  generic root: a requirement held by two steps gets lost between them; one owner per requirement
+  (step 1 appearance, step 5 logic) fixed it.
 
 ---
 
@@ -278,7 +286,7 @@ operation types, library entries) grows.
 |---|---|---|---|
 | 0 | Pilots, schema design, evals design | — | ✅ |
 | 1 | Skeleton (FastAPI, React, Supabase, migrations), full schema, the three firms' pilot specs loaded, eval runner | Schema fits the three firms with no special cases | ✅ every pilot item in the tables for the 3 firms; 0 firm names in code (`evals/reports/`) |
-| 2 | Onboarding port with G1–G7 fixes, run on the three firms, written to the spec tables (moved up on 6 Nov: the generator and painters are built on the complete spec, not on the pilot's gaps) | Spec completeness (G1–G7); configuration vs code | ✅ steps 1–5 fixed and run on the 3 firms (~$12 of model); written as spec v2; every item lands in the tables; completeness G1–G7 measured (`evals/reports/2026-11-07_1309.md`). Writer to the DB; review screens come in step 10 |
+| 2 | Onboarding port with G1–G7 fixes, run on the three firms, written to the spec tables (moved up on 6 Nov: the generator and painters are built on the complete spec, not on the pilot's gaps) | Spec completeness (G1–G7); configuration vs code | ✅ steps 1–5 fixed and run on the 3 firms (~$12 of model); written as spec v2, then v3 with formats as fields (G8); every item lands in the tables; completeness G1–G7 measured (`evals/reports/2026-11-07_1309.md`). Writer to the DB; review screens come in step 10 |
 | 3 | Spec → memo through operations; PPTX painter | Time and cost of a render; past memo rebuilt | ❌ |
 | 4 | Operations door; PPTX export and import | Round trip; edits survive; PowerPoint cases | ❌ |
 | 5 | Real time (box lock, live draft) with two scripted clients; canvas UI starts here | Two editors in repeated rounds | ❌ |
