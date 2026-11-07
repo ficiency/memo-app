@@ -22,7 +22,7 @@ from pathlib import Path
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Emu
-from sqlalchemy import func
+
 
 from app.db.history import Export
 from app.db.memo import Asset, Memo
@@ -147,6 +147,81 @@ def diff(exported: dict, edited: dict) -> list[dict]:
         for position, sid in enumerate(order_after):
             if order_before.index(sid) != position:
                 out.append({"change": "slide_moved", "slide_id": sid, "position": position})
+    return out
+
+
+def operations(changes: list[dict]) -> list[dict]:
+    """Each difference as an operation for the door. The revision in the shape's name is the base: if the
+    element changed in the app since the export, the door keeps the edit aside instead of overwriting."""
+    ops = []
+    for c in changes:
+        kind, base = c["change"], {"target": c.get("element_id"), "base_revision": c.get("revision")}
+        if kind == "text":
+            ops.append({"type": "set_text", **base, "payload": {"text": c["after"] or ""}})
+        elif kind == "frame":
+            x, y, w, h = c["after"]
+            ops.append({"type": "set_frame", **base, "payload": {"x_in": x, "y_in": y, "w_in": w, "h_in": h}})
+        elif kind == "cell":
+            ops.append({"type": "set_cell", **base, "payload": {"row": c["row"], "col": c["col"], "text": c["after"] or ""}})
+        elif kind == "chart_data":
+            ops.append({"type": "set_chart_data", **base, "payload": {"series": [list(s) for s in c["after"] or []]}})
+        elif kind == "shape_deleted":
+            ops.append({"type": "delete_element", **base})
+        elif kind == "shape_added":
+            x, y, w, h = c["frame"]
+            ops.append({"type": "add_element", "target": c["slide_id"], "payload": {
+                "slide_id": c["slide_id"], "type": "image" if c["type"] == "picture" else "chart" if c["type"] == "chart" else "text",
+                "x_in": x, "y_in": y, "w_in": w, "h_in": h, "text": c.get("text")}})
+        elif kind == "slide_moved":
+            ops.append({"type": "move_slide", "target": c["slide_id"], "payload": {"position": c["position"]}})
+        elif kind == "slide_duplicated":
+            ops.append({"type": "duplicate_slide", "target": c["slide_id"]})
+        elif kind == "slide_deleted":
+            ops.append({"type": "delete_slide", "target": c["slide_id"]})
+        elif kind == "slide_added":
+            ops.append({"type": "keep_aside", "payload": {"kind": "added_slide", "reason": "a slide was added in PowerPoint"}})
+        elif kind == "shape_from_elsewhere":
+            ops.append({"type": "keep_aside", "target": c["element_id"], "payload": {
+                "kind": "moved_box", "reason": "a box was moved to another slide in PowerPoint"}})
+    return ops
+
+
+def import_pptx(memo_id, edited: Path, export_id=None, actor_email: str | None = None) -> dict:
+    """Bring an edited copy back: every difference from the export goes through the door as one change set."""
+    from sqlalchemy import select
+    from app.db import spec as S
+    from app.db.history import ChangeSet, Import
+    from app.services.operations.door import Door
+
+    with SessionLocal() as session:
+        memo = session.get(Memo, uuid.UUID(str(memo_id)))
+        q = select(Export).where(Export.memo_id == memo.id)
+        exp = session.get(Export, uuid.UUID(str(export_id))) if export_id else session.scalars(q.order_by(Export.created_at.desc())).first()
+        exported = Path(session.get(Asset, exp.asset_id).storage_path)
+        user = session.scalar(select(S.User).where(S.User.email == actor_email)) if actor_email else None
+        changes = diff(read(exported), read(edited))
+        change_set = ChangeSet(id=uuid.uuid4(), memo_id=memo.id, actor_type="import", on_behalf_of=user.id if user else None,
+                               summary=f"PowerPoint import ({len(changes)} changes)", status="applied")
+        session.add(change_set)
+        session.commit()
+        door = Door(session, memo.id)
+        results = []
+        for op in operations(changes):
+            r = door.apply(op, actor_type="import", actor_id=user.id if user else None,
+                           on_behalf_of=user.id if user else None, change_set_id=change_set.id)
+            results.append({"type": op["type"], "status": r.status, "reason": r.reason})
+        counts = func_count(results)
+        session.add(Import(memo_id=memo.id, export_id=exp.id, change_set_id=change_set.id,
+                           report="; ".join(f"{k} {v}" for k, v in counts.items()),
+                           created_by=user.id if user else None))
+        session.commit()
+        return {"changes": len(changes), **counts, "results": results}
+
+
+def func_count(results: list[dict]) -> dict:
+    out: dict = {}
+    for r in results:
+        out[r["status"]] = out.get(r["status"], 0) + 1
     return out
 
 
