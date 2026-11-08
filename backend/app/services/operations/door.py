@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.db import spec as S
 from app.db.history import Conflict, Operation
+from app.services.memo_data import MemoData
 from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
                          Segment, Slide, TableCell, TableColumn, TableRow)
 
@@ -111,15 +112,8 @@ class Door:
         return Result(status, reason, row.id, row.sequence, created, element, slides)
 
     def state(self, el: Element) -> dict:
-        """An element as clients need it to redraw: frame, locks, revision and its text by paragraph (chips and
-        slots marked)."""
-        return {
-            "id": str(el.id), "slide_id": str(el.slide_id), "revision": el.revision, "deleted": el.deleted_at is not None,
-            "frame": {k: getattr(el, k) for k in FRAME}, "firm_lock": el.firm_lock,
-            "user_lock": str(el.user_lock_by) if el.user_lock_by else None,
-            "paragraphs": [[{"kind": s.kind, "text": s.text, "concept": s.concept_name} for s in segs]
-                           for _, segs in self.paragraphs(el)],
-        }
+        """An element as clients need it to redraw, in the same shape the memo is read in (app/services/memo_data)."""
+        return MemoData(self.s, self.memo.id, element_ids=[el.id]).element_json(el)
 
     # --- helpers --------------------------------------------------------------------------------
     def _is_element(self, op) -> bool:

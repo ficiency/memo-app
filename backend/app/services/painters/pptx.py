@@ -19,6 +19,7 @@ import sys
 import time
 from pathlib import Path
 
+from PIL import Image
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
@@ -31,10 +32,9 @@ from sqlalchemy.orm import Session
 
 from app.config import REPO
 from app.db import spec as S
-from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
-                         Segment, Slide, TableCell, TableColumn, TableRow)
+from app.db.memo import Element, ElementChart, ElementTable
 from app.db.session import SessionLocal
-from app.services.formats import format_date
+from app.services.memo_data import MemoData
 
 SLOT = "#8A8A8A"                       # marked slots (model, person, conditional): grey italic, never final text
 NO_DATA = "#B26A00"                    # a chip without a record value
@@ -46,11 +46,14 @@ CHART = {"column": XL_CHART_TYPE.COLUMN_CLUSTERED, "stacked_column": XL_CHART_TY
          "combo": XL_CHART_TYPE.COLUMN_CLUSTERED, "other": XL_CHART_TYPE.COLUMN_CLUSTERED}
 
 
-def group(rows, key) -> dict:
-    out: dict = {}
-    for r in rows:
-        out.setdefault(getattr(r, key), []).append(r)
-    return out
+def pick_logo(logos: list[Path], el) -> Path | None:
+    """The firm's logo file for a logo box: the light version ("reversed", "white") where the box says so."""
+    if not logos or "logo" not in f"{el.role or ''} {el.name or ''}".lower():
+        return None
+    light = ("reversed", "white", "light", "negative")
+    wants_light = any(w in (el.name or "").lower() for w in light)
+    match = [f for f in logos if any(w in f.stem.lower() for w in light) == wants_light]
+    return (match or logos)[0]
 
 
 def materials(firm_name: str) -> dict[str, list[Path]]:
@@ -62,63 +65,21 @@ def materials(firm_name: str) -> dict[str, list[Path]]:
     return out
 
 
-class Painter:
+class Painter(MemoData):
     def __init__(self, session: Session, memo_id):
-        self.s = session
-        self.memo = session.get(Memo, memo_id)
+        super().__init__(session, memo_id)
+        q = session.scalars
         self.firm = session.get(S.Firm, self.memo.firm_id)
-        self.version = session.get(S.SpecVersion, self.memo.spec_version_id)
-        self.palette = {p.name.lower(): p.hex for p in session.scalars(
-            select(S.PaletteColor).where(S.PaletteColor.spec_version_id == self.version.id))}
+        self.palette = {p.name.lower(): p.hex for p in q(select(S.PaletteColor).where(S.PaletteColor.spec_version_id == self.version.id))}
         self.table_style = session.scalar(select(S.TableStyle).where(S.TableStyle.spec_version_id == self.version.id))
-        roles = session.scalars(select(S.TextRole).where(S.TextRole.spec_version_id == self.version.id)).all()
+        roles = q(select(S.TextRole).where(S.TextRole.spec_version_id == self.version.id)).all()
         table_role = next((r for r in roles if "table" in r.name), None)
         self.table_font = (table_role.font if table_role else None), (table_role.size_pt if table_role else 10)
         self.files = materials(self.firm.name)
-        self.slides = session.scalars(select(Slide).where(Slide.memo_id == self.memo.id, Slide.deleted_at.is_(None))
-                                      .order_by(Slide.position)).all()
-        # the whole memo, read once: a remote database answers each round trip slowly
-        q = session.scalars
-        elements = q(select(Element).where(Element.slide_id.in_([x.id for x in self.slides]), Element.deleted_at.is_(None))).all()
-        self.elements_of = group(elements, "slide_id")
-        tables = q(select(ElementTable).where(ElementTable.element_id.in_([e.id for e in elements]))).all()
-        self.table_of = {t.element_id: t for t in tables}
-        tids = [t.id for t in tables]
-        self.cols_of = group(q(select(TableColumn).where(TableColumn.element_table_id.in_(tids))).all(), "element_table_id")
-        self.rows_of = group(q(select(TableRow).where(TableRow.element_table_id.in_(tids))).all(), "element_table_id")
-        cells = q(select(TableCell).where(TableCell.element_table_id.in_(tids))).all()
-        self.cells_of = group(cells, "element_table_id")
-        paragraphs = list(q(select(ElementParagraph).where(ElementParagraph.element_id.in_([e.id for e in elements])))) + \
-            list(q(select(ElementParagraph).where(ElementParagraph.table_cell_id.in_([c.id for c in cells]))))
-        self.paras_of_element = group([p for p in paragraphs if p.element_id], "element_id")
-        self.paras_of_cell = group([p for p in paragraphs if p.table_cell_id], "table_cell_id")
-        self.segments_of = group(q(select(Segment).where(Segment.paragraph_id.in_([p.id for p in paragraphs]))).all(), "paragraph_id")
-        charts = q(select(ElementChart).where(ElementChart.element_id.in_([e.id for e in elements]))).all()
-        self.chart_of = {c.element_id: c for c in charts}
-        series = q(select(ChartSeries).where(ChartSeries.element_chart_id.in_([c.id for c in charts]))).all()
-        self.series_of = group(series, "element_chart_id")
-        self.points_of = group(q(select(ChartPoint).where(ChartPoint.chart_series_id.in_([x.id for x in series]))).all(), "chart_series_id")
-        master = session.scalar(select(S.Layout).where(S.Layout.spec_version_id == self.version.id, S.Layout.is_master))
-        self.master_elements = q(select(Element).where(Element.layout_id == master.id)).all() if master else []
-        self.master_paras = group(q(select(ElementParagraph).where(ElementParagraph.element_id.in_([e.id for e in self.master_elements]))).all(), "element_id")
-        for p in [p for ps in self.master_paras.values() for p in ps]:
-            self.paras_of_element.setdefault(p.element_id, []).append(p)
-        for seg in q(select(Segment).where(Segment.paragraph_id.in_([p.id for ps in self.master_paras.values() for p in ps]))):
-            self.segments_of.setdefault(seg.paragraph_id, []).append(seg)
-        self.master_recipe = group(q(select(S.RecipeSegment).where(S.RecipeSegment.element_id.in_([e.id for e in self.master_elements]))).all(), "element_id")
-        self.concept_names = {c.id: c.name for c in q(select(S.Concept).where(S.Concept.spec_version_id == self.version.id))}
-        self.stage_name = session.get(S.Stage, self.memo.stage_id).name if self.memo.stage_id else ""
-        self.layout_rows = {l.id: l for l in q(select(S.Layout).where(S.Layout.spec_version_id == self.version.id))}
         formats = q(select(S.Format).where(S.Format.spec_version_id == self.version.id)).all()
-        dates = [f for f in formats if f.item == "date" and f.pattern]
-        general = [f for f in dates if f.context == "any"] or dates
-        self.date_format = {"pattern": general[0].pattern} if general else None
         money = [f for f in formats if f.item == "money" and f.unit_display != "header"]
         self.money_format = money[0] if money else None
-        self.money_scales = []
-        if self.money_format:
-            scales = q(select(S.FormatScale).where(S.FormatScale.format_id == self.money_format.id)).all()
-            self.money_scales = scales
+        self.money_scales = q(select(S.FormatScale).where(S.FormatScale.format_id == self.money_format.id)).all() if self.money_format else []
         self.concept_kind = {c.name: c.value_kind for c in q(select(S.Concept).where(S.Concept.spec_version_id == self.version.id))}
 
     # --- helpers --------------------------------------------------------------------------------
@@ -127,11 +88,6 @@ class Painter:
             return None
         h = ref if ref.startswith("#") else self.palette.get(ref.lower())
         return RGBColor.from_string(h.lstrip("#").upper()) if h else None
-
-    def paragraphs(self, element_id=None, cell_id=None) -> list[tuple[ElementParagraph, list[Segment]]]:
-        paras = self.paras_of_element.get(element_id, []) if element_id else self.paras_of_cell.get(cell_id, [])
-        return [(p, sorted(self.segments_of.get(p.id, []), key=lambda x: x.position))
-                for p in sorted(paras, key=lambda p: p.position)]
 
     def write_text(self, text_frame, paras, keep_layout_style: bool, page: int) -> None:
         """Paragraphs and runs; placeholders keep their layout's look unless a paragraph overrides it."""
@@ -283,6 +239,14 @@ class Painter:
                 for m_el in self.master_elements:
                     self.draw(slide, m_el, page, master_box=True)
             placeholders = {ph.placeholder_format.idx: ph for ph in slide.placeholders} if pptx_layout else {}
+            if pptx_layout:
+                # python-pptx leaves out the layout's footer, date and slide-number placeholders: bring back the
+                # ones the memo fills, so they are not lost
+                wanted = {e.placeholder_idx for e in self.elements_of.get(slide_row.id, [])} - set(placeholders)
+                for lp in pptx_layout.placeholders:
+                    if lp.placeholder_format.idx in wanted:
+                        slide.shapes.clone_placeholder(lp)
+                placeholders = {ph.placeholder_format.idx: ph for ph in slide.placeholders}
             used = set()
             for el in sorted(self.elements_of.get(slide_row.id, []), key=lambda e: (e.z_index or 0, e.y_in or 0, e.x_in or 0)):
                 if pptx_layout and el.placeholder_idx is not None and el.placeholder_idx in placeholders:
@@ -337,10 +301,12 @@ class Painter:
                 shape.line.color.rgb = self.rgb(el.line_ref)
             shape.line.width = Pt(el.line_width_pt or 0.75)
         elif el.type == "image":
-            logos = self.files.get("logo") or []
-            if not (logos and (el.role or "").find("logo") >= 0):
+            logo = pick_logo(self.files.get("logo") or [], el)
+            if logo is None:
                 return
-            shape = slide.shapes.add_picture(str(logos[0]), x, y, height=h)
+            with Image.open(logo) as im:                         # the logo fits its box, never wider than it
+                ratio = im.width / im.height
+            shape = slide.shapes.add_picture(str(logo), x, y, height=h) if h * ratio <= w else                 slide.shapes.add_picture(str(logo), x, y, width=w)
         elif el.type == "table":
             table = self.table_of.get(el.id)
             if not table:
@@ -384,31 +350,6 @@ class Painter:
                 self.write_text(tf, paras, keep_layout_style=False, page=page)
         # a master box belongs to the firm's spec and repeats on every page: it is not a memo element
         shape.name = f"master:{el.id}" if master_box else f"memo:{el.id}@{el.revision}"
-
-    def master_text(self, el: Element, page: int):
-        """Text of a master box from its recipe: fixed words and memo data (stage, date, page number)."""
-        recipe = sorted(self.master_recipe.get(el.id, []), key=lambda r: (r.paragraph or 0, r.position))
-        if not recipe:
-            return []
-        stage = self.stage_name
-        concepts = self.concept_names
-        style = ElementParagraph(position=0, level=0)
-        segs = []
-        for r in recipe:
-            name = (concepts.get(r.concept_id) or "").lower()
-            text = r.text or ""
-            if r.kind == "memo_data":
-                if "stage" in name:
-                    text = stage
-                elif "date" in name:                            # the firm's date format, not ISO (18)
-                    text = format_date(self.memo.memo_date, self.date_format) if self.memo.memo_date and self.date_format \
-                        else self.memo.memo_date or ""
-                elif any(w in name for w in ("page", "number")):
-                    text = str(page)
-                else:
-                    text = ""
-            segs.append(Segment(position=len(segs), kind="text", text=text))
-        return [(style, segs)]
 
 
 def paint(memo_id, out: Path) -> dict:
