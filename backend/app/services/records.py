@@ -36,7 +36,7 @@ RELATIVE = re.compile(r"^(?P<family>.+)@(?P<anchor>last_actual|first_forecast|la
 PATH_TOKEN = re.compile(r"(?:field|table|angle_table|series|narrative|company|angle):[^\s+*/()]+")
 
 
-def load(session: Session, firm_name: str, path: str | Path, fmt: str = deal_record.FORMAT) -> RecordRevision:
+def load(session: Session, firm_name: str, path: str | Path, fmt: str = deal_record.FORMAT, created_by=None) -> RecordRevision:
     """Read a record file and store it as the firm's next revision of that deal."""
     data = READERS[fmt].read(path)
     firm = session.scalar(select(Firm).where(Firm.name == firm_name))
@@ -51,7 +51,7 @@ def load(session: Session, firm_name: str, path: str | Path, fmt: str = deal_rec
                               .order_by(RecordRevision.number.desc()))
     revision = RecordRevision(deal_id=deal.id, firm_id=firm.id, number=(previous.number + 1) if previous else 1,
                               record_schema=data["format"], previous_id=previous.id if previous else None,
-                              as_of=date.fromisoformat(data["as_of"]) if data.get("as_of") else None)
+                              as_of=date.fromisoformat(data["as_of"]) if data.get("as_of") else None, created_by=created_by)
     session.add(revision)
     session.flush()
     session.add_all(RecordValue(revision_id=revision.id, date_value=date.fromisoformat(r["date_value"]) if r.get("date_value") else None,
@@ -60,6 +60,48 @@ def load(session: Session, firm_name: str, path: str | Path, fmt: str = deal_rec
                     for r in data["rows"])
     session.commit()
     return revision
+
+
+COPIED = ("path", "family", "label", "value_kind", "is_forecast", "kind", "number_value", "text_value", "date_value",
+          "unit", "period", "source")
+
+
+def revise(session: Session, revision_id, changes: dict[str, object], created_by=None) -> RecordRevision:
+    """Edit a revision's values: the result is the deal's next revision, a full copy with the changes; the
+    edited one stays as it was. Only existing values change, each keeping its kind."""
+    base = session.get(RecordRevision, revision_id)
+    rows = session.scalars(select(RecordValue).where(RecordValue.revision_id == base.id)).all()
+    by_path = {r.path: r for r in rows}
+    unknown = [p for p in changes if p not in by_path]
+    if unknown:
+        raise ValueError(f"not in this record: {', '.join(unknown[:5])}")
+    last = session.scalar(select(func.max(RecordRevision.number)).where(RecordRevision.deal_id == base.deal_id,
+                                                                       RecordRevision.firm_id == base.firm_id))
+    revision = RecordRevision(deal_id=base.deal_id, firm_id=base.firm_id, number=(last or 0) + 1,
+                              record_schema=base.record_schema, as_of=base.as_of, previous_id=base.id, created_by=created_by)
+    session.add(revision)
+    session.flush()
+    for r in rows:
+        values = {k: getattr(r, k) for k in COPIED}
+        if r.path in changes:
+            values.update(_typed(r.kind, changes[r.path]))
+        session.add(RecordValue(revision_id=revision.id, **values))
+    session.commit()
+    return revision
+
+
+def _typed(kind: str, value) -> dict:
+    """A new value in its row's kind: numbers stay numbers, dates stay dates."""
+    if value is None or value == "":
+        return {"number_value": None, "text_value": None, "date_value": None}
+    if kind == "number":
+        try:
+            return {"number_value": float(str(value).replace(",", ""))}
+        except ValueError:
+            raise ValueError(f"{value!r} is not a number")
+    if kind == "date":
+        return {"date_value": date.fromisoformat(str(value)[:10])}
+    return {"text_value": str(value)}
 
 
 class Record:

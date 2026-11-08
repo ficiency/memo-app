@@ -54,16 +54,27 @@ def by(rows, key) -> dict:
 
 
 class Generator:
-    def __init__(self, session: Session, firm_name: str, stage_name: str, memo_date: str | None, team: str | None):
+    def __init__(self, session: Session, firm_name: str, stage_name: str, memo_date: str | None, team: str | None,
+                 spec_version_id=None, revision_id=None, created_by=None):
+        """Without a spec version or a record revision, the firm's latest ones."""
         self.s = session
         q = session.scalars
         self.firm = session.scalar(select(S.Firm).where(S.Firm.name == firm_name))
-        self.spec = session.scalar(select(S.Spec).where(S.Spec.firm_id == self.firm.id))
-        self.version = session.scalar(select(S.SpecVersion).where(S.SpecVersion.spec_id == self.spec.id)
-                                      .order_by(S.SpecVersion.number.desc()))
+        if spec_version_id:
+            self.version = session.get(S.SpecVersion, spec_version_id)
+            self.spec = session.get(S.Spec, self.version.spec_id)
+        else:
+            self.spec = session.scalar(select(S.Spec).where(S.Spec.firm_id == self.firm.id))
+            self.version = session.scalar(select(S.SpecVersion).where(S.SpecVersion.spec_id == self.spec.id)
+                                          .order_by(S.SpecVersion.number.desc()))
+        if self.spec.firm_id != self.firm.id:
+            raise ValueError("that spec belongs to another firm")
         v = self.version.id
-        self.revision = session.scalar(select(RecordRevision).where(RecordRevision.firm_id == self.firm.id)
-                                       .order_by(RecordRevision.number.desc()))
+        self.revision = session.get(RecordRevision, revision_id) if revision_id else             session.scalar(select(RecordRevision).where(RecordRevision.firm_id == self.firm.id)
+                           .order_by(RecordRevision.number.desc()))
+        if self.revision is None or self.revision.firm_id != self.firm.id:
+            raise ValueError("no deal record for this firm")
+        self.created_by = created_by
         self.record = Record(session, self.revision.id)
         self.stage = session.scalar(select(S.Stage).where(S.Stage.spec_version_id == v, S.Stage.name == stage_name))
         if not self.stage:
@@ -211,7 +222,8 @@ class Generator:
         self.memo = self.new(Memo, firm_id=self.firm.id, deal_id=self.revision.deal_id, spec_version_id=self.version.id,
                              record_revision_id=self.revision.id, stage_id=self.stage.id,
                              title=f"{deal_name} · {self.spec.name} · {self.stage.name}",
-                             memo_date=self.memo_data["date"], deal_team=self.memo_data["team"] or None)
+                             memo_date=self.memo_data["date"], deal_team=self.memo_data["team"] or None,
+                             created_by=self.created_by)
         sections = self.s.execute(select(S.Section).join(S.StageSection, S.StageSection.section_id == S.Section.id)
                                   .where(S.StageSection.stage_id == self.stage.id, S.StageSection.required)
                                   .order_by(S.Section.position)).scalars().all()
