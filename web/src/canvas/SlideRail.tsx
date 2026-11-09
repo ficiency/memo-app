@@ -72,7 +72,7 @@ export function SlideRail({
               href={`#slide-${s.id}`}
               className={`rail-item${(focusId ?? slides[0]?.id) === s.id ? " focus" : ""}${dragging === s.id ? " dragging" : ""}`}
               draggable={!locked}
-              title={locked ? `${sec?.name}: placed by the firm` : "Drag to reorder"}
+              title={`${s.position + 1} · ${sec?.name ?? s.layout ?? "Slide"}${s.layout ? ` (${s.layout})` : ""}${locked ? " · placed by the firm" : " · drag to reorder"}`}
               onDragStart={(e) => {
                 setDragging(s.id);
                 e.dataTransfer.effectAllowed = "move";
@@ -86,7 +86,12 @@ export function SlideRail({
             >
               <span className="rail-n">{s.position + 1}</span>
               <span className="rail-name">{sec?.name ?? s.layout ?? "Slide"}</span>
-              {locked && <span className="rail-lock" title="Placed by the firm">🔒</span>}
+              {locked && (
+                <svg className="rail-lock" viewBox="0 0 16 16" width="11" height="11" aria-label="Placed by the firm">
+                  <rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor" />
+                  <path d="M5.2 7V5.2a2.8 2.8 0 0 1 5.6 0V7" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+              )}
             </a>
             <span className="rail-actions">
               <button

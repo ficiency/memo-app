@@ -148,7 +148,7 @@ table.grid tbody th { text-align: left; color: var(--ink); }
 .dot.on { background: var(--ok); }
 .dot.off { background: var(--warn); }
 .memo-body { flex: 1; display: flex; min-height: 0; }
-.rail { width: 200px; overflow: auto; padding: 14px 8px; border-right: 1px solid var(--line); background: #fafaf8; flex: none; }
+.rail { width: 168px; overflow: auto; padding: 12px 6px; border-right: 1px solid var(--line); background: #fafaf8; flex: none; }
 .rail-item { display: flex; gap: 8px; padding: 6px 8px; border-radius: 6px; color: var(--ink); text-decoration: none; font-size: 13px; }
 .rail-item:hover { background: #efeeea; }
 .rail-n { color: var(--muted); width: 18px; text-align: right; flex: none; }
@@ -310,9 +310,10 @@ button.active-toggle { border-color: var(--accent); color: var(--accent); }
 /* the slide rail: reorder, duplicate, delete, add */
 .rail-slot { position: relative; border-top: 2px solid transparent; }
 .rail-slot.drop-before { border-top-color: var(--accent); }
-.rail-slot .rail-item { padding-right: 52px; }
+.rail-slot .rail-item { padding-right: 8px; font-size: 12.5px; }
+.rail-slot:hover .rail-item { padding-right: 52px; }
 .rail-item.dragging { opacity: 0.4; }
-.rail-lock { font-size: 10px; margin-left: auto; opacity: 0.6; }
+.rail-lock { margin-left: auto; flex: none; color: #8aa2c8; }
 .rail-actions { position: absolute; right: 4px; top: 4px; display: none; gap: 2px; }
 .rail-slot:hover .rail-actions { display: flex; }
 button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
