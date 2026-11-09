@@ -231,7 +231,7 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <div class="tw"><table>
     <thead><tr><th>Capability</th><th>What the system does</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td class="k">1 · The template lives in the platform</td><td>Onboarding takes whatever the firm sends (template, guide, past memos, or part of them), says what is missing, and has the model propose what no file has from the rest (Lumen's layouts and master from its guide). Six steps, each checked by code and approved by a person, write a versioned spec. Memos change version only by a person, after See changes.<div class="gap">building or editing a template inside the app.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
+      <tr><td class="k">1 · The template lives in the platform</td><td>Onboarding takes whatever the firm sends (template, guide, past memos, or part of them), says what is missing, and has the model propose what no file has from the rest (Lumen's layouts and master from its guide). Six steps (materials, house style, structure, layouts, recipe, rules), each checked by code and approved by a person, write a versioned spec. Memos change version only by a person, after See changes.<div class="gap">building or editing a template inside the app.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
       <tr><td class="k">2 · One memo, every output</td><td>Native PowerPoint on the firm's own master (generated from the guide for Lumen); PDF converted from it by PowerPoint. Text measured in the firm's real fonts; shrunk to the firm's minimum, then flagged "does not fit".<div class="gap">long content is reported, not continued on another slide.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
       <tr><td class="k">3 · A live editor</td><td>Template slides locked to their layout. Free slides take text, record tables and charts, and pictures inside the free area, on the grid. Sections reorder where the rules allow. Every edit checked on the server and broadcast live.</td><td><span class="pill ok">Built</span></td></tr>
       <tr><td class="k">4 · Custom slides, three ways in</td><td>Upload a PowerPoint or PDF slide (native where possible, flagged pictures where not), build on the canvas, or ask the agent.<div class="gap">promoting a one-off slide into the template.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
@@ -252,12 +252,12 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
 </section>
 
 <section>
-  <h2><span class="n">04</span>Where a person checks the model</h2>
+  <h2><span class="n">04</span>The screens where people check and steer</h2>
   <ul class="tight">
-    <li><strong>Firm setup</strong>: each step's answer, what code could not resolve, every guide-versus-template conflict with both sides' evidence; nothing lands unapproved.</li>
-    <li><strong>Binding review</strong>: where each figure comes from, flagged when it has no value, a broken path, a value that moved since the last upload, a twin of another figure, the wrong kind.</li>
-    <li><strong>Pendings panel</strong>: missing data, text to write, a picture to confirm, a box that does not fit; each clears itself when it stops being true.</li>
-    <li><strong>Proposals and See changes</strong>: an agent proposal, a newer record or a newer template version, shown before → after and applied by a person.</li>
+    <li><strong>Firm setup</strong>: each onboarding step's answer, what code could not resolve, every guide-versus-template conflict with both sides' evidence; nothing lands unapproved.</li>
+    <li><strong>Deal record</strong>: upload a file or edit values in place; each save is a new revision (memos stay on theirs), and a changed number offers to update its twins.</li>
+    <li><strong>Bindings</strong>: where each figure comes from, flagged (no value, broken path, moved since the last upload, a twin of another figure, wrong kind); a person can change any binding.</li>
+    <li><strong>In the memo</strong>: pendings worked out by code (no model), agent proposals applied change by change, and See changes before a newer record or template version lands.</li>
   </ul>
 </section>
 
