@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from pathlib import Path
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
@@ -136,26 +137,6 @@ async def dismiss_pending(memo_id: str, body: Dismiss, user: S.User = Depends(cu
     return {"dismissed": True}
 
 
-@router.post("/{memo_id}/slides/upload")
-async def upload_slides(memo_id: str, file: UploadFile, user: S.User = Depends(current_user)) -> dict:
-    """A PPTX's slides or a PDF's pages as free slides at the end of the memo: native where possible, a flagged
-    picture where not; what could not be brought in is listed."""
-    from ..services import slide_upload
-    data = await file.read()
-
-    def run():
-        with SessionLocal() as session:
-            own_memo(session, user, memo_id)
-        try:
-            return slide_upload.upload(memo_id, data, file.filename or "", file.content_type, user)
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-
-    out = await run_in_threadpool(run)
-    await hub.send(memo_id, {"type": "reload", "by": user.email, "reason": "slide upload"})
-    return out
-
-
 @router.post("/{memo_id}/pictures")
 async def upload_picture(memo_id: str, file: UploadFile, user: S.User = Depends(current_user)) -> dict:
     """A picture for this memo (stored once by content); it goes on a slide with an add_element operation."""
@@ -262,20 +243,50 @@ async def export(memo_id: str, user: S.User = Depends(current_user)):
                         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation")
 
 
-@router.post("/{memo_id}/import")
-async def import_pptx(memo_id: str, file: UploadFile, user: S.User = Depends(current_user)) -> dict:
-    """An edited copy of an exported file: each change goes through the door; what cannot be applied is kept
-    aside, never lost. Everyone in the memo gets the memo again."""
-    with SessionLocal() as session:
-        own_memo(session, user, memo_id)
-    path = FILES / "uploads" / f"{datetime.now():%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:6]}.pptx"
+@router.post("/{memo_id}/upload")
+async def upload(memo_id: str, file: UploadFile, user: S.User = Depends(current_user)) -> dict:
+    """One way in for a PowerPoint or a PDF; the file says what it is:
+    - this memo's own export, edited: brought back (each change through the door, what cannot be applied kept
+      aside, never lost);
+    - another memo's export: refused, it is brought back in that memo;
+    - anything else: its slides (or pages) come in as slides the firm leaves free.
+    Everyone in the memo gets the memo again."""
+    from ..db.memo import Slide
+    from ..services import slide_upload
+    name = file.filename or ""
+    suffix = Path(name).suffix.lower()
+    if suffix not in (".pptx", ".pdf"):
+        raise HTTPException(400, "upload a PowerPoint (.pptx) or a PDF")
+    path = FILES / "uploads" / f"{datetime.now():%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:6]}{suffix}"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(await file.read())
-    try:
-        result = await run_in_threadpool(roundtrip.import_pptx, memo_id, path, None, user.email)
-    except Exception as e:                                       # not a file this memo exported
-        raise HTTPException(400, f"could not read this file against the memo's last export: {e}")
-    await hub.send(memo_id, {"type": "reload", "by": user.email, "reason": "PowerPoint import"})
+    data = await file.read()
+    path.write_bytes(data)
+
+    def run() -> dict:
+        with SessionLocal() as session:
+            memo = own_memo(session, user, memo_id)
+            ids = roundtrip.slide_ids(path) if suffix == ".pptx" else []
+            if ids:
+                owners = set(session.scalars(select(Slide.memo_id).where(Slide.id.in_([uuid.UUID(x) for x in ids]))))
+                if memo.id not in owners:
+                    other = session.get(Memo, next(iter(owners))) if owners else None
+                    raise HTTPException(400, "this is the PowerPoint of another memo" + (f" ({other.title})" if other else "")
+                                        + ": bring it back in that memo")
+        if ids:
+            try:
+                return {"kind": "bring_back", **roundtrip.import_pptx(memo_id, path, None, user.email)}
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(400, f"could not read this file against the memo's last export: {e}")
+        try:
+            return {"kind": "slides", **slide_upload.upload(memo_id, data, name, file.content_type, user)}
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    result = await run_in_threadpool(run)
+    reason = "PowerPoint import" if result["kind"] == "bring_back" else "slide upload"
+    await hub.send(memo_id, {"type": "reload", "by": user.email, "reason": reason})
     return result
 
 

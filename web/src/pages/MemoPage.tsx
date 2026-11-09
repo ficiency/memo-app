@@ -381,19 +381,6 @@ export function MemoPage() {
     }
   };
 
-  const importPptx = async (file: File) => {
-    setImporting("busy");
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      setImporting(await post<ImportResult>(`/memos/${memoId}/import`, form));
-      loadConflicts();
-    } catch (e) {
-      setImporting(null);
-      setNotice({ title: "Could not bring this file back", body: (e as Error).message });
-    }
-  };
-
   // the free area of a slide the firm leaves free (people's own boxes go there), else null
   const zoneFor = (s: SlideData): number[] | null => {
     if (!view) return null;
@@ -429,17 +416,24 @@ export function MemoPage() {
     }
   };
 
-  // a PPTX's slides or a PDF's pages: native where possible, flagged pictures where not; what did not come is said
-  const uploadSlides = async (file: File) => {
+  // one way in for a PowerPoint or a PDF; the file says what it is: this memo's export, edited, is brought back
+  // (its changes applied, what cannot be kept aside); any other file adds its slides or pages as free slides
+  // (native where possible, flagged pictures where not; what did not come in is said)
+  type SlidesIn = { kind: "slides"; slides: number; boxes: Record<string, number>; pictures: number; skipped: string[]; refused: string[] };
+  const uploadFile = async (file: File) => {
     setUploading(true);
     try {
       await waitSaved();
       const form = new FormData();
       form.append("file", file);
-      const r = await post<{ slides: number; boxes: Record<string, number>; pictures: number; skipped: string[]; refused: string[] }>(
-        `/memos/${memoId}/slides/upload`,
-        form,
-      );
+      const out = await post<SlidesIn | (ImportResult & { kind: "bring_back" })>(`/memos/${memoId}/upload`, form);
+      if (out.kind === "bring_back") {
+        setImporting(out);
+        loadConflicts();
+        loadPendings();
+        return;
+      }
+      const r = out;
       const boxes = Object.entries(r.boxes).map(([k, v]) => `${v} ${k}`).join(", ");
       const came = `${r.slides} slide${r.slides === 1 ? "" : "s"} added${boxes ? ` · ${boxes}` : ""}${r.pictures ? ` · ${r.pictures} picture${r.pictures === 1 ? "" : "s"} to confirm` : ""}`;
       if (r.skipped.length || r.refused.length)
@@ -551,14 +545,17 @@ export function MemoPage() {
           <input
             ref={fileRef}
             type="file"
-            accept=".pptx"
+            accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
             hidden
             onChange={(e) => {
-              if (e.target.files?.[0]) importPptx(e.target.files[0]);
+              if (e.target.files?.[0]) uploadFile(e.target.files[0]);
               e.target.value = "";
             }}
           />
-          <button onClick={() => fileRef.current?.click()}>Bring back PowerPoint</button>
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  title="This memo's PowerPoint, edited, comes back with its changes; any other PowerPoint or PDF adds its slides">
+            {uploading ? "Bringing it in…" : "Upload PowerPoint or PDF"}
+          </button>
           <button className="primary" onClick={exportPptx} disabled={Boolean(busy)}>
             {busy ?? "Export PowerPoint"}
           </button>
@@ -598,7 +595,7 @@ export function MemoPage() {
           onOp={(op) => {
             if (!send({ type: "op", op })) toast("Reconnecting… try again in a moment", "warn");
           }}
-          onUpload={uploadSlides}
+          onUpload={uploadFile}
           uploading={uploading}
         />
         <div className="slides" ref={mainRef}>

@@ -72,6 +72,17 @@ def _kind(shape) -> str:
     return "text" if shape.has_text_frame else "shape"
 
 
+def slide_ids(path: Path) -> list[str]:
+    """The memo slides a file says it holds (an export names each slide memo-slide:<id>); none for a file from
+    elsewhere."""
+    out = []
+    for slide in Presentation(str(path)).slides:
+        m = SLIDE.match(slide._element.cSld.get("name") or "")
+        if m:
+            out.append(m.group(1))
+    return out
+
+
 def read(path: Path) -> dict:
     """Every slide of a file by identity: its named shapes with what can be edited, and the shapes with no
     memo name (added in PowerPoint)."""
