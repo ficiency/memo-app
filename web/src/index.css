@@ -313,7 +313,7 @@ button.active-toggle { border-color: var(--accent); color: var(--accent); }
 .rail-slot .rail-item { padding-right: 8px; font-size: 12.5px; }
 .rail-slot:hover .rail-item { padding-right: 52px; }
 .rail-item.dragging { opacity: 0.4; }
-.rail-lock { margin-left: auto; flex: none; color: #8aa2c8; }
+.rail-lock { margin-left: auto; flex: none; color: #9aa6b8; }
 .rail-actions { position: absolute; right: 4px; top: 4px; display: none; gap: 2px; }
 .rail-slot:hover .rail-actions { display: flex; }
 button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
