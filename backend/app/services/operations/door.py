@@ -638,28 +638,40 @@ class Door:
                 self.s.flush()
             return [el.id]
         if payload.get("text") is not None:
-            figures = None
-            for i, line in enumerate(str(payload["text"]).split("\n")):
-                para = ElementParagraph(element_id=el.id, position=i, level=0)
-                self.s.add(para)
-                self.s.flush()
-                parts, pos = [], 0
-                for m in MARKER.finditer(line):                  # {{concept}}: a figure from the record
-                    if m.start() > pos:
-                        parts.append({"kind": "text", "text": line[pos:m.start()]})
-                    figures = figures or Figures(self.s, self.s.get(S.Firm, self.memo.firm_id),
-                                                 self.s.get(S.SpecVersion, self.memo.spec_version_id),
-                                                 self.s.get(RecordRevision, self.memo.record_revision_id))
-                    try:
-                        parts.append(figures.chip(m.group(1)))
-                    except ValueError as e:
-                        raise Refuse(str(e))
-                    pos = m.end()
-                if pos < len(line) or not parts:
-                    parts.append({"kind": "text", "text": line[pos:]})
-                for n, part in enumerate(parts):
-                    self.s.add(Segment(paragraph_id=para.id, position=n, **part))
+            self.write_text(el, str(payload["text"]))
         return [el.id]
+
+    def write_text(self, el: Element, text: str) -> None:
+        """A box's whole text, one paragraph per line, its figures asked for by name ({{concept}} or {{record
+        path}}) and written from the record; the paragraphs keep the style the box's first one had."""
+        old = self.s.scalars(select(ElementParagraph).where(ElementParagraph.element_id == el.id)
+                             .order_by(ElementParagraph.position)).all()
+        src = old[0] if old else None
+        if old:
+            self.s.execute(delete(Segment).where(Segment.paragraph_id.in_([p.id for p in old])))
+            self.s.execute(delete(ElementParagraph).where(ElementParagraph.id.in_([p.id for p in old])))
+        figures = None
+        for i, line in enumerate(text.split("\n")):
+            para = ElementParagraph(element_id=el.id, position=i, level=src.level if src else 0, role=src.role if src else None,
+                                    **{k: getattr(src, k) if src else None for k in PARAGRAPH_COPY})
+            self.s.add(para)
+            self.s.flush()
+            parts, pos = [], 0
+            for m in MARKER.finditer(line):                      # a figure from the record, never typed
+                if m.start() > pos:
+                    parts.append({"kind": "text", "text": line[pos:m.start()]})
+                figures = figures or Figures(self.s, self.s.get(S.Firm, self.memo.firm_id),
+                                             self.s.get(S.SpecVersion, self.memo.spec_version_id),
+                                             self.s.get(RecordRevision, self.memo.record_revision_id))
+                try:
+                    parts.append(figures.chip(m.group(1)))
+                except ValueError as e:
+                    raise Refuse(str(e))
+                pos = m.end()
+            if pos < len(line) or not parts:
+                parts.append({"kind": "text", "text": line[pos:]})
+            for n, part in enumerate(parts):
+                self.s.add(Segment(paragraph_id=para.id, position=n, **part))
 
     def _edit_box(self, op, actor_type, actor_id):
         """A person's own table or chart built again from the deal record with other rows, columns, figures,
@@ -833,6 +845,15 @@ class Door:
         self.s.flush()
         self.renumber(slides)
         self.fill_from_layout(slide, layout)
+        # its boxes written as it is added, by role ({"title": "…"}): the firm's fixed boxes stay as they are
+        boxes = {e.role: e for e in self.s.scalars(select(Element).where(Element.slide_id == slide.id, Element.type == "text"))}
+        for role, text in (payload.get("texts") or {}).items():
+            el = boxes.get(role)
+            if el is None:
+                raise Refuse(f"the layout {layout.name!r} has no {role!r} box; its boxes are {', '.join(r for r in boxes if r) or 'none'}")
+            if el.firm_lock == "fixed":
+                raise Refuse(f"the {role!r} box is fixed by the firm")
+            self.write_text(el, str(text))
         return [slide.id]
 
     def fill_from_layout(self, slide: Slide, layout) -> None:

@@ -32,6 +32,8 @@ from app.services.operations.door import MARKER, Door
 
 MAX_EDITS = 12
 # an amount typed as text: a currency sign before a number, or a number with %, x, k, m or bn after it
+# a table typed as text: two lines or more with columns split by | or tabs
+TABLE_LINE = re.compile(r"(?:[^|\n]*\|){2,}|\t.*\t")
 TYPED_FIGURE = re.compile(r"[£€$]\s?\d|\d(?:[\d,.]*\d)?\s?(?:%|x\b|k\b|m\b|bn\b)", re.I)
 
 INSTRUCTIONS = """You help a person edit one slide of an investment memo, following the firm's own spec.
@@ -55,12 +57,15 @@ The memo's slides and the firm's sections (with their layouts and how many slide
 You may add a slide of a section on one of its layouts, duplicate, move or delete a slide, and move or resize a
 box (inches, on the page given): the firm's rules decide what is allowed (a locked section does not move, a
 section allowed once is not duplicated, a box the template places does not move). A slide you add comes with
-its layout's boxes to write; its text is written in a later request, once the person has applied it.
+its layout's boxes (LAYOUT BOXES): write them in the same edit with "texts": {"<role>": "<text>"}. Prefer a
+layout with a title and write the title there, in the firm's style, rather than a blank layout with a text box.
 
 On a slide the firm leaves free (its FREE AREA is given) you may add boxes inside that area: text, a table of
 the deal record (one of RECORD TABLES, with the rows and columns you choose) or a chart of record figures with
 periods (from CHART FIGURES, at most 4, with how many periods). Their values come from the record: you never
-type them. Add them on the slide you work on (SLIDE) unless the person names another slide, or on a slide you
+type them. A table is always a table you add from RECORD TABLES, never text laid out in columns (no | or tab
+separated lines): when the record has no table for it, use a chart of CHART FIGURES or short text instead.
+Add them on the slide you work on (SLIDE) unless the person names another slide, or on a slide you
 add in the same answer: "on": "new". Lay boxes out so they do not
 overlap, and keep each one inside the free area.
 
@@ -69,7 +74,8 @@ Return JSON only:
  "edits": [{"box": "<box id>", "text": "<the box's whole new text; one line per paragraph>"},
            {"box": "<table box id>", "row": <row>, "col": <col>, "text": "<the cell's new text>"},
            {"box": "<box id>", "frame": {"x_in": <x>, "y_in": <y>, "w_in": <w>, "h_in": <h>}},
-           {"slide": "add", "section": "<section name>", "layout": "<layout name>", "position": <slide number it takes>},
+           {"slide": "add", "section": "<section name>", "layout": "<layout name>", "position": <slide number it takes>,
+            "texts": {"<box role>": "<its text>"}},
            {"slide": "duplicate" | "delete", "id": "<slide id>"},
            {"slide": "move", "id": "<slide id>", "position": <slide number it takes>},
            {"add": "text", "on": "<slide id> | new", "text": "<text; figures as {{name}}>", "frame": {...}},
@@ -77,6 +83,18 @@ Return JSON only:
            {"add": "chart", "on": "<slide id> | new", "series": ["<chart figure>"], "chart_type": "column" | "bar" | "line",
             "periods": <n>, "names": {"<chart figure>": "<series name>"}, "frame": {...}}]}
 Return "edits": [] when nothing should change."""
+
+
+def _typed(text: str) -> str | None:
+    """What is wrong with text the agent writes: amounts typed instead of figures, or a table laid out as text."""
+    plain = MARKER.sub("", text)
+    typed = [m.group(0) for m in TYPED_FIGURE.finditer(plain)]
+    if typed:
+        return f"amounts are never typed ({', '.join(typed[:3])}); use {{{{name}}}} from FIGURES or RECORD FIELDS, or leave it out"
+    if sum(1 for line in text.split("\n") if TABLE_LINE.search(line)) >= 2:
+        return ("a table is never text laid out in columns: add a table from RECORD TABLES, or a chart of CHART FIGURES, "
+                "or write short text")
+    return None
 
 
 def _box_text(paragraphs) -> str:
@@ -167,6 +185,19 @@ def context(session: Session, memo_id, slide_id: str | None, element_id: str | N
     for link in q(select(S.SectionLayout).where(S.SectionLayout.section_id.in_(list(sections)))):
         if link.layout_id in d.layout_rows:
             layouts_of.setdefault(link.section_id, []).append(d.layout_rows[link.layout_id].name)
+    used = {l for ls in layouts_of.values() for l in ls}
+    layout_ids = [l.id for l in d.layout_rows.values() if l.name in used]
+    layout_boxes: dict = {}
+    if layout_ids:
+        els = q(select(Element).where(Element.layout_id.in_(layout_ids), Element.type == "text")).all()
+        what = {}
+        for r in q(select(S.RecipeSegment).where(S.RecipeSegment.element_id.in_([e.id for e in els]),
+                                                 S.RecipeSegment.kind.in_(("model_writes", "person_writes")))):
+            what.setdefault(r.element_id, r.what)
+        for e in els:
+            if e.firm_lock != "fixed" and e.role and (e.id in what or e.role in ("title", "subtitle", "body", "content")):
+                layout_boxes.setdefault(d.layout_rows[e.layout_id].name, []).append(
+                    f"{e.role}" + (f" ({(what.get(e.id) or '')[:70]})" if what.get(e.id) else ""))
     slides = [{"id": str(x.id), "number": x.position + 1, "section": sections[x.section_id].name if x.section_id in sections else "—",
                "layout": d.layout_rows[x.layout_id].name if x.layout_id in d.layout_rows else "—"} for x in d.slides]
     return {"memo": memo, "slide": slide, "boxes": boxes, "figures": available, "rules": rules,
@@ -180,7 +211,8 @@ def context(session: Session, memo_id, slide_id: str | None, element_id: str | N
             "zones": zones,
             "record_tables": record_boxes.record_tables(figures) if free_sections else {},
             "chart_figures": record_boxes.period_families(figures) if free_sections else {},
-            "fields": fields}
+            "fields": fields,
+            "layout_boxes": layout_boxes}
 
 
 def package(ctx: dict, request: str, target: str | None) -> str:
@@ -206,6 +238,8 @@ def package(ctx: dict, request: str, target: str | None) -> str:
     lines += [f"- slide {x['number']} · id {x['id']} · {x['section']} · {x['layout']}" for x in ctx["slides"]]
     lines += ["", "THE FIRM'S SECTIONS (status · how many slides · layouts)"]
     lines += [f"- {x['name']} · {x['status']} · {x['count']} · {', '.join(x['layouts']) or '—'}" for x in ctx["sections"]]
+    lines += ["", "LAYOUT BOXES (what a slide added on each layout has to write: role (what goes there))"]
+    lines += [f"- {name}: {'; '.join(boxes)}" for name, boxes in ctx["layout_boxes"].items()]
     if ctx["record_tables"]:
         lines += ["", "RECORD TABLES (for a table you add: name · its rows · its columns)"]
         lines += [f"- {n} · rows: {', '.join(t['rows'][:20])}{' …' if len(t['rows']) > 20 else ''} · columns: {', '.join(t['columns'])}"
@@ -265,9 +299,9 @@ def to_operations(session: Session, memo_id, ctx: dict, edits: list) -> tuple[li
             errors.append(f"{where}: no such box on this slide")
             continue
         text = str(e.get("text") or "")
-        typed = [m.group(0) for m in TYPED_FIGURE.finditer(MARKER.sub("", text))]
-        if typed:
-            errors.append(f"{where}: amounts are never typed ({', '.join(typed[:3])}); use {{{{name}}}} from FIGURES or leave it out")
+        problem = _typed(text)
+        if problem:
+            errors.append(f"{where}: {problem}")
             continue
         if "row" in e or "col" in e:
             cell = next((c for c in box.get("table", []) if c["row"] == e.get("row") and c["col"] == e.get("col")), None)
@@ -317,9 +351,9 @@ def add_operation(ctx: dict, memo_id, e: dict, earlier: list) -> tuple[dict | No
         return None, "a frame is four numbers in inches"
     if kind == "text":
         text = str(e.get("text") or "")
-        typed = [m.group(0) for m in TYPED_FIGURE.finditer(MARKER.sub("", text))]
-        if typed:
-            return None, f"amounts are never typed ({', '.join(typed[:3])}); use {{{{name}}}} from FIGURES or leave it out"
+        problem = _typed(text)
+        if problem:
+            return None, problem
         payload["text"] = text
         label = f"add a text box on {where}"
     elif kind == "table":
@@ -347,8 +381,14 @@ def slide_operation(ctx: dict, memo_id, e: dict, earlier: list | None = None) ->
         if layout_id is None:
             return None, f"the firm's layouts for {sec['name']!r} are {', '.join(sec['layouts']) or 'none'}"
         position = int(e.get("position") or len(slides) + 1) - 1
+        texts = {str(k): str(v) for k, v in (e.get("texts") or {}).items()}
+        for role, text in texts.items():
+            problem = _typed(text)
+            if problem:
+                return None, f"the {role} box: {problem}"
         op = {"type": "add_slide", "target": str(memo_id), "label": f"add a {sec['name']} slide ({e.get('layout') or sec['layouts'][0]}) as slide {position + 1}",
-              "payload": {"id": str(uuid.uuid4()), "section_id": sec["id"], "layout_id": layout_id, "position": position}}
+              "payload": {"id": str(uuid.uuid4()), "section_id": sec["id"], "layout_id": layout_id, "position": position,
+                          **({"texts": texts} if texts else {})}}
     elif kind in ("duplicate", "delete", "move"):
         target = slides.get(str(e.get("id")))
         if target is None:
