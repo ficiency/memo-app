@@ -336,20 +336,20 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
 
 <section>
   <h2><span class="n">07</span>Where it breaks, and how often</h2>
-  <p><strong>45 issues</strong> logged while building and testing, each with cause, severity and status. The
+  <p><strong>47 issues</strong> logged while building and testing, each with cause, severity and status. The
   evals found three late, fixed at the root: unmeasured tables, lost template bullets and indents, a
-  picture PowerPoint saved without an embedded image refusing the whole file. The 10 open ones are from earlier runs, not re-confirmed on the final code.</p>
-  <div class="bar" role="img" aria-label="32 fixed, 2 partly fixed, 10 open, 1 not a bug">
-    <i style="flex:32;background:var(--ok)"></i><i style="flex:2;background:var(--warn)"></i><i style="flex:10;background:var(--bad)"></i><i style="flex:1;background:var(--muted)"></i>
+  picture PowerPoint saved without an embedded image refusing the whole file. Every open issue was re-checked on the final code's exports.</p>
+  <div class="bar" role="img" aria-label="33 fixed, 13 open, 1 not a bug">
+    <i style="flex:33;background:var(--ok)"></i><i style="flex:13;background:var(--bad)"></i><i style="flex:1;background:var(--muted)"></i>
   </div>
-  <div class="legend"><span style="--c:var(--ok)">32 fixed</span><span style="--c:var(--warn)">2 partly fixed</span><span style="--c:var(--bad)">10 open</span><span style="--c:var(--muted)">1 not a bug</span></div>
+  <div class="legend"><span style="--c:var(--ok)">33 fixed</span><span style="--c:var(--bad)">13 open</span><span style="--c:var(--muted)">1 not a bug</span></div>
   <div class="two">
     <div><h3>Weak today</h3>
       <ul>
         <li><span class="sev bad pill">high</span>A binding can pick a value of the right kind but the wrong datum (tenor 12 months; the deal is 36). Only a person's review catches it.</li>
         <li><span class="sev warn pill">med</span>Some chart axes lack the firm's number format; chart series can be named from descriptions (fixed for Merrow).</li>
         <li><span class="sev warn pill">med</span>Per-slide source lines and footnotes, and a risk matrix by probability × severity, still show "[no data]".</li>
-        <li><span class="sev warn pill">med</span>A figure that is "some rows of a table" cannot be bound.</li>
+        <li><span class="sev warn pill">med</span>Lumen's generated master: its header label wraps and its footer runs off the page; a two-line headline touches the tiles.</li>
       </ul></div>
     <div><h3>Not tested</h3>
       <ul>
