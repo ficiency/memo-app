@@ -60,6 +60,18 @@ code, .mono { font-family: var(--mono); font-size: 0.9em; }
 .next { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; }
 .next li { max-width: none; }
 .next li.nb { list-style: none; margin-left: -18px; color: var(--muted); }
+.o { display: inline-block; font: 500 11px var(--body); padding: 0 6px; border-radius: 3px; white-space: nowrap; }
+.o.ap { color: var(--ok); background: var(--ok-bg); } .o.rf { color: var(--bad); background: var(--bad-bg); }
+.o.ka { color: var(--warn); background: var(--warn-bg); } .o.dc { color: var(--muted); background: var(--tint); }
+.oc { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.legend2 { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 11.5px; color: var(--muted); }
+table.edits col.c0 { width: 19%; } table.edits col.cagent { width: 19%; }
+table.measures col.c1 { width: 46%; }
+table.measures td { padding-block: 3px; }
+table.measures td.num { white-space: normal; }
+tr.grp td { padding-top: 9px; border-bottom: 1px solid var(--rule); font-size: 12.5px; }
+tr.grp b { font-weight: 600; } tr.grp span { color: var(--muted); }
+td.lab { padding-left: 14px; color: var(--ink); }
 .gloss { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 22px; font-size: 12.5px; }
 .gloss div { min-width: 0; }
 .gloss b { font-weight: 600; }
@@ -122,6 +134,8 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   .flow { padding: 8px; gap: 6px; }
   .box { padding: 4px 7px; }
   .pill { font-size: 7.5px; }
+  .o { font-size: 7.8px; padding: 0 4px; } .oc { font-size: 8.3px; line-height: 1.32; } .legend2 { font-size: 8px; }
+  tr.grp td { font-size: 8.5px; padding-top: 2.5px; } table.measures td { padding-block: 1.2px; } td.lab { padding-left: 10px; }
   .next { font-size: 8.5px; gap: 1px; }
   .steps { font-size: 8.3px; } .pl { font-size: 9px; } .pl span { font-size: 7.5px; }
   .path { grid-template-columns: 95px minmax(0, 1fr); padding: 3px 0; gap: 8px; }
@@ -133,6 +147,7 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   .tw { overflow: visible; }
   .keep { break-inside: avoid; }
   .newpage { break-before: page; }
+  table { line-height: 1.28; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -220,46 +235,63 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   </div>
 </section>
 
-<section>
+<section class="newpage">
   <div class="keep" style="display:grid;gap:6px"><h2><span class="n">05</span>How we know it works</h2>
   <p>The evals act as people do (own server, the screens' API, websockets, real PowerPoint files). Expected outcomes
   come from each firm's rules, never its name. Where layout matters, PowerPoint itself judges. Two faults planted in
   the canvas suite dropped it from 100% to 60% and were both named.</p></div>
-  <div class="tw keep"><table>
-    <thead><tr><th>The brief's edits</th><th>Canvas</th><th>Agent (asked in words)</th><th>PowerPoint</th></tr></thead>
+  <div class="tw keep"><table class="fixed edits">
+    <colgroup><col class="c0"><col><col class="cagent"><col></colgroup>
+    <thead><tr><th>The brief's edits</th><th>Canvas</th><th>Agent, asked in words</th><th>PowerPoint</th></tr></thead>
     <tbody>
-      <tr><td class="k">Drop an image</td><td>Free slide: placed, pending. Template: refused</td><td>Declined (receives no files)</td><td>Template slide: kept aside. Free slide: applied, pending</td></tr>
-      <tr><td class="k">Drag into a locked zone</td><td>Header: refused. Control: free-area move applied</td><td>Declined</td><td>Refused</td></tr>
-      <tr><td class="k">Duplicate a slide</td><td>Allowed several times: applied, new ids. Once: refused</td><td>Same as canvas</td><td>Allowed once: refused. Free slide: applied</td></tr>
-      <tr><td class="k">Type over a figure</td><td>Text and cell: refused. Control: words around it applied</td><td>Declined; points to the record</td><td>Refused; figure unchanged</td></tr>
-      <tr><td class="k">Paste a chart as a picture</td><td>Never taken as a chart; pending</td><td>n/a</td><td>Kept aside</td></tr>
+      <tr><td class="k">Drop an image</td><td><div class="oc">Free slide <span class="o ap">Applied, flagged</span></div><div class="oc">Template slide <span class="o rf">Refused</span></div></td><td><div class="oc"><span class="o dc">Declined</span></div></td><td><div class="oc">Free slide <span class="o ap">Applied, flagged</span></div><div class="oc">Template slide <span class="o ka">Kept aside</span></div></td></tr>
+      <tr><td class="k">Drag into a locked zone</td><td><div class="oc">Into the header <span class="o rf">Refused</span></div><div class="oc">Control: inside the free area <span class="o ap">Applied, snapped</span></div></td><td><div class="oc"><span class="o dc">Declined</span></div></td><td><div class="oc">Onto a locked area <span class="o rf">Refused</span></div></td></tr>
+      <tr><td class="k">Duplicate a slide</td><td><div class="oc">Section allows several <span class="o ap">Applied, new ids</span></div><div class="oc">Section allows one <span class="o rf">Refused</span></div></td><td><div class="oc">Allows several <span class="o ap">Applied</span></div><div class="oc">Allows one <span class="o dc">Declined</span></div></td><td><div class="oc">Free slide <span class="o ap">Applied</span></div><div class="oc">Section allows one <span class="o rf">Refused</span></div></td></tr>
+      <tr><td class="k">Type over a figure</td><td><div class="oc">Text or table cell <span class="o rf">Refused, figure kept</span></div><div class="oc">Control: words around it <span class="o ap">Applied</span></div></td><td><div class="oc"><span class="o dc">Declined, points to the record</span></div></td><td><div class="oc"><span class="o rf">Refused, figure kept</span></div></td></tr>
+      <tr><td class="k">Paste a chart as a picture</td><td><div class="oc"><span class="o ap">Applied as a picture, flagged</span></div></td><td><div class="oc"><span class="o dc">n/a</span></div></td><td><div class="oc"><span class="o ka">Kept aside</span></div></td></tr>
     </tbody>
   </table></div>
+  <div class="legend2"><span class="o ap">Applied</span><span class="o rf">Refused</span><span class="o ka">Kept aside as a conflict</span><span class="o dc">Declined by the agent</span><span>"flagged" = a pending until a person confirms it</span></div>
 
-  <div class="tw"><table class="fixed">
+  <div class="tw"><table class="fixed measures">
     <colgroup><col class="c1"><col><col><col></colgroup>
     <thead><tr><th>Brief's measure, per firm</th><th>Merrow</th><th>Corriemoor</th><th>Lumen</th></tr></thead>
     <tbody>
-      <tr><td class="k">The edits above, by suite</td><td class="num">canvas 12/12<br>PPT script 30/30<br>PPT desktop 15/15<br>agent 6/6</td><td class="num">12/12<br>30/30<br>15/15<br>6/6</td><td class="num">13/13<br>20/20<br>14/14<br>6/6</td></tr>
-      <tr><td class="k">1 · Edits that survive, conflicts surfaced<br><span style="font-weight:400;color:var(--muted)">5 rounds: 2 people (same box, stale view, typed figure), agent, record change, PowerPoint</span></td><td class="num">123/123 kept<br>10/10 kept aside w/ conflict<br>0 lost</td><td class="num">113/113<br>10/10<br>0 lost</td><td class="num">38/38<br>10/10<br>0 lost</td></tr>
-      <tr><td class="k">2 · Canvas slide through PowerPoint and back<br><span style="font-weight:400;color:var(--muted)">text, record table and chart, 2 pictures; identity, place ±0.02 in, content, style</span></td><td class="num">5/5 elements<br>memo 460/460 untouched</td><td class="num">5/5<br>490/490</td><td class="num">6/6<br>145/145</td></tr>
-      <tr><td class="k">3 · Overflow on our long-content set<br><span style="font-weight:400;color:var(--muted)">6 lengths in every writable box + a 45→180 word ladder; PowerPoint judges</span></td><td class="num">67 cases: 29 fit<br>6 shrunk, 32 reported<br><strong>0 cut silently</strong></td><td class="num">64: 47 / 1 / 16<br><strong>0 cut</strong></td><td class="num">46: 25 / 4 / 17<br><strong>0 cut</strong></td></tr>
-      <tr><td class="k">4 · AI edits leaving the memo invalid or figures inconsistent<br><span style="font-weight:400;color:var(--muted)">fill, retitle, shorten, a customer concentration slide with chart and table</span></td><td class="num">0 typed amounts<br>0 of 122 figures off record<br>0 refused when applied</td><td class="num">0<br>0 of 83<br>0</td><td class="num">0<br>0 of 58<br>0</td></tr>
-      <tr><td class="k">5 · Past memo rebuilt (structure)</td><td class="num">boxes 185/186<br>same place 185/185<br>slides 22/29</td><td class="num">194/195<br>192/194<br>25/31</td><td class="num">no past memos</td></tr>
-      <tr><td class="k">6 · Time and cost of a render<br><span style="font-weight:400;color:var(--muted)">build + PowerPoint + PDF; laptop, hosted DB</span></td><td class="num">5.5 + 1.6 + 4.0 s<br>$0 model cost</td><td class="num">4.8 + 1.5 + 5.3 s<br>$0</td><td class="num">3.1 + 1.0 + 4.5 s<br>$0</td></tr>
-      <tr><td class="k">Steps that do use the model<br><span style="font-weight:400;color:var(--muted)">stored tokens and times per call (gpt-5.5)</span></td><td class="num">onboarding $4.04 · 13 min · 10 calls<br>binding $0.82 · 3 calls</td><td class="num">$3.92 · 13 min · 8<br>$0.54 · 2</td><td class="num">$2.25 · 8 min · 9<br>$0.30 · 2</td></tr>
-      <tr><td class="k">Agent request (all firms)</td><td class="num" colspan="3">31 recorded requests: about $0.05 each, median 13 s, longest 46 s; the agent eval's harder requests (custom slides with tables and charts) cost about $0.08</td></tr>
+      <tr class="grp"><td colspan="4"><b>The edits above, cases as expected</b></td></tr>
+      <tr><td class="lab">Canvas</td><td class="num">12/12</td><td class="num">12/12</td><td class="num">13/13</td></tr>
+      <tr><td class="lab">PowerPoint, scripted edits, 5 round trips</td><td class="num">30/30</td><td class="num">30/30</td><td class="num">20/20</td></tr>
+      <tr><td class="lab">PowerPoint desktop makes and saves the edits</td><td class="num">15/15</td><td class="num">15/15</td><td class="num">14/14</td></tr>
+      <tr><td class="lab">Agent</td><td class="num">6/6</td><td class="num">6/6</td><td class="num">6/6</td></tr>
+      <tr class="grp"><td colspan="4"><b>1 · Edits that survive, conflicts surfaced</b> <span>5 rounds: two people at once (same box, stale view, typed-over figure), the agent, a record change, PowerPoint and back</span></td></tr>
+      <tr><td class="lab">Applied edits still there at the end</td><td class="num">123/123</td><td class="num">113/113</td><td class="num">38/38</td></tr>
+      <tr><td class="lab">Collisions kept aside, each with its conflict</td><td class="num">10/10</td><td class="num">10/10</td><td class="num">10/10</td></tr>
+      <tr><td class="lab">Edits lost</td><td class="num"><strong>0</strong></td><td class="num"><strong>0</strong></td><td class="num"><strong>0</strong></td></tr>
+      <tr class="grp"><td colspan="4"><b>2 · Canvas slide through PowerPoint and back</b> <span>text with a figure, record table and chart, 2 pictures</span></td></tr>
+      <tr><td class="lab">Elements back as the same element (id, place ±0.02 in, content, style)</td><td class="num">5/5</td><td class="num">5/5</td><td class="num">6/6</td></tr>
+      <tr><td class="lab">Whole memo: untouched elements identical</td><td class="num">460/460</td><td class="num">490/490</td><td class="num">145/145</td></tr>
+      <tr class="grp"><td colspan="4"><b>3 · Overflow on our long-content set</b> <span>6 lengths in every writable box, plus a 45→180 word ladder; PowerPoint judges</span></td></tr>
+      <tr><td class="lab">Fit at their size · shrunk to the firm's minimum · reported</td><td class="num">29 · 6 · 32 of 67</td><td class="num">47 · 1 · 16 of 64</td><td class="num">25 · 4 · 17 of 46</td></tr>
+      <tr><td class="lab">Cut silently</td><td class="num"><strong>0</strong></td><td class="num"><strong>0</strong></td><td class="num"><strong>0</strong></td></tr>
+      <tr class="grp"><td colspan="4"><b>4 · AI edits that leave the memo invalid or figures inconsistent</b> <span>fill, retitle, shorten, a customer concentration slide with a chart and a table</span></td></tr>
+      <tr><td class="lab">Figures off the record (of all figures checked)</td><td class="num"><strong>0 of 122</strong></td><td class="num"><strong>0 of 83</strong></td><td class="num"><strong>0 of 58</strong></td></tr>
+      <tr><td class="lab">Amounts typed instead of figures · edits refused when applied</td><td class="num">0 · 0</td><td class="num">0 · 0</td><td class="num">0 · 0</td></tr>
+      <tr class="grp"><td colspan="4"><b>5 · Past memo rebuilt</b> <span>structure only: the past deals' records were not given</span></td></tr>
+      <tr><td class="lab">Boxes found · in the same place · slides found (the rest are hand-built appendices)</td><td class="num">185/186 · 185/185 · 22/29</td><td class="num">194/195 · 192/194 · 25/31</td><td class="num">no past memos</td></tr>
+      <tr class="grp"><td colspan="4"><b>6 · Time and cost</b> <span>laptop, hosted database; model cost from the tokens stored per call (gpt-5.5)</span></td></tr>
+      <tr><td class="lab">Render: build + PowerPoint + PDF (model cost $0)</td><td class="num">5.5 + 1.6 + 4.0 s</td><td class="num">4.8 + 1.5 + 5.3 s</td><td class="num">3.1 + 1.0 + 4.5 s</td></tr>
+      <tr><td class="lab">Onboarding the firm (once)</td><td class="num">$4.04 · 13 min</td><td class="num">$3.92 · 13 min</td><td class="num">$2.25 · 8 min</td></tr>
+      <tr><td class="lab">Binding to a record (once per record format)</td><td class="num">$0.82</td><td class="num">$0.54</td><td class="num">$0.30</td></tr>
+      <tr><td class="lab">Agent request (all firms)</td><td colspan="3">about $0.05, median 13 s, longest 46 s (31 requests); about $0.08 for custom slides with a table and chart</td></tr>
     </tbody>
   </table></div>
   <p class="caption">Also: our text measure agrees with PowerPoint on fit for 208/210 boxes; after PowerPoint desktop saves
-  an edited file, 336/336 untouched boxes are identical and 244/244 shapes keep their id. Onboarding runs once per firm,
-  binding once per record format. Measure 5 is structure only (past records not given); missing slides are hand-built appendices.</p>
+  an edited file, 336/336 untouched boxes are identical and 244/244 shapes keep their id.</p>
 </section>
 
 <section>
   <h2><span class="n">06</span>The third firm: configuration or code</h2>
   <p><strong>It took code once, and that was the most useful finding.</strong> Our first onboarding assumed a
-  PowerPoint template from its first step and was run by engineers, with scripts and a separate model chat. Lumen sent
+  PowerPoint template and was run by engineers with scripts and a separate model chat. Lumen sent
   only a written guide, so it showed that onboarding was shaped around "a firm with a template". We rebuilt it at the
   root: six steps inside the product, each model answer checked by code and approved by a person, layouts and a
   master designed from the guide when there is no template. That code is generic: <strong>no line of code names a
@@ -280,16 +312,16 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <div class="two">
     <div><h3>Weak today</h3>
       <ul>
-        <li><span class="sev bad pill">high</span>The model binds a figure to a path of the right kind but sometimes the wrong datum (tenor shows 12 months, the deal is 36). Only the binding review by a person catches it.</li>
-        <li><span class="sev warn pill">med</span>Some chart axes lack the firm's number format; onboarding can name chart series from their descriptions (fixed for Merrow only).</li>
+        <li><span class="sev bad pill">high</span>A binding can pick a value of the right kind but the wrong datum (tenor 12 months; the deal is 36). Only a person's review catches it.</li>
+        <li><span class="sev warn pill">med</span>Some chart axes lack the firm's number format; chart series can be named from descriptions (fixed for Merrow).</li>
         <li><span class="sev warn pill">med</span>Per-slide source lines and footnotes, and a risk matrix by probability × severity, still show "[no data]".</li>
         <li><span class="sev warn pill">med</span>A figure that is "some rows of a table" cannot be bound.</li>
       </ul></div>
     <div><h3>Not tested</h3>
       <ul>
-        <li>More than two people at once; disconnecting mid-edit (the memo reloads, missed messages are not replayed).</li>
-        <li>A person clicking in PowerPoint: the desktop suite drives PowerPoint through its automation interface.</li>
-        <li>Past memos' figures (their records were not given); Lumen rebuild (no past memos).</li>
+        <li>More than two people at once; reconnecting mid-edit (the memo reloads; nothing replayed).</li>
+        <li>A person clicking in PowerPoint (the suite drives it by automation).</li>
+        <li>Past memos' figures (records not given).</li>
         <li>Load; every timing is from one laptop against the hosted database.</li>
       </ul>
 </div>
@@ -300,11 +332,10 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <h2><span class="n">08</span>What we would do next, in order</h2>
   <ol class="next">
     <li><strong>Bindings checked, not only reviewed</strong>: against the unit, period and range the guide and past memos give each figure, so a wrong datum (the tenor) is flagged.</li>
-    <li><strong>Long content that continues</strong> onto a continuation slide by the firm's rules, instead of only being reported.</li>
-    <li><strong>Promote a slide into the template</strong>, as a new spec version that memos move to with See changes.</li>
-    <li><strong>Template editing in the app</strong>, as checked operations on the spec, with the history memos already have.</li>
-    <li><strong>Reconnect and replay</strong> missed operations by sequence number; then a load test with many people per memo.</li>
-    <li class="nb">Items 2 to 5 are not built today, nor merging two people's typing in one box, nor Word output. Detail: <span class="mono">docs/report_pack/</span>, <span class="mono">evals/reports/</span>.</li>
+    <li><strong>Long content that continues</strong> <span class="pill warn">not built</span> onto a continuation slide by the firm's rules, instead of only being reported.</li>
+    <li><strong>Promote a slide into the template</strong> <span class="pill warn">not built</span>, as a new spec version that memos move to with See changes.</li>
+    <li><strong>Template editing in the app</strong> <span class="pill warn">not built</span>, as checked operations on the spec, with the history memos already have.</li>
+    <li><strong>Reconnect and replay</strong> <span class="pill warn">not built</span> missed operations by sequence number; then a load test with many people per memo.</li>
   </ol>
 
 </section>
