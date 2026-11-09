@@ -59,12 +59,19 @@ def apply(session: Session, change_set_id, user_id, only: list[int] | None = Non
     cs = session.get(ChangeSet, uuid.UUID(str(change_set_id)))
     chosen = set(range(len(cs.operations))) if only is None else set(only)
     results, done, applied = [], [], []
+    moved_on: dict = {}               # element → the revision this proposal's own earlier change left it at
     for i, item in enumerate(cs.operations):
         if i not in chosen:
             done.append({**item, "result": {"status": "not_chosen", "reason": None, "warnings": []}})
             continue
+        op = dict(item["op"])
+        target = str(op.get("target") or "")
+        if target in moved_on and op.get("base_revision") is not None:
+            op["base_revision"] = moved_on[target]   # two changes to one box in a proposal: the second builds on the first
         with SessionLocal() as s:
-            r = Door(s, cs.memo_id).apply(item["op"], actor_type=cs.actor_type, on_behalf_of=user_id, change_set_id=cs.id)
+            r = Door(s, cs.memo_id).apply(op, actor_type=cs.actor_type, on_behalf_of=user_id, change_set_id=cs.id)
+        if r.status == "applied" and r.element:
+            moved_on[target] = r.element["revision"]
         results.append(r)
         applied.append(item)
         done.append({**item, "result": {"status": r.status, "reason": r.reason, "warnings": r.warnings or []}})
