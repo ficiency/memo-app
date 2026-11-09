@@ -88,9 +88,10 @@ export type Cell = {
   fill: string | null;
   paragraphs: Paragraph[];
 };
-export type TableData = { columns: (number | null)[]; rows: { kind: string; height_in: number | null }[]; cells: Cell[] };
+export type TableData = { own?: boolean; columns: (number | null)[]; rows: { kind: string; height_in: number | null }[]; cells: Cell[] };
 export type ChartData = {
   type: string;
+  own?: boolean; // a chart a person added (the firm's follow its template)
   series: {
     name: string | null;
     concept: string | null;

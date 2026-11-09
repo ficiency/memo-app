@@ -344,3 +344,15 @@ button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
 .dialog label.check { display: flex; gap: 6px; align-items: center; margin: 4px 0; color: var(--ink); }
 .dialog label.check > input { margin: 0; width: auto; }
 .match.two input[type="checkbox"], .dialog label.check input[type="checkbox"] { width: auto; }
+
+/* table cells: words written in place; figures say where they come from */
+.slide-paper td.cell-writable { cursor: text; }
+.slide-paper td.cell-writable:hover { outline: 1px dashed rgb(47 74 122 / 45%); outline-offset: -1px; }
+.slide-paper td.cell-figure { cursor: help; }
+.slide-paper .cell-input { width: 100%; padding: 0 2px; border: none; border-radius: 0; outline: 2px solid var(--accent); font: inherit; color: #222; background: #fff; }
+.slide-paper .grip.edit { top: 2px; right: 24px; cursor: pointer; }
+.slide-paper .grip.edit:hover { color: var(--accent); border-color: var(--accent); }
+.series-names { margin: 12px 0 4px; }
+.series-names h3 { font-size: 13px; margin: 0 0 4px; }
+.series-names label { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; align-items: center; margin: 4px 0; }
+.series-names label > input { margin: 0; }

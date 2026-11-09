@@ -5,7 +5,7 @@ import type { Conflict, El, ImportResult, MemoView, Person, Seg, SlideData, Upda
 import { useAuth } from "../auth";
 import { Fit, Slide, useWidth, type Interaction } from "../canvas/Slide";
 import { SlideRail } from "../canvas/SlideRail";
-import { AddChart, AddTable } from "../canvas/AddBox";
+import { AddChart, AddTable, chartChoice, tableChoice } from "../canvas/AddBox";
 import { Styler } from "../canvas/style";
 import { useLive, type LiveMessage } from "../canvas/useLive";
 
@@ -82,7 +82,8 @@ export function MemoPage() {
   const [changes, setChanges] = useState<UpdateChanges | "loading" | null>(null);
   const [applying, setApplying] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [adding, setAdding] = useState<{ slide: SlideData; zone: number[]; kind: "table" | "chart" } | null>(null);
+  // a table or chart being added to a free slide, or a person's own one being changed (el)
+  const [adding, setAdding] = useState<{ slide: SlideData; zone: number[]; kind: "table" | "chart"; el?: El } | null>(null);
   const wantTake = useRef<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [mainRef, mainWidth] = useWidth<HTMLDivElement>();
@@ -236,6 +237,22 @@ export function MemoPage() {
       if (!send({ type: "op", op: { type: "set_frame", target: el.id, base_revision: el.revision, payload: frame } }))
         toast("Reconnecting… try again in a moment", "warn");
     },
+    onEditBox: (el) => {
+      const s = view?.slides.find((x) => x.id === el.slide_id);
+      const zone = s ? zoneFor(s) : null;
+      if (s && zone) setAdding({ slide: s, zone, kind: el.type === "table" ? "table" : "chart", el });
+    },
+    onCell: (el, row, col, text) => {
+      if (!send({ type: "op", op: { type: "set_cell", target: el.id, base_revision: el.revision, payload: { row, col, text } } }))
+        toast("Reconnecting… try again in a moment", "warn");
+    },
+    onFigure: (seg) =>
+      setNotice({
+        title: "This figure comes from the deal record",
+        body: `${seg.text} is ${seg.concept ? `the firm's ${seg.concept.replace(/_/g, " ")}` : "a value"} of the deal record${
+          seg.path ? ` (${seg.path})` : ""
+        }. It is never typed here: change it in the deal record and the memo offers the update.`,
+      }),
     onRemoveBox: (el) => {
       if (!window.confirm("Remove this box from the slide?")) return;
       if (!send({ type: "op", op: { type: "delete_element", target: el.id, base_revision: el.revision } }))
@@ -363,7 +380,14 @@ export function MemoPage() {
   };
 
   const addBox = (picked: SlideData, payload: Record<string, unknown>) => {
+    const editing = adding?.el;
     setAdding(null);
+    if (editing) {
+      // the same box built again from the record; what the person wrote on it stays
+      if (!send({ type: "op", op: { type: "edit_box", target: editing.id, base_revision: editing.revision, payload } }))
+        toast("Reconnecting… try again in a moment", "warn");
+      return;
+    }
     const s = view?.slides.find((x) => x.id === picked.id) ?? picked; // as it is now, with the boxes added since
     // each new box a little lower and to the right of the last one, so none hides another; then it is dragged
     const zone = zoneFor(s);
@@ -719,10 +743,22 @@ export function MemoPage() {
       )}
 
       {adding?.kind === "table" && (
-        <AddTable memoId={memoId} zone={adding.zone} onAdd={(p) => addBox(adding.slide, p)} onClose={() => setAdding(null)} />
+        <AddTable
+          memoId={memoId}
+          zone={adding.zone}
+          initial={adding.el ? tableChoice(adding.el) : null}
+          onAdd={(p) => addBox(adding.slide, p)}
+          onClose={() => setAdding(null)}
+        />
       )}
       {adding?.kind === "chart" && (
-        <AddChart memoId={memoId} zone={adding.zone} onAdd={(p) => addBox(adding.slide, p)} onClose={() => setAdding(null)} />
+        <AddChart
+          memoId={memoId}
+          zone={adding.zone}
+          initial={adding.el ? chartChoice(adding.el) : null}
+          onAdd={(p) => addBox(adding.slide, p)}
+          onClose={() => setAdding(null)}
+        />
       )}
 
       {notice && (
