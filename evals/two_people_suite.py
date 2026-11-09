@@ -8,11 +8,18 @@ B) to the memo's room over websockets and, every round:
              both reach for the same box at the same moment (exactly one gets it, the other is told);
              B writes into the box A holds (refused); A edits from an older view (kept aside, with a
              conflict); A types over a figure (refused, everyone told)
-  PowerPoint the memo is exported; B edits box X in the app after the export; the file edits X too (kept
-             aside, B's text stays) and box Y nobody touched in the app (applied)
+  agent      A asks the agent to fill a slide's model-written boxes and applies its proposal through the API: every
+             proposed change is applied or kept aside with its conflict (none lost); what it wrote is then held to
+             the same check as people's edits in every later round
+  record     in the middle round, B changes a value of the deal record through the API and A applies the newer
+             record (See changes → Apply): the figure follows the record, and everything people wrote stays
+  PowerPoint the memo is exported through the API; B edits box X in the app after the export; the file edits X
+             too (kept aside, B's text stays) and box Y nobody touched in the app (applied); the file comes back
+             through the API's upload, as the button sends it
 
 Then the memo is exported again and checked: every applied edit is in it, nothing refused or kept aside
-overwrote anything, every kept-aside edit has its conflict, and every action has its logged result.
+overwrote anything, every kept-aside edit has its conflict, and every action has its logged result. The memo is
+made through the API; the agent's model is called once per round (--no-agent leaves it out).
 
 Usage (from the repo root):  backend/.venv/Scripts/python evals/two_people_suite.py [--rounds 5] [--firm f]
 """
@@ -41,7 +48,12 @@ from app.db.memo import Element  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
 from app.services.generator.memo import Generator  # noqa: E402
 from app.services.memo_data import MemoData  # noqa: E402
-from app.services.roundtrip import SHAPE, export, import_pptx, read  # noqa: E402
+from app.services.roundtrip import SHAPE, read  # noqa: E402
+
+sys.path.insert(0, str(REPO / "evals"))
+from client import Person, Server  # noqa: E402
+
+PPTX_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
 PORT = 8011
 WORK = REPO / "backend" / ".work" / "evals" / "two_people"
@@ -59,6 +71,20 @@ def start_server() -> subprocess.Popen:
             time.sleep(0.5)
     proc.kill()
     raise RuntimeError("the server did not start")
+
+
+def export(person: Person, memo_id, out: Path) -> None:
+    """The memo's PowerPoint through the API (what Export PowerPoint downloads)."""
+    status, data = person.get(f"/memos/{memo_id}/export")
+    assert status == 200, data
+    out.write_bytes(data)
+
+
+def bring_back(person: Person, memo_id, edited: Path) -> dict:
+    """An edited PowerPoint through the API's upload (what Upload PowerPoint sends)."""
+    status, out = person.upload(f"/memos/{memo_id}/upload", edited.name, edited.read_bytes(), PPTX_TYPE)
+    assert status == 200 and out.get("kind") == "bring_back", out
+    return out
 
 
 def boxes(memo_id, exported: Path) -> tuple[list[str], list[tuple[str, str, str]]]:
@@ -108,9 +134,10 @@ def set_text(target, base, text):
     return json.dumps({"type": "op", "op": {"type": "set_text", "target": target, "base_revision": base, "payload": {"text": text}}})
 
 
-async def run_round(memo_id, firm: str, n: int, a, b, A: str, B: str, folder: Path, log: list, expect_text: dict) -> None:
+async def run_round(memo_id, firm: str, n: int, a, b, A: str, B: str, folder: Path, log: list, expect_text: dict,
+                    pa: Person, pb: Person, agent: bool, record_round: bool, extra: dict) -> None:
     exported, edited = folder / f"r{n}_export.pptx", folder / f"r{n}_edited.pptx"
-    await off(export, memo_id, exported)
+    await off(export, pa, memo_id, exported)
     free, figures = await off(boxes, memo_id, exported)
     pick = lambda k: free[(n * 7 + k) % len(free)]
     box_a, box_b, race, stale, x_box, y_box = (pick(k) for k in range(6))
@@ -169,8 +196,16 @@ async def run_round(memo_id, firm: str, n: int, a, b, A: str, B: str, folder: Pa
         expect_text.setdefault(fid, None)
         expect_text[("figure", fid)] = chip
 
-    # 6. PowerPoint while the other person keeps editing in the app
-    await off(export, memo_id, exported)                          # again: the live edits above are in this file
+    # 6. the agent: A asks it to fill a slide's model-written boxes and applies what it proposes
+    if agent:
+        await agent_step(memo_id, n, pa, log, expect_text, record)
+
+    # 7. the deal record changes in the middle round: B edits a value, A applies the newer record
+    if record_round:
+        await off(record_step, memo_id, pa, pb, record, extra)
+
+    # 8. PowerPoint while the other person keeps editing in the app
+    await off(export, pa, memo_id, exported)                      # again: the edits above are in this file
     tx_app = f"B edited X in the app after the export, round {n}"
     await b.send(json.dumps({"type": "take", "element_id": x_box}))
     await b.send(set_text(x_box, await off(revision, x_box), tx_app))
@@ -190,7 +225,7 @@ async def run_round(memo_id, firm: str, n: int, a, b, A: str, B: str, folder: Pa
                         r.text = ""
     prs.save(str(edited))
     before = await off(conflicts, memo_id)
-    imported = await off(import_pptx, memo_id, edited, actor_email=A)
+    imported = await off(bring_back, pa, memo_id, edited)
     by_target = {r["target"]: r["status"] for r in imported["results"]}
     record("PowerPoint edit of a box changed in the app after the export", "kept_aside", by_target.get(x_box, "missing"))
     record("PowerPoint edit of a box nobody touched", "applied", by_target.get(y_box, "missing"))
@@ -201,10 +236,68 @@ async def run_round(memo_id, firm: str, n: int, a, b, A: str, B: str, folder: Pa
     record("nothing found in the file without an operation (lost)", "0", str(imported["changes"] - len(imported["results"])))
 
 
-def survives(memo_id, folder: Path, n: int, expect_text: dict, log: list) -> None:
+async def agent_step(memo_id, n: int, pa: Person, log: list, expect_text: dict, record) -> None:
+    """A asks the agent to fill a slide, then applies its proposal: nothing it proposed is lost."""
+    view = (await pa.aget(f"/memos/{memo_id}"))[1]
+    slides = [s for s in view["slides"] if any(x["kind"] == "model_draft" for e in s["elements"] for p in e["paragraphs"] for x in p["segments"])]
+    if not slides:
+        record("the agent fills a slide", "a proposal applied", "no slide left to fill")
+        return
+    slide = slides[n % len(slides)]
+    status, r = await asyncio.to_thread(pa.post, f"/memos/{memo_id}/agent", {"message": "Fill the boxes the model should write on this slide.",
+                                                                           "slide_id": slide["id"], "element_id": None})
+    if status != 200 or not r.get("proposal"):
+        record("the agent fills a slide", "a proposal applied", f"no proposal ({status})", (r or {}).get("reply", "") if isinstance(r, dict) else "")
+        return
+    before = await off(conflicts, memo_id)
+    status, applied = await asyncio.to_thread(pa.post, f"/memos/{memo_id}/proposals/{r['proposal']['id']}/apply", {"only": None})
+    results = [o.get("result") or {} for o in (applied.get("operations") or [])] if isinstance(applied, dict) else []
+    states = [x.get("status") for x in results]
+    kept = states.count("kept_aside")
+    lost = sum(1 for x in states if x not in ("applied", "kept_aside", "refused"))
+    record("the agent's proposal applied (each change applied or kept aside, none lost)", "none lost",
+           "none lost" if status == 200 and lost == 0 and states else f"{status} · {states}")
+    record("every kept-aside agent change has a conflict", "yes", "yes" if await off(conflicts, memo_id) - before == kept else "no")
+    view = (await pa.aget(f"/memos/{memo_id}"))[1]
+    now = {e["id"]: e for s in view["slides"] for e in s["elements"]}
+    for o, res in zip(applied.get("operations") or [], results):
+        target = str((o.get("op") or {}).get("target") or "")
+        if res.get("status") == "applied" and (o.get("op") or {}).get("type") == "set_text" and target in now:
+            words = "\n".join("".join(x["text"] for x in p["segments"]) for p in now[target]["paragraphs"])
+            first = words.split("\n")[0][:40]
+            if first:
+                expect_text[target] = first                # the agent's words, held like people's from here on
+
+
+def record_step(memo_id, pa: Person, pb: Person, record, extra: dict) -> None:
+    """B changes a value of the deal record; A applies the newer record: the figure follows, people's words stay."""
+    view = pa.get(f"/memos/{memo_id}")[1]
+    rev = view["memo"]["record_revision"]["id"]
+    chip = next((x for s in view["slides"] for e in s["elements"] for p in e["paragraphs"] for x in p["segments"]
+                 if x["kind"] == "chip" and (x["path"] or "").startswith("field:") and any(c.isdigit() for c in x["text"])
+                 and not x["text"].startswith("[no data")), None)
+    if chip is None:
+        record("the figure follows a newer deal record", "follows", "no figure of a single record value in the memo")
+        return
+    values = {v["path"]: v for v in pa.get(f"/records/{rev}")[1]["values"]}
+    old = values[chip["path"]]["value"]
+    status, new = pb.post(f"/records/{rev}/revise", {"changes": {chip["path"]: round(float(old) * 1.25 + 1, 2)}})
+    assert status == 200, new
+    extra["revision"] = new["id"]
+    status, applied = pa.post(f"/memos/{memo_id}/updates/{new['id']}/apply")
+    now = pa.get(f"/memos/{memo_id}")[1]
+    shows = [x["text"] for s in now["slides"] for e in s["elements"] for p in e["paragraphs"] for x in p["segments"]
+             if x["kind"] == "chip" and x["path"] == chip["path"]]
+    record("B changes the deal record, A applies it", "applied", (applied or {}).get("status") if isinstance(applied, dict) else status,
+           f"{chip['path']}: {old} → new")
+    record("the figure follows the newer record", "follows",
+           "follows" if shows and all(t != chip["text"] for t in shows) else f"still {shows[:2]}", f"{chip['text']} → {shows[:1]}")
+
+
+def survives(memo_id, folder: Path, n: int, expect_text: dict, log: list, person: Person) -> None:
     """Export again: every applied edit is there, and no figure was overwritten."""
     after = folder / f"r{n}_after.pptx"
-    export(memo_id, after)
+    export(person, memo_id, after)
     shown = {}
     for sl in read(after)["slides"]:
         for eid, shape in sl["shapes"].items():
@@ -221,14 +314,19 @@ def survives(memo_id, folder: Path, n: int, expect_text: dict, log: list) -> Non
                         "detail": "" if ok else f"{key[:8]} shows {shown.get(key, '')[:50]!r}"})
 
 
-async def run_firm(firm: str, rounds: int) -> dict:
+async def run_firm(firm: str, rounds: int, server: Server, agent: bool) -> dict:
     with SessionLocal() as s:
         f = s.scalar(select(S.Firm).where(S.Firm.name == firm))
         version = s.scalar(select(S.SpecVersion).join(S.Spec).where(S.Spec.firm_id == f.id).order_by(S.SpecVersion.number.desc()))
         stages = s.scalars(select(S.Stage).where(S.Stage.spec_version_id == version.id)).all()
         stage = max(stages, key=lambda st: len(s.scalars(select(S.StageSection).where(S.StageSection.stage_id == st.id, S.StageSection.required)).all()))
-        memo_id = Generator(s, firm, stage.name, "2026-10-15", "Lead (lead); Associate").run()["memo_id"]
     A, B = f"alex@{firm}.demo", f"sam@{firm}.demo"
+    pa, pb = Person(server, A), Person(server, B)
+    _, deals = pa.get("/records")
+    status, made = pa.post("/memos", {"spec_version_id": str(version.id), "record_revision_id": deals[0]["revisions"][0]["id"],
+                                      "stage": stage.name, "memo_date": "2026-10-15", "deal_team": "Lead (lead); Associate"})
+    assert status == 200, made
+    memo_id = made["memo_id"]
     folder = WORK / firm
     folder.mkdir(parents=True, exist_ok=True)
     url = f"ws://localhost:{PORT}/memos/{memo_id}/live?email="
@@ -236,17 +334,35 @@ async def run_firm(firm: str, rounds: int) -> dict:
     a, b = await websockets.connect(url + A), await websockets.connect(url + B)
     await until(a, lambda m: m["type"] == "people" and len(m["people"]) == 2)
     first = folder / "r0_export.pptx"
-    await off(export, memo_id, first)
+    await off(export, pa, memo_id, first)
     free, _ = await off(boxes, memo_id, first)
-    for n in range(1, rounds + 1):
-        try:
-            await run_round(memo_id, firm, n, a, b, A, B, folder, log, expect_text)
-        except asyncio.TimeoutError:
-            log.append({"round": n, "action": "round finished", "expected": "yes", "got": "timed out"})
-        await off(survives, memo_id, folder, n, expect_text, log)
-    await a.close()
-    await b.close()
-    return {"firm": firm, "stage": stage.name, "rounds": rounds, "free_boxes": len(free), "log": log}
+    extra: dict = {}
+    try:
+        for n in range(1, rounds + 1):
+            try:
+                await run_round(memo_id, firm, n, a, b, A, B, folder, log, expect_text, pa, pb, agent, n == (rounds + 1) // 2, extra)
+            except asyncio.TimeoutError:
+                log.append({"round": n, "action": "round finished", "expected": "yes", "got": "timed out"})
+            await off(survives, memo_id, folder, n, expect_text, log, pa)
+    finally:
+        await a.close()
+        await b.close()
+        cleanup(memo_id, extra.get("revision"))
+    return {"firm": firm, "stage": stage.name, "rounds": rounds, "free_boxes": len(free), "log": log, "agent": agent}
+
+
+def cleanup(memo_id: str, revision: str | None) -> None:
+    """The temporary memo, and the record revision the round made (so no real memo is offered it)."""
+    import uuid as _uuid
+    from sqlalchemy import delete
+    from app.db.memo import Memo
+    from app.db.record import RecordRevision, RecordValue
+    with SessionLocal() as s:
+        s.execute(delete(Memo).where(Memo.id == _uuid.UUID(memo_id)))
+        if revision:
+            s.execute(delete(RecordValue).where(RecordValue.revision_id == _uuid.UUID(revision)))
+            s.execute(delete(RecordRevision).where(RecordRevision.id == _uuid.UUID(revision)))
+        s.commit()
 
 
 def report(results: list[dict]) -> str:
@@ -254,10 +370,12 @@ def report(results: list[dict]) -> str:
         rows = [x for x in r["log"] if x["action"].startswith(action_prefix)]
         ok = sum(1 for x in rows if x["got"] == x["expected"])
         return f"{100 * ok / len(rows):.0f}% ({ok}/{len(rows)})" if rows else "–"
-    out = [f"# Two people editing · {datetime.now():%Y-%m-%d %H:%M}", "",
+    out = [f"# Two people editing, the agent, a newer record and PowerPoint · {datetime.now():%Y-%m-%d %H:%M}", "",
            "Two people (A, B) in the same memo's room over websockets, in repeated rounds: live edits at the same",
-           "moment, a race for the same box, writing into a held box, an edit from an older view, typing over a figure,",
-           "and a PowerPoint round trip while the other person keeps editing in the app.", "",
+           "moment, a race for the same box, writing into a held box, an edit from an older view, typing over a figure;",
+           "then the agent fills a slide and A applies its proposal; in the middle round the deal record changes and A",
+           "applies it; then a PowerPoint round trip through the API while the other person keeps editing in the app.",
+           "The memo is made through the API; every round's edits, the agent's included, are checked in every later round.", "",
            "| | " + " | ".join(f"{r['firm']} ({r['stage']}, {r['rounds']} rounds)" for r in results) + " |",
            "|---|" + "---|" * len(results)]
     rows = [
@@ -268,6 +386,10 @@ def report(results: list[dict]) -> str:
         ("Edit from an older view kept aside, with its conflict", "edit from an older view"),
         ("Typing over a figure refused, the other person told", "type over a figure"),
         ("PowerPoint edit of a box changed in the app since the export kept aside", "PowerPoint edit of a box changed"),
+        ("The agent's proposal applied, none of its changes lost", "the agent's proposal"),
+        ("Every kept-aside agent change has a conflict", "every kept-aside agent"),
+        ("A newer deal record applied in the middle round", "B changes the deal record"),
+        ("The figure follows the newer record", "the figure follows"),
         ("**Measure 1** · applied edits present after each round", "applied edit present"),
         ("**Measure 1** · figures unchanged after typing over", "figure unchanged"),
         ("**Measure 1** · every kept-aside edit has a conflict", "every kept-aside"),
@@ -281,9 +403,10 @@ def report(results: list[dict]) -> str:
              for r in results for x in r["log"] if x["got"] != x["expected"]]
     out += lines or ["Nothing broke."]
     out += ["", "## Not covered yet", "",
-            "- Moving and resizing boxes live (drag) and adding boxes on free slides: they come with the canvas (build step 9).",
-            "- Catching up after a reconnection: the sequence numbers exist; the replay is not built.",
-            "- The agent as a third editor: build step 7."]
+            "- Moving boxes, pictures and the canvas edits of the brief: the canvas suite (evals/canvas_suite.py).",
+            "- Catching up after a reconnection: the sequence numbers exist; the replay is not built."]
+    if any(not r.get("agent") for r in results):
+        out.append("- This run left the agent out (--no-agent).")
     small = [r["firm"] for r in results if r["free_boxes"] < 6]
     if small:
         out.append(f"- {', '.join(small)}: fewer than six free-text boxes, so some rounds reuse a box for two actions.")
@@ -294,14 +417,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--firm")
+    parser.add_argument("--no-agent", action="store_true", help="leave the agent (a model call per round) out")
     args = parser.parse_args()
     with SessionLocal() as s:
         firms = [f.name for f in s.scalars(select(S.Firm).order_by(S.Firm.name))]
-    server = start_server()
-    try:
-        results = [asyncio.run(run_firm(f, args.rounds)) for f in firms if not args.firm or f == args.firm]
-    finally:
-        server.kill()
+    with Server(PORT) as server:
+        results = [asyncio.run(run_firm(f, args.rounds, server, not args.no_agent)) for f in firms if not args.firm or f == args.firm]
     text = report(results)
     path = REPO / "evals" / "reports" / f"{datetime.now():%Y-%m-%d_%H%M}_two_people.md"
     path.write_text(text, encoding="utf-8")
