@@ -629,6 +629,8 @@ class Door:
             # a picture: the asset uploaded for it, of this firm; flagged, since a picture may stand in for a
             # native chart, table or slide (a person confirms it, or builds it from the record instead)
             asset = self.s.get(Asset, _uuid(payload.get("asset_id")))
+            if asset is None and actor_type == "import":
+                raise KeepAside("a picture came from PowerPoint whose image could not be read", "pasted_picture")
             if asset is None or asset.firm_id != self.memo.firm_id:
                 raise Refuse("upload the picture first")
             self.s.add(ElementImage(element_id=el.id, asset_id=asset.id, alt=payload.get("alt"), flagged=True))

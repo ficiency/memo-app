@@ -60,6 +60,7 @@ quality issue; **low** = cosmetic. Grey italic slots (text the agent or a person
 | 43 | A WebP picture was refused (400) though the screen let it be picked | Only the formats PowerPoint holds were accepted | pictures | low | fixed: any picture that can be read becomes a PNG; only what is not a picture is refused |
 | 44 | A PDF export would have become what an edited PowerPoint is compared with | Bring back took the memo's latest export of any format | PowerPoint import, PDF | high | fixed before it shipped: only PowerPoint exports are compared with |
 | 45 | Boxes people added were drawn at 18 pt in PowerPoint and 12 pt on the canvas | The painter wrote no size for a box with no role, so PowerPoint used its own default | painter | medium | fixed: the painter writes the size and font the canvas and the fit measure resolve. Found comparing the fit measure with PowerPoint |
+| 46 | A file saved by PowerPoint desktop with a pasted picture whose image PowerPoint did not embed in the usual way was refused whole ("no embedded image"): none of its other edits came back | The import read every new picture's bytes in the one place a script puts them | PowerPoint import | high | fixed: the bytes are read wherever the picture refers to them; a picture with none to read is kept aside, and the rest of the file comes back. Found by the PowerPoint desktop suite (the scripted edits never made such a picture) |
 
 ## How to see an open issue again
 

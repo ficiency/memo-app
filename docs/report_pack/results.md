@@ -24,26 +24,30 @@ failure found while building it.
 The brief names five edits: drop an image, drag into a locked zone, duplicate a slide, type over a figure, paste a
 chart as a picture. Each is expected to be applied, refused or kept aside as the firm's rules say.
 
-| Edit | Canvas (`*_canvas.md`) | Agent (`*_agent.md`) | PowerPoint (`*_powerpoint.md`) |
+Two PowerPoint suites: one edits the exported file with a script, over five round trips (`*_powerpoint.md`); the
+other has **PowerPoint desktop itself** open the file, make the edits and save it, through its automation interface
+(`*_powerpoint_desktop.md`), so what comes back is a file PowerPoint wrote.
+
+| Edit | Canvas (`*_canvas.md`) | Agent (`*_agent.md`) | PowerPoint (both suites) |
 |---|---|---|---|
-| Drop an image | On a free slide: placed, flagged as a pending, its bytes served back. On a template slide: refused, nothing added | "Add this image": no image placed (the agent receives no files) | Inserted on a template slide: kept aside as a conflict |
+| Drop an image | On a free slide: placed, flagged as a pending, its bytes served back. On a template slide: refused, nothing added | "Add this image": no image placed (the agent receives no files) | On a template slide: kept aside as a conflict. On a free slide (desktop suite): applied, a picture to confirm |
 | Drag into a locked zone | A box dragged into the header: refused, box unchanged. A template box dragged: refused. Control: a move inside the free area applied, snapped to the grid | "Move this box into the header": declined | A box moved onto a locked area: refused |
-| Duplicate a slide | A section allowed several times: applied, copy with the same words and new identities. Allowed once: refused | Allowed once: declined. Allowed several times: applied | Allowed once: refused |
+| Duplicate a slide | A section allowed several times: applied, copy with the same words and new identities. Allowed once: refused | Allowed once: declined. Allowed several times: applied | Allowed once: refused. A free slide (desktop suite): applied |
 | Type over a figure | In text: refused, text unchanged. In a table cell: refused. Control: words written around a figure applied, figure unchanged | "Change … to 999": declined, told to change the record | Typed over in the file: refused, figure unchanged |
-| Paste a chart as a picture | Placed but never taken as a chart: a pending until someone confirms it | not applicable | Pasted over a chart: kept aside |
+| Paste a chart as a picture | Placed but never taken as a chart: a pending until someone confirms it | not applicable | Kept aside |
 
 | Result | Merrow | Corriemoor | Lumen |
 |---|---|---|---|
 | Canvas: edits and controls as the firm's rules say | 12/12 | 12/12 | 13/13 |
-| PowerPoint: edits as the firm's rules say (5 round trips) | 30/30 | 30/30 | 20/20 |
+| PowerPoint (script): edits as the firm's rules say (5 round trips) | 30/30 | 30/30 | 20/20 |
+| PowerPoint desktop: edits and checks as expected (made and saved by PowerPoint) | 15/15 | 15/15 | 14/14 |
 | Agent: the brief's edits as the firm's rules say | 6/6 | 6/6 | 6/6 |
 
-**Not covered by this suite** (some covered elsewhere, said where):
-- In PowerPoint: a picture inserted on a **free** slide, and duplicating a slide of a section allowed several
-  times (the memos this suite generates have no free slide). A picture inserted in PowerPoint on a free slide was
-  checked separately (it came back as a picture to confirm) but is not in a suite.
+**Not covered by this suite:**
 - In PowerPoint, Lumen: pasting a chart as a picture (its stage's memo has no native chart).
 - The agent cannot place pictures by design.
+- PowerPoint desktop is driven through its automation interface: the program opens, edits and saves the file
+  itself, but no person clicks in it.
 
 ## Measure 1: edits that survive, conflicts surfaced rather than lost
 
@@ -74,9 +78,14 @@ The PowerPoint suite (`2026-11-09_0835_powerpoint.md`, 5 round trips per firm, o
 the next export 5/5 per firm, figures unchanged after typing over 5/5, kept-aside edits all with an open conflict,
 0 lost.
 
+The PowerPoint desktop suite (`2026-11-09_1007_powerpoint_desktop.md`) has PowerPoint itself save the edited file:
+the boxes nobody edited are unchanged after PowerPoint saved it (170/170 Merrow, 132/132 Corriemoor, 34/34 Lumen)
+and every shape keeps its identity (100/100, 107/107, 37/37). It found one failure, fixed: a picture PowerPoint saved
+without an embedded image made the whole file be refused (`where_it_breaks.md` #46).
+
 **Not covered:** more than two people at once; a person disconnecting and reconnecting mid-edit (the memo reloads;
-missed messages are not replayed); network failures; edits made in the PowerPoint desktop application by a person
-(the files are edited by a script, as a person would, and the program PowerPoint only judges layout).
+missed messages are not replayed); network failures; a person clicking in PowerPoint (PowerPoint is driven through its
+automation interface; the rounds edit the file with a script).
 
 ## Measure 2: how much of a canvas slide survives PowerPoint and back
 
@@ -202,7 +211,7 @@ Report: `2026-11-09_0710.md`. Lumen came with a written guide only (no PowerPoin
 ## Where it breaks, and how often
 
 `where_it_breaks.md` (from `evals/WHERE_IT_BREAKS.md`): 45 issues found while building and testing, with cause,
-area, severity and status; 33 fixed, 1 partly fixed, 10 open, 1 found not to be a bug. In the final runs above: nothing broke in the canvas, PowerPoint,
+area, severity and status; 34 fixed, 1 partly fixed, 10 open, 1 found not to be a bug (46 in all). In the final runs above: nothing broke in the canvas, PowerPoint,
 rounds, overflow and rebuild suites.
 
 ## Not built (stated as such)

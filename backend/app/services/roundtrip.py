@@ -62,6 +62,24 @@ def _text(tf) -> str:
     return re.sub(r"[ \t]+", " ", "\n".join(lines)).strip()
 
 
+def _picture(shape, slide) -> tuple[bytes, str] | None:
+    """A picture's bytes and type, wherever PowerPoint put them (the usual embedded image, or another image part the
+    picture refers to, as PowerPoint does for some pasted or exported pictures); None when it has none to read."""
+    try:
+        return shape.image.blob, shape.image.content_type
+    except Exception:
+        pass
+    for el in shape._element.iter():
+        for key, rid in el.attrib.items():
+            if key.endswith("}embed"):
+                try:
+                    part = slide.part.related_part(rid)
+                    return part.blob, part.content_type
+                except KeyError:
+                    continue
+    return None
+
+
 def _kind(shape) -> str:
     if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
         return "picture"
@@ -105,7 +123,7 @@ def read(path: Path) -> dict:
             elif shape.has_text_frame:
                 info["text"] = _text(shape.text_frame)
             if info["type"] == "picture" and not sm:            # a picture added in PowerPoint: its bytes come along
-                info["picture"] = (shape.image.blob, shape.image.content_type)
+                info["picture"] = _picture(shape, slide)
             if sm:
                 shapes[sm.group(1)] = {**info, "revision": int(sm.group(2))}
             else:
