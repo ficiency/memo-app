@@ -46,7 +46,7 @@ groups of tables; the main ones and their shape:
 | Table | One row is | Key columns |
 |---|---|---|
 | `specs`, `spec_versions` | a firm's memo type; one version of it | version number, status (draft / approved), page size, who approved it |
-| `sections`, `stages`, `stage_sections` | a section of the memo; a stage (e.g. First IC); which sections a stage requires | status (locked, mandatory, free), how many slides allowed, position |
+| `sections`, `stages`, `stage_sections` | a section of the memo; a stage (e.g. First IC); which sections a stage requires | status (locked, mandatory, optional, free), how many slides allowed (one, any, at most n), position |
 | `order_constraints`, `rules` | an order rule (A after B); a logic rule from the guide | rule type, parameters |
 | `layouts`, `layout_zones` | a slide layout; its free area | name, is master / blank; zone x, y, w, h |
 | `text_roles`, `fonts`, `formats`, `palette_colors`, `grids` | the house style | font, size, minimum size; number format fields; colours by name |
@@ -62,7 +62,7 @@ forecast flag). A revision is a full copy; nothing is overwritten.
 | Table | One row is | Key columns |
 |---|---|---|
 | `memos` | a memo | deal, spec version, record revision, stage, sequence (count of operations) |
-| `slides` | a slide | position, section, layout, kind (template / free) |
+| `slides` | a slide | position, section, layout, kind (template, free, imported) |
 | `elements` | a box on a slide (also used for the boxes of a layout) | type (text, table, chart, image, shape), place and size in inches, role, lock, text insets, revision, origin (the layout box it came from) |
 | `element_paragraphs`, `segments` | a paragraph with its own style; a run of text in it | font, size, spacing, bullet; segment kind (text, figure, slot to write), the figure's record path and value |
 | `element_tables`, `table_cells`; `element_charts`, `chart_series`, `chart_points` | a table and its cells; a chart, its series and points | cells hold paragraphs like a text box; a series names its record family |
@@ -100,7 +100,7 @@ retries), then **a person reviews and approves it**:
    past memos slide by slide).
 1. **House style**: page, colours and what each is for, fonts, text roles (size and minimum size), number and date
    formats as fields (checked against the examples in the materials), footer and citations.
-2. **Structure**: the sections, their status (locked, mandatory, free), how many slides each allows, what each
+2. **Structure**: the sections, their status (locked, mandatory, optional, free), how many slides each allows, what each
    must contain, the order rules, and which sections each stage requires.
 3. **Layouts**: every layout as a list of boxes. When the template has the layout, code copies its boxes exactly
    and the model only names each box's role; when no template has it (Lumen), the model designs it from the guide.
