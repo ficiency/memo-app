@@ -211,7 +211,7 @@ Report: `2026-11-09_0710.md`. Lumen came with a written guide only (no PowerPoin
 ## Where it breaks, and how often
 
 `where_it_breaks.md` (from `evals/WHERE_IT_BREAKS.md`): 45 issues found while building and testing, with cause,
-area, severity and status; 34 fixed, 1 partly fixed, 10 open, 1 found not to be a bug (46 in all). In the final runs above: nothing broke in the canvas, PowerPoint,
+area, severity and status; 32 fixed, 2 partly fixed, 10 open, 1 found not to be a bug (45 in all; numbered to 46, #7 unused). In the final runs above: nothing broke in the canvas, PowerPoint,
 rounds, overflow and rebuild suites.
 
 ## Not built (stated as such)

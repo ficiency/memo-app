@@ -25,15 +25,15 @@ firm's rules, never its name; PowerPoint itself judges layout; faults planted on
 | Measure | Merrow | Corriemoor | Lumen |
 |---|---|---|---|
 | Brief's suite — canvas / PowerPoint (script, 5 round trips) / PowerPoint desktop / agent | 12/12 · 30/30 · 15/15 · 6/6 | 12/12 · 30/30 · 15/15 · 6/6 | 13/13 · 20/20 · 14/14 · 6/6 |
-| **1** Edits that survive (2 people + agent + newer record + PowerPoint, 5 rounds) | 123/123, 0 lost | 113/113, 0 lost | 38/38, 0 lost |
+| **1** Edits that survive (2 people + agent + newer record + PowerPoint, 5 rounds) | 123/123 kept · 10/10 kept aside with a conflict · 0 lost | 113/113 · 10/10 · 0 lost | 38/38 · 10/10 · 0 lost |
 | **2** Canvas slide through PowerPoint and back / whole memo untouched | 5/5 · 460/460 | 5/5 · 490/490 | 6/6 · 145/145 |
-| **3** Long content: fits / shrunk / reported / **cut silently** | 29 / 6 / 32 / **0** | 47 / 1 / 16 / **0** | 25 / 4 / 17 / **0** |
-| **4** AI edits: typed amounts / figures off the record / one figure two values | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| **3** Long content: fits / shrunk / reported / **cut silently** | 29 / 6 / 32 / **0** of 67 | 47 / 1 / 16 / **0** of 64 | 25 / 4 / 17 / **0** of 46 |
+| **4** AI edits: typed amounts / figures off the record / one figure two values | 0 / 0 of 122 figures / 0 | 0 / 0 of 83 / 0 | 0 / 0 of 58 / 0 |
 | **6** Build + PowerPoint + PDF · model cost | 11.1 s · $0 | 11.6 s · $0 | 8.6 s · $0 |
 | **7** Third firm | — | — | All configuration: 81 boxes, 57 recipe segments, 55 rules, 38 figures from onboarding; 0 lines of code name a firm |
 
-**5** Past memos rebuilt from the spec (4 memos, structure only): boxes found 379/381, same place 377/379, same type
-336/336, exhibits 43/43, slides matched 47/60.
+**5** Past memos rebuilt from the spec (4 memos, structure only): boxes found 379/381, same place 377/379, same font and
+size 336/336, exhibits 43/43, slides matched 47/60.
 
 Also measured: the system's text measure agrees with PowerPoint on fits / does not fit for 208 of 210 boxes; boxes
 nobody edited stay identical after PowerPoint desktop saves the file (336/336) and every shape keeps its identity
@@ -42,11 +42,10 @@ records were not given, so their figures could not be checked.
 
 ## Where it breaks, and what was not tested
 
-- **46 issues** found while building and testing, each with cause and status: 34 fixed, 1 partly, 10 open (e.g.
-  chart axes without the firm's number format; onboarding naming chart series from their description). The evals
-  themselves found 4 real bugs late (tables with no column definitions not measured; template bullets and indents
-  not kept; a picture saved by PowerPoint without an embedded image refusing a whole file; record values the agent
-  could not cite) — all fixed at the root.
+- **45 issues** found while building and testing, each with cause and status: 32 fixed, 2 partly fixed (chart axes
+  and categories; onboarding naming chart series from their description), 10 open, 1 not a bug. The evals
+  themselves found 3 real bugs late (tables with no column definitions not measured; template bullets and indents
+  not kept; a picture saved by PowerPoint without an embedded image refusing a whole file) — all fixed at the root.
 - **Not tested:** more than two people at once; reconnection mid-edit; a person clicking in PowerPoint (it is driven
   through its automation interface); past memos' figures (their deals' records were not given); load.
 - **Not built:** promoting a slide to the template; long text continuing on another slide; replay after a
