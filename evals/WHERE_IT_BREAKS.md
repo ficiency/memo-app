@@ -34,6 +34,17 @@ quality issue; **low** = cosmetic. Grey italic slots (text the agent or a person
 | 22 | Corriemoor tenor shows "12 months" (the deal is 36 months, 12 interest-only) | The binding picks a path that exists and has the right kind, not always the right datum | binding | high | open: needs the person's review of the binding (no check can prove the datum) |
 | 23 | Some chart axes stay unformatted (Merrow market, Corriemoor financial) and long category labels are cut | The series concept has no value kind; small charts truncate labels | onboarding step 4 / painter | medium | open |
 
+## Canvas and API (7 Nov, the memo screens compared with PowerPoint's render of the same memo)
+
+| # | What shows | Root cause | Layer | Impact | Status |
+|---|---|---|---|---|---|
+| 24 | The PowerPoint export had no footer ("Strictly confidential") and no slide number on template slides | python-pptx does not copy a layout's footer, date and slide-number placeholders to a new slide, and the painter skipped elements whose placeholder was missing | painter | high | **fixed**: the placeholders the memo fills are cloned from the layout |
+| 25 | A wide logo ran past its box (Lumen, right edge) | The picture took the box's height and kept its ratio, whatever the width | painter, canvas | medium | **fixed**: the logo fits inside its box in both |
+| 26 | A second line in a placeholder (Merrow KPI detail line) is Georgia on the canvas, Arial in PowerPoint | The paragraph's stored font is the box's first-level font; the template's own level-2 font is not read | onboarding step 3 | low | open |
+| 27 | Letter spacing of small caps labels is missing on the canvas | Character spacing is not in the element model | schema / canvas | low | open |
+| 28 | After a save, the box stays held for ~2.5 s | The door checks and saves against the remote database before the box is released | door, database latency | medium | open: measure where the time goes |
+| 29 | Opening a memo takes ~3 s | The memo and the spec's styles are read in ~25 queries against the remote database | memo read | medium | open |
+
 ## How to see an open issue again
 
 From `backend/` (the spec, binding and record must be loaded; see backend/README.md):

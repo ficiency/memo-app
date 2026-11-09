@@ -37,9 +37,10 @@ from sqlalchemy import func, select  # noqa: E402
 
 from app.db import spec as S  # noqa: E402
 from app.db.history import Conflict  # noqa: E402
-from app.db.memo import Element, ElementParagraph, Segment, Slide  # noqa: E402
+from app.db.memo import Element  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
 from app.services.generator.memo import Generator  # noqa: E402
+from app.services.memo_data import MemoData  # noqa: E402
 from app.services.roundtrip import SHAPE, export, import_pptx, read  # noqa: E402
 
 PORT = 8011
@@ -65,17 +66,17 @@ def boxes(memo_id, exported: Path) -> tuple[list[str], list[tuple[str, str, str]
     boxes the file shows as the memo's own (master boxes such as footers are not edited in the memo)."""
     painted = {eid for sl in read(exported)["slides"] for eid in sl["shapes"]}
     with SessionLocal() as s:
-        rows = s.scalars(select(Element).join(Slide, Element.slide_id == Slide.id).where(
-            Slide.memo_id == memo_id, Element.deleted_at.is_(None), Element.type == "text", Element.firm_lock == "content")).all()
+        memo = MemoData(s, memo_id)                       # the whole memo in a few queries, not one per paragraph
         free, figures = [], []
-        for e in rows:
-            paras = s.scalars(select(ElementParagraph).where(ElementParagraph.element_id == e.id).order_by(ElementParagraph.position)).all()
-            segs = [s.scalars(select(Segment).where(Segment.paragraph_id == p.id).order_by(Segment.position)).all() for p in paras]
+        for e in memo.elements:
+            if e.type != "text" or e.firm_lock != "content":
+                continue
+            segs = [ss for _, ss in memo.paragraphs(element_id=e.id)]
             chips = [x for ss in segs for x in ss if x.kind == "chip"]
             numbers = [x for x in chips if any(c.isdigit() for c in x.text or "")]
             if numbers:
                 figures.append((str(e.id), "\n".join("".join(x.text for x in ss) for ss in segs), numbers[0].text))
-            elif paras and not chips:
+            elif segs and not chips:
                 free.append(str(e.id))
     return [x for x in free if x in painted], [f for f in figures if f[0] in painted]
 
