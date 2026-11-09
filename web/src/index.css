@@ -283,3 +283,12 @@ table.bindings th:nth-child(2) { width: 27%; }
 table.bindings th:nth-child(3) { width: 11%; }
 table.bindings th:nth-child(5) { width: 200px; }
 table.bindings .mono, .change-binding .mono { overflow-wrap: anywhere; }
+
+/* proposals */
+.slide-paper .el.text.proposed { outline: 2px dashed #8a5cc7; outline-offset: 3px; }
+.proposal { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; margin: 10px 0; }
+.proposal-op { border-top: 1px solid #f0efeb; padding: 6px 0; }
+.proposal-op.refused { opacity: 0.75; }
+.before-after { display: grid; gap: 4px; margin-top: 4px; font-size: 12px; white-space: pre-wrap; }
+.before-after .before { color: var(--muted); text-decoration: line-through; }
+.before-after .after { background: #f4effb; border-radius: 4px; padding: 4px 6px; }

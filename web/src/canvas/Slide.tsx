@@ -15,8 +15,10 @@ export type Interaction = {
   editing: string | null; // the box I hold
   onPick: (el: El) => void;
   onDraft: (el: El, text: string) => void;
-  onLeave: (el: El, text: string | null, seenRevision: number) => void; // the revision the edit was made on
-  onFigureRemoved: (el: El) => void;
+  onLeave: (el: El, text: string | null, seenRevision: number, removeChips: string[]) => void; // the revision it was made on
+  // a figure was deleted while typing: ask whether to take it out of the box (true) or put it back (false)
+  askRemove: (el: El, chips: Seg[], text: string, seenRevision: number, removeChips: string[]) => Promise<boolean>;
+  proposed?: Set<string>; // boxes an open proposal would change
 };
 
 function Segments({ segments, page }: { segments: Seg[]; page: number }) {
@@ -77,16 +79,16 @@ function box(el: El): CSSProperties {
 }
 
 // --- the text editor: the box I hold -------------------------------------------------------------------
-// Figures (chips) cannot be typed into; if one is deleted, the box goes back to its last good text and the
-// page explains why. Leaving the box (click elsewhere, Escape) saves it through the door.
+// Figures (chips) cannot be typed into. Deleting one asks first: taken out of the box on purpose, or put back.
+// Leaving the box (click elsewhere, Escape) saves it through the door.
 function Editor({ el, styler, page, ui }: { el: El; styler: Styler; page: number; ui: Interaction }) {
   const ref = useRef<HTMLDivElement>(null);
   const start = useRef(plainText(el.paragraphs));
   const seen = useRef(el.revision); // the edit is made on what was shown when editing began
   const good = useRef<Paragraph[]>(el.paragraphs);
   const [shown, setShown] = useState<{ version: number; paragraphs: Paragraph[] }>({ version: 0, paragraphs: el.paragraphs });
-  const chips = el.paragraphs.flatMap((p) => p.segments.filter((s) => s.kind === "chip")).length;
-
+  const removed = useRef<Set<string>>(new Set()); // figures taken out on purpose
+  const asking = useRef(false);
   const typed = useRef(false);
 
   // someone's save of this box arrived after it was opened: if nothing was typed yet, start again from it
@@ -112,13 +114,25 @@ function Editor({ el, styler, page, ui }: { el: El; styler: Styler; page: number
     sel?.addRange(range);
   }, [shown.version]);
 
-  const onInput = () => {
+  const onInput = async () => {
+    if (asking.current) return;
     const text = read();
-    const found = ref.current?.querySelectorAll("[data-chip]").length ?? 0;
-    const rebuilt = found === chips ? rebuild(text, good.current) : null;
+    const present = new Set(Array.from(ref.current?.querySelectorAll("[data-chip-id]") ?? []).map((n) => n.getAttribute("data-chip-id")));
+    const expected = good.current.flatMap((p) => p.segments.filter((s) => s.kind === "chip" && s.id && !removed.current.has(s.id)));
+    const gone = expected.filter((s) => !present.has(s.id ?? ""));
+    if (gone.length) {
+      asking.current = true;
+      const remove = await ui.askRemove(el, gone, text, seen.current, [...removed.current, ...gone.map((s) => s.id as string)]);
+      asking.current = false;
+      if (!remove) {
+        setShown((v) => ({ version: v.version + 1, paragraphs: good.current }));
+        return;
+      }
+      gone.forEach((s) => removed.current.add(s.id as string));
+    }
+    const rebuilt = rebuild(text, good.current, removed.current);
     if (rebuilt === null) {
       setShown((v) => ({ version: v.version + 1, paragraphs: good.current }));
-      ui.onFigureRemoved(el);
       return;
     }
     good.current = rebuilt;
@@ -139,7 +153,7 @@ function Editor({ el, styler, page, ui }: { el: El; styler: Styler; page: number
         // the figure warning keeps the box: the person goes back to it after reading
         if ((e.relatedTarget as HTMLElement | null)?.closest("[data-keep-editing]")) return;
         const text = read();
-        ui.onLeave(el, text === start.current ? null : text, seen.current);
+        ui.onLeave(el, text === start.current && !removed.current.size ? null : text, seen.current, [...removed.current]);
       }}
       onKeyDown={(e) => {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
@@ -153,7 +167,7 @@ function Editor({ el, styler, page, ui }: { el: El; styler: Styler; page: number
         <p key={i} style={styler.paragraphCss(p, el)} data-bullet={p.style.bullet_char || undefined}>
           {p.segments.map((s, j) =>
             s.kind === "chip" ? (
-              <span key={j} data-chip contentEditable={false} className={`chip${isNoData(s) ? " nodata" : ""}`}>
+              <span key={j} data-chip data-chip-id={s.id ?? ""} contentEditable={false} className={`chip${isNoData(s) ? " nodata" : ""}`}>
                 {s.text}
               </span>
             ) : s.kind === "page_number" ? (
@@ -178,7 +192,10 @@ function TextEl({ el, styler, page, ui }: { el: El; styler: Styler; page: number
   const other = holder && holder !== ui.me ? holder : null;
   const draft = other ? ui.drafts[el.id] : undefined;
   const pendingText = ui.pending[el.id];
-  const shown = (draft !== undefined && rebuild(draft, el.paragraphs)) || (pendingText !== undefined && rebuild(pendingText, el.paragraphs)) || el.paragraphs;
+  const shown =
+    (draft !== undefined && rebuild(draft, el.paragraphs, undefined, true)) ||
+    (pendingText !== undefined && rebuild(pendingText, el.paragraphs, undefined, true)) ||
+    el.paragraphs;
   const editable = !el.master && el.firm_lock !== "fixed";
   const fill = styler.color(el.fill);
   const line = styler.color(el.line);
@@ -186,7 +203,7 @@ function TextEl({ el, styler, page, ui }: { el: El; styler: Styler; page: number
   const color = other ? ui.colors.get(other) : undefined;
   return (
     <div
-      className={`el text${editable ? " editable" : ""}${mine ? " mine" : ""}${other ? " held" : ""}${pendingText !== undefined ? " saving" : ""}`}
+      className={`el text${editable ? " editable" : ""}${mine ? " mine" : ""}${other ? " held" : ""}${pendingText !== undefined ? " saving" : ""}${ui.proposed?.has(el.id) ? " proposed" : ""}`}
       style={{
         ...box(el),
         ...inset,

@@ -20,7 +20,9 @@ export type LiveMessage =
       element: unknown;
       slides: unknown;
       created: string[];
+      warnings?: string[];
     }
+  | { type: "proposal"; id: string; status: string }
   | { type: "reload"; by: string; reason: string };
 
 export function useLive(memoId: string, onMessage: (m: LiveMessage) => void, onReconnect: () => void) {

@@ -75,7 +75,7 @@ export type ParagraphStyle = {
   indent_in: number | null;
 };
 export type SegmentKind = "text" | "chip" | "model_draft" | "person_slot" | "conditional" | "page_number";
-export type Seg = { kind: SegmentKind; text: string; concept: string | null; path: string | null };
+export type Seg = { id?: string | null; kind: SegmentKind; text: string; concept: string | null; path: string | null };
 export type Paragraph = { level: number; role: string | null; style: ParagraphStyle; segments: Seg[] };
 
 export type Frame = { x_in: number; y_in: number; w_in: number; h_in: number; rotation_deg: number; z_index: number };

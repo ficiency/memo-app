@@ -650,7 +650,7 @@ const NO_EDIT: Interaction = {
   onPick: () => undefined,
   onDraft: () => undefined,
   onLeave: () => undefined,
-  onFigureRemoved: () => undefined,
+  askRemove: () => Promise.resolve(false),
 };
 
 function StepLayouts({ versionId, conflicts }: { versionId: string; conflicts: { role: string; what: string; template: string; guide: string; boxes: string[] }[] }) {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { get, post, withEmail } from "../api/client";
-import type { Conflict, El, ImportResult, MemoView, Person, SlideData, UpdateChanges, UpdateInfo } from "../api/types";
+import type { Conflict, El, ImportResult, MemoView, Person, Seg, SlideData, UpdateChanges, UpdateInfo } from "../api/types";
 import { useAuth } from "../auth";
 import { Fit, Slide, useWidth, type Interaction } from "../canvas/Slide";
 import { Styler } from "../canvas/style";
@@ -19,6 +19,19 @@ function colorFor(email: string): string {
 }
 
 type Toast = { id: number; text: string; tone?: "warn" | "ok" };
+type Proposal = {
+  id: string;
+  summary: string | null;
+  status: string;
+  actor: string;
+  created_at: string;
+  operations: {
+    op: { type: string; target?: string | null; payload?: Record<string, unknown> };
+    check: { status: string; reason: string | null; warnings: string[]; before: El | null; after: El | null };
+  }[];
+};
+
+const boxText = (el: El) => el.paragraphs.map((p) => p.segments.map((x) => x.text).join("")).join("\n");
 type Notice = { title: string; body: string };
 
 function replaceElement(slides: SlideData[], el: El): SlideData[] {
@@ -47,7 +60,9 @@ export function MemoPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [panel, setPanel] = useState<"conflicts" | null>(null);
+  const [panel, setPanel] = useState<"conflicts" | "proposals" | null>(null);
+  const [removing, setRemoving] = useState<{ chips: Seg[]; warnings: string[] | null; resolve: (remove: boolean) => void } | null>(null);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [importing, setImporting] = useState<ImportResult | "busy" | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
@@ -79,6 +94,11 @@ export function MemoPage() {
     get<Conflict[]>(`/memos/${memoId}/conflicts`).then(setConflicts).catch(() => undefined);
   }, [memoId]);
 
+  // edits made for a person to confirm (the agent's)
+  const loadProposals = useCallback(() => {
+    get<Proposal[]>(`/memos/${memoId}/proposals`).then(setProposals).catch(() => undefined);
+  }, [memoId]);
+
   // a newer revision of the deal record than the one this memo was built from
   const loadUpdate = useCallback(() => {
     get<UpdateInfo>(`/memos/${memoId}/updates`).then(setUpdate).catch(() => undefined);
@@ -88,7 +108,8 @@ export function MemoPage() {
     load();
     loadConflicts();
     loadUpdate();
-  }, [load, loadConflicts, loadUpdate]);
+    loadProposals();
+  }, [load, loadConflicts, loadUpdate, loadProposals]);
 
   const onMessage = useCallback(
     (m: LiveMessage) => {
@@ -115,6 +136,7 @@ export function MemoPage() {
             delete next[m.target];
             return next;
           });
+          (m.warnings ?? []).forEach((w) => toast(w, "warn"));
           if (m.status === "refused") {
             const figure = (m.reason ?? "").includes("deal record");
             setNotice({
@@ -128,6 +150,8 @@ export function MemoPage() {
             loadConflicts();
           }
         } else if (m.status === "kept_aside") loadConflicts();
+      } else if (m.type === "proposal") {
+        loadProposals();
       } else if (m.type === "reload") {
         const who = m.by.split("@")[0];
         toast(m.reason === "deal record update" ? `${who} applied the newer deal record` : `${who} brought back a PowerPoint file`, "ok");
@@ -136,7 +160,7 @@ export function MemoPage() {
         loadUpdate();
       }
     },
-    [email, load, loadConflicts, loadUpdate, toast],
+    [email, load, loadConflicts, loadUpdate, loadProposals, toast],
   );
 
   const { connected, send } = useLive(memoId, onMessage, () => {
@@ -165,20 +189,48 @@ export function MemoPage() {
       if (!send({ type: "take", element_id: el.id })) toast("Reconnecting… try again in a moment", "warn");
     },
     onDraft: (el, text) => send({ type: "draft", element_id: el.id, text }),
-    onLeave: (el, text, seenRevision) => {
+    onLeave: (el, text, seenRevision, removeChips) => {
       setEditing(null);
       if (text !== null) {
         setPending((p) => ({ ...p, [el.id]: text }));
         // made on the revision shown when editing began: if someone saved the box meanwhile, it is kept aside
-        send({ type: "op", op: { type: "set_text", target: el.id, base_revision: seenRevision, payload: { text } } });
+        const payload = removeChips.length ? { text, remove_chips: removeChips } : { text };
+        send({ type: "op", op: { type: "set_text", target: el.id, base_revision: seenRevision, payload } });
       }
       send({ type: "release", element_id: el.id });
     },
-    onFigureRemoved: () =>
-      setNotice({
-        title: "Figures come from the deal record",
-        body: "A figure cannot be deleted or typed over in a memo. Change the value in the deal record and every memo built on it can pick it up. The box is back as it was.",
+    askRemove: (el, chips, text, seenRevision, removeChips) =>
+      new Promise<boolean>((resolve) => {
+        setRemoving({ chips, warnings: null, resolve });
+        // what removing would do, checked by the server before the person decides (the firm's recipe, say)
+        post<{ status: string; reason: string | null; warnings: string[] }>(`/memos/${memoId}/operations/check`, {
+          type: "set_text",
+          target: el.id,
+          base_revision: seenRevision,
+          payload: { text, remove_chips: removeChips },
+        })
+          .then((c) => setRemoving((r) => (r ? { ...r, warnings: c.status === "refused" ? [c.reason ?? ""] : c.warnings } : r)))
+          .catch(() => setRemoving((r) => (r ? { ...r, warnings: [] } : r)));
       }),
+    proposed: new Set(
+      proposals.flatMap((pr) => pr.operations.map((o) => String(o.op.target ?? ""))).filter((t) => t),
+    ),
+  };
+
+  const decideRemove = (remove: boolean) => {
+    removing?.resolve(remove);
+    setRemoving(null);
+    window.setTimeout(() => (document.querySelector(".editor") as HTMLElement | null)?.focus(), 0);
+  };
+
+  const decideProposal = async (id: string, how: "apply" | "discard") => {
+    try {
+      await waitSaved();
+      await post(`/memos/${memoId}/proposals/${id}/${how}`);
+      loadProposals();
+    } catch (e) {
+      setNotice({ title: "Not done", body: (e as Error).message });
+    }
   };
 
   const waitSaved = async () => {
@@ -274,7 +326,12 @@ export function MemoPage() {
           <span className={`dot ${connected ? "on" : "off"}`} title={connected ? "Live" : "Reconnecting…"} />
         </div>
         <div className="actions">
-          <button onClick={() => setPanel(panel ? null : "conflicts")}>
+          {proposals.length > 0 && (
+            <button onClick={() => setPanel(panel === "proposals" ? null : "proposals")}>
+              Proposals<span className="count">{proposals.length}</span>
+            </button>
+          )}
+          <button onClick={() => setPanel(panel === "conflicts" ? null : "conflicts")}>
             Kept aside{open.length > 0 && <span className="count warn">{open.length}</span>}
           </button>
           <input
@@ -341,6 +398,54 @@ export function MemoPage() {
               </section>
             ))}
         </div>
+        {panel === "proposals" && (
+          <aside className="panel">
+            <div className="panel-head">
+              <strong>Proposals</strong>
+              <button className="link" onClick={() => setPanel(null)}>
+                Close
+              </button>
+            </div>
+            <p className="muted small">
+              Edits made for you to confirm. Nothing changes until you apply; a box someone edits meanwhile is kept aside, not overwritten.
+            </p>
+            {proposals.map((pr) => (
+              <div key={pr.id} className="proposal">
+                <strong>{pr.summary ?? "Proposal"}</strong>
+                <div className="muted small">
+                  {pr.actor} · {new Date(pr.created_at).toLocaleString()}
+                </div>
+                {pr.operations.map((o, i) => (
+                  <div key={i} className={`proposal-op ${o.check.status}`}>
+                    <div className="small">
+                      <span className={`badge ${o.check.status}`}>{o.check.status === "applied" ? "would apply" : o.check.status.replace("_", " ")}</span>{" "}
+                      {o.op.type.replace(/_/g, " ")}
+                      {o.check.after?.name ? ` · ${o.check.after.name}` : o.check.before?.name ? ` · ${o.check.before.name}` : ""}
+                    </div>
+                    {o.check.reason && <div className="muted small">{o.check.reason}</div>}
+                    {o.check.before && o.check.after && (
+                      <div className="before-after">
+                        <div className="before">{boxText(o.check.before)}</div>
+                        <div className="after">{boxText(o.check.after)}</div>
+                      </div>
+                    )}
+                    {o.check.warnings.map((w, j) => (
+                      <div key={j} className="small flag missing">
+                        ⚠ {w}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                <div className="dialog-actions">
+                  <button onClick={() => decideProposal(pr.id, "discard")}>Discard</button>
+                  <button className="primary" onClick={() => decideProposal(pr.id, "apply")}>
+                    Apply
+                  </button>
+                </div>
+              </div>
+            ))}
+          </aside>
+        )}
         {panel === "conflicts" && (
           <aside className="panel">
             <div className="panel-head">
@@ -377,6 +482,35 @@ export function MemoPage() {
           </div>
         ))}
       </div>
+
+      {removing && (
+        <div className="overlay">
+          <div className="dialog small-dialog" data-keep-editing>
+            <h2>Remove {removing.chips.length === 1 ? "this figure" : "these figures"} from the box?</h2>
+            <p>
+              {removing.chips.map((c) => `${c.text} (${(c.concept ?? "figure").replace(/_/g, " ")})`).join(", ")}. A figure is never typed
+              over; it can be taken out of a box, and put back later by its name.
+            </p>
+            {removing.warnings === null ? (
+              <p className="muted small">Checking with the firm's spec…</p>
+            ) : (
+              removing.warnings.map((w, i) => (
+                <div key={i} className="warnings">
+                  ⚠ {w}
+                </div>
+              ))
+            )}
+            <div className="dialog-actions">
+              <button autoFocus onClick={() => decideRemove(false)}>
+                Put it back
+              </button>
+              <button className="primary" onClick={() => decideRemove(true)}>
+                Remove it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {notice && (
         <div className="overlay">

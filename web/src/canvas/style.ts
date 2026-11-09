@@ -108,8 +108,8 @@ export function plainText(paragraphs: Paragraph[]): string {
 
 /** Paragraphs rebuilt from plain text, with the figures (chips) found again in order: the way the door
  *  rebuilds a box, so what the screen shows while saving is what will be stored. Null if a figure is gone. */
-export function rebuild(text: string, from: Paragraph[]): Paragraph[] | null {
-  const chips = from.flatMap((p) => p.segments.filter((s) => s.kind === "chip"));
+export function rebuild(text: string, from: Paragraph[], removed?: Set<string>, skipMissing = false): Paragraph[] | null {
+  const chips = from.flatMap((p) => p.segments.filter((s) => s.kind === "chip" && !(s.id && removed?.has(s.id))));
   const lines = text.split("\n");
   const placed: { line: number; at: number; chip: Seg }[] = [];
   let line = 0;
@@ -122,7 +122,14 @@ export function rebuild(text: string, from: Paragraph[]): Paragraph[] | null {
       line += 1;
       offset = 0;
     }
-    if (found < 0) return null;
+    if (found < 0) {
+      if (skipMissing) {
+        line = 0;
+        offset = 0;
+        continue; // shown while saving: a figure the edit removes is simply not there
+      }
+      return null;
+    }
     placed.push({ line, at: found, chip });
     offset = found + chip.text.length;
   }
