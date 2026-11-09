@@ -25,6 +25,7 @@ their transaction, so the structure changes one at a time.
 from __future__ import annotations
 
 import copy
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -39,6 +40,7 @@ from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, Element
                          Segment, Slide, TableCell, TableColumn, TableRow)
 from app.db.record import RecordRevision
 from app.services import updates
+from app.services.figures import Figures
 from app.services.memo_data import MemoData, fetch
 
 FRAME = ("x_in", "y_in", "w_in", "h_in", "rotation_deg")
@@ -46,6 +48,7 @@ STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anc
 COLOUR_FIELDS = ("color_ref", "fill_ref", "line_ref", "bullet_color_ref")
 SLOTS = ("model_draft", "person_slot", "conditional")
 STRUCTURE = ("add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide", "apply_update", "ignore_update")
+MARKER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")   # {{concept}}: a figure asked for by name
 ELEMENT_OPS = ("set_text", "set_cell", "set_chart_data", "set_frame", "set_style", "delete_element", "set_user_lock")
 
 
@@ -58,6 +61,18 @@ class Result:
     created: list | None = None    # ids made by the operation (new element, new slide…)
     element: dict | None = None    # the element as it is now, for everyone to update their view
     slides: list | None = None     # the memo's slide order now, after a slide operation
+    warnings: list | None = None   # applied, with something worth saying
+
+
+@dataclass
+class Check:
+    """What an operation would do: its outcome, and for one element how it reads before and after."""
+    status: str
+    reason: str | None
+    warnings: list
+    before: dict | None
+    after: dict | None
+    slides: list | None
 
 
 class Refuse(Exception):
@@ -106,6 +121,7 @@ class Plan:
     rows: list = field(default_factory=list)           # new model objects to insert
     after: object = None                               # callable(revision) → updates the read copy
     noop: bool = False                                 # nothing changes (the same text): logged as applied
+    warnings: list = field(default_factory=list)       # applied, but worth saying (a figure the recipe expects removed)
 
 
 class Door:
@@ -123,8 +139,47 @@ class Door:
             return self._apply_structure(op, actor_type, actor_id, on_behalf_of, change_set_id)
         return self._apply_element(op, actor_type, actor_id, on_behalf_of, change_set_id, held_by)
 
+    def check(self, op: dict, actor_type: str = "person", actor_id=None, held_by: str | None = None) -> Check:
+        """What the operation would do, without doing it: its outcome and, for one element, the element before and
+        after. A proposal is checked this way when it is made, and applied through apply() when a person confirms
+        it (the memo may have changed in between, so it is checked again then)."""
+        kind = op.get("type")
+        if kind in STRUCTURE:
+            return self._check_structure(op, actor_type, actor_id)
+        read, target, plan, status, reason, _ = self._decide(op, actor_type, actor_id, held_by)
+        before = after = None
+        if plan is not None:
+            before = read.element_json(plan.element)
+            if not plan.noop:
+                plan.after((plan.element.revision or 0) + 1)
+            after = read.element_json(plan.element)
+        self.s.commit()
+        return Check(status, reason, plan.warnings if plan is not None else [], before, after, None)
+
+    def _check_structure(self, op, actor_type, actor_id) -> Check:
+        """A change to the memo's structure, tried inside a savepoint and undone."""
+        self.memo = self.s.get(Memo, self.memo_id)
+        if self.memo is None:
+            raise ValueError(f"no memo {self.memo_id}")
+        self.rules = rules(self.s, self.memo.spec_version_id)
+        status, reason, slides = "applied", None, None
+        nested = self.s.begin_nested()
+        try:
+            getattr(self, f"_{op.get('type')}")(op, actor_type, actor_id)
+            self.s.flush()
+            slides = [{"id": str(x.id), "position": x.position} for x in self.order()]
+        except Refuse as e:
+            status, reason = "refused", str(e)
+        except KeepAside as e:
+            status, reason = "kept_aside", str(e)
+        finally:
+            nested.rollback()
+            self.s.rollback()
+        return Check(status, reason, [], None, None, slides)
+
     # --- one element: read, check, compare and set ------------------------------------------------
-    def _apply_element(self, op, actor_type, actor_id, on_behalf_of, change_set_id, held_by) -> Result:
+    def _decide(self, op, actor_type, actor_id, held_by):
+        """Read the element and work the edit out in memory: (read copy, target, plan, status, reason, aside kind)."""
         kind = op.get("type")
         target = _uuid(op.get("target"))
         if not self.s.in_transaction():                  # reads need no transaction: no BEGIN, no COMMIT
@@ -152,10 +207,17 @@ class Door:
             status, reason, plan = "refused", str(e), None
         except KeepAside as e:
             status, reason, aside_kind, plan = "kept_aside", str(e), e.kind, None
+        return read, target, plan, status, reason, aside_kind
 
+    def _apply_element(self, op, actor_type, actor_id, on_behalf_of, change_set_id, held_by) -> Result:
+        kind = op.get("type")
+        read, target, plan, status, reason, aside_kind = self._decide(op, actor_type, actor_id, held_by)
+        payload = _jsonable(op.get("payload") or {})
+        if plan is not None and plan.warnings:
+            payload = {**payload, "warnings": plan.warnings}      # kept with the edit, for the memo's pendings
         log = Operation(id=uuid.uuid4(), memo_id=self.memo.id, change_set_id=change_set_id, actor_type=actor_type,
                         actor_id=actor_id, on_behalf_of=on_behalf_of, op_type=kind or "?", target_id=target,
-                        base_revision=op.get("base_revision"), payload=_jsonable(op.get("payload") or {}))
+                        base_revision=op.get("base_revision"), payload=payload)
         pg = self.s.connection().connection.driver_connection
         element = None
         with pg.pipeline(), pg.transaction():
@@ -185,7 +247,8 @@ class Door:
                                      kind=aside_kind or ("changed_since_export" if actor_type == "import" else "changed_since_seen")))
             insert(cur, rows)                                    # sent with the commit: the second round trip
         self.s.commit()                                          # ends the session's read-only use of the connection
-        return Result(status, reason, log.id, sequence, [], element if status == "applied" else None, None)
+        return Result(status, reason, log.id, sequence, [], element if status == "applied" else None, None,
+                      plan.warnings if plan is not None and status == "applied" else None)
 
     def element_in(self, read: MemoData, target) -> Element:
         el = next((e for e in read.elements if e.id == target), None)
@@ -210,49 +273,79 @@ class Door:
 
     # --- element edits, worked out in memory ------------------------------------------------------
     def _plan_set_text(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
-        """Replace an element's text. Chips (record figures) must stay exactly as they are, in order: text
-        around them may change, the figures may not. Marked slots become plain text when filled."""
+        """Replace an element's text. Figures (chips) are never typed: the ones there stay exactly as they are, in
+        order, unless the edit removes them by name (payload remove_chips: their ids); a new one is asked for by
+        its concept, {{concept}}, and written from the record as the firm writes it. A figure the firm's recipe
+        puts in this box can be removed: the edit is applied with a warning (a pending for the memo)."""
         if el.firm_lock == "fixed":
             raise Refuse("this element is fixed by the firm")
         self.fresh(el, op)
-        new_text = str((op.get("payload") or {}).get("text", ""))
+        payload = op.get("payload") or {}
+        new_text = str(payload.get("text", ""))
         old = read.paragraphs(element_id=el.id)
         chips = [seg for _, segs in old for seg in segs if seg.kind == "chip"]
-        new_paras = new_text.split("\n")
+        remove = {_uuid(x) for x in payload.get("remove_chips") or []}
+        if remove - {c.id for c in chips}:
+            raise Refuse("the figures to remove are not in this box")
+        # new figures, asked for by concept: written from the record, never typed
+        figures, paras = None, []
+        for raw in new_text.split("\n"):
+            text, spans, pos = "", [], 0
+            for m in MARKER.finditer(raw):
+                text += raw[pos:m.start()]
+                if figures is None:
+                    figures = Figures(self.s, self.s.get(S.Firm, self.memo.firm_id), read.version,
+                                      self.s.get(RecordRevision, self.memo.record_revision_id))
+                try:
+                    chip = figures.chip(m.group(1))
+                except ValueError as e:
+                    raise Refuse(str(e))
+                spans.append((len(text), len(text) + len(chip["text"]), chip))
+                text += chip["text"]
+                pos = m.end()
+            paras.append((text + raw[pos:], spans))
+        # the figures that stay must all be there, unchanged and in order (outside the new ones)
         placed: list[tuple[int, int, Segment]] = []          # (paragraph, offset, chip)
         p_index, offset = 0, 0
-        for chip in chips:
+        for chip in [c for c in chips if c.id not in remove]:
             found = None
-            while p_index < len(new_paras):
-                at = new_paras[p_index].find(chip.text or "", offset)
+            while p_index < len(paras):
+                text, spans = paras[p_index]
+                at = text.find(chip.text or "", offset)
+                while at >= 0 and any(a0 < at + len(chip.text) and at < a1 for a0, a1, _ in spans):
+                    at = text.find(chip.text, at + 1)
                 if chip.text and at >= 0:
                     found = (p_index, at)
                     break
                 p_index, offset = p_index + 1, 0
             if found is None:
                 raise Refuse(f"the figure {chip.text!r} comes from the deal record and cannot be typed over; "
-                             f"change it in the record")
+                             f"change it in the record, or remove it from the box")
             placed.append((found[0], found[1], chip))
             offset = found[1] + len(chip.text)
         paragraphs, segments = [], []
-        for i, text in enumerate(new_paras):
+        for i, (text, spans) in enumerate(paras):
             src = old[min(i, len(old) - 1)][0] if old else None
             para = ElementParagraph(id=uuid.uuid4(), element_id=el.id, table_cell_id=None, position=i,
                                     level=src.level if src else 0, role=src.role if src else None,
                                     **{k: getattr(src, k) if src else None for k in PARAGRAPH_COPY})
             paragraphs.append(para)
+            items = sorted([(at, len(c.text), {"kind": "chip", "text": c.text, "concept_name": c.concept_name,
+                                               "record_path": c.record_path, "value_snapshot": c.value_snapshot})
+                            for p_i, at, c in placed if p_i == i] + [(a0, a1 - a0, chip) for a0, a1, chip in spans],
+                           key=lambda x: x[0])
             pos, cursor = 0, 0
-            for _, at, chip in [x for x in placed if x[0] == i]:
+            for at, length, fields in items:
                 if at > cursor:
                     segments.append(_segment(para.id, pos, "text", text[cursor:at]))
                     pos += 1
-                segments.append(Segment(id=uuid.uuid4(), paragraph_id=para.id, position=pos, kind="chip", text=chip.text,
-                                        concept_name=chip.concept_name, record_path=chip.record_path,
-                                        value_snapshot=chip.value_snapshot, format_item=chip.format_item))
+                segments.append(Segment(id=uuid.uuid4(), paragraph_id=para.id, position=pos, format_item=None,
+                                        **{k: fields.get(k) for k in ("kind", "text", "concept_name", "record_path", "value_snapshot")}))
                 pos += 1
-                cursor = at + len(chip.text)
+                cursor = at + length
             if cursor < len(text) or pos == 0:
                 segments.append(_segment(para.id, pos, "text", text[cursor:]))
+        warnings = self.recipe_warnings(el, [c for c in chips if c.id in remove])
 
         def after(revision):
             el.revision = revision
@@ -263,7 +356,17 @@ class Door:
         return Plan(el, statements=[
             ("DELETE FROM segments WHERE paragraph_id IN (SELECT id FROM element_paragraphs WHERE element_id = %(el)s)", {"el": el.id}),
             ("DELETE FROM element_paragraphs WHERE element_id = %(el)s", {"el": el.id}),
-        ], rows=paragraphs + segments, after=after)
+        ], rows=paragraphs + segments, after=after, warnings=warnings)
+
+    def recipe_warnings(self, el: Element, removed: list) -> list[str]:
+        """Removed figures the firm's recipe puts in this box: allowed, and said (they become a pending)."""
+        if not removed or el.origin_element_id is None:
+            return []
+        expected = set(self.s.scalars(select(S.Concept.name).join(S.RecipeSegment, S.RecipeSegment.concept_id == S.Concept.id)
+                                      .where(S.RecipeSegment.element_id == el.origin_element_id,
+                                             S.RecipeSegment.kind.in_(("figure", "fact")))))
+        return [f"the firm's recipe puts {c.concept_name.replace('_', ' ')} in this box; removed, it stays as a pending"
+                for c in removed if c.concept_name in expected]
 
     def _plan_set_cell(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
         """Change one table cell's text. A cell that holds a record figure cannot be typed over; header and

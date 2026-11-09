@@ -119,7 +119,8 @@ class Hub:
         message = {"type": "operation", "by": me.email, "op": op.get("type"), "target": str(op.get("target") or ""),
                    "client_op_id": op.get("client_op_id"), "status": result.status, "reason": result.reason,
                    "sequence": result.sequence, "element": result.element, "slides": result.slides,
-                   "created": [str(x) for x in result.created or []]}
+                   "created": [str(x) for x in result.created or []],
+                   "warnings": result.warnings or []}
         await self.send(memo_id, message)
 
     # --- messages ------------------------------------------------------------------------------

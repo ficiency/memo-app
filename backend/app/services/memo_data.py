@@ -119,7 +119,8 @@ class ElementData:
     @staticmethod
     def paragraphs_json(paras) -> list[dict]:
         return [{"level": p.level or 0, "role": p.role, "style": {k: getattr(p, k) for k in PARAGRAPH_STYLE},
-                 "segments": [{"kind": s.kind, "text": s.text or "", "concept": s.concept_name, "path": s.record_path}
+                 "segments": [{"id": str(s.id) if s.id else None, "kind": s.kind, "text": s.text or "",
+                               "concept": s.concept_name, "path": s.record_path}
                               for s in segs]}
                 for p, segs in paras]
 
