@@ -126,6 +126,11 @@ class Painter(MemoData):
                     f.color.rgb = colour
 
     # --- tables and charts ------------------------------------------------------------------------
+    def columns_of(self, table: ElementTable) -> int:
+        """A table's columns: those it defines, or as many as its cells use (the fit measure counts the same)."""
+        used = 1 + max((c.col for c in self.cells_of.get(table.id, [])), default=0)
+        return max(len(self.cols_of.get(table.id, [])), used, 1)
+
     def fill_table(self, graphic_frame, table: ElementTable, el: Element | None = None) -> None:
         tbl = graphic_frame.table
         cols = sorted(self.cols_of.get(table.id, []), key=lambda c: c.position)
@@ -282,7 +287,7 @@ class Painter(MemoData):
             table = self.table_of.get(el.id)
             if table:
                 n_rows = len(self.rows_of.get(table.id, []))
-                n_cols = len(self.cols_of.get(table.id, []))
+                n_cols = self.columns_of(table)
                 frame = ph.insert_table(max(n_rows, 1), max(n_cols, 1))
                 self.fill_table(frame, table, el)
                 frame.name = f"memo:{el.id}@{el.revision}"
@@ -326,7 +331,7 @@ class Painter(MemoData):
             if not table:
                 return
             n_rows = len(self.rows_of.get(table.id, [])) or 1
-            n_cols = len(self.cols_of.get(table.id, [])) or 1
+            n_cols = self.columns_of(table)
             shape = slide.shapes.add_table(n_rows, n_cols, x, y, w, h)
             self.fill_table(shape, table, el)
         elif el.type == "chart":

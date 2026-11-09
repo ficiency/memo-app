@@ -177,7 +177,11 @@ class ElementData:
         if el.type == "table" and table is not None:
             r = rules["table"]
             font, size = (r.font if r and r.font else rules["table_font"]), (r.size_pt if r and r.size_pt else 10)
-            cols = [c.width_in or 1.0 for c in sorted(self.cols_of.get(table.id, []), key=lambda c: c.position)]
+            cols = [c.width_in for c in sorted(self.cols_of.get(table.id, []), key=lambda c: c.position)]
+            used = 1 + max((c.col for c in self.cells_of.get(table.id, [])), default=0)
+            if len(cols) < used:                       # columns the table does not define: drawn evenly, as the painter does
+                cols = cols + [None] * (used - len(cols))
+            cols = [w or (el.w_in or 0) / max(1, len(cols)) for w in cols]
             rows = sorted(self.rows_of.get(table.id, []), key=lambda x: x.position)
             cells = {(c.row, c.col): c for c in self.cells_of.get(table.id, [])}
             grid = []

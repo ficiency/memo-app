@@ -249,6 +249,9 @@ function TableEl({ el, styler, page, ui }: { el: El; styler: Styler; page: numbe
   const font = role?.font ?? styler.spec.fonts.tables ?? styler.spec.fonts.body;
   const size = ptPx(el.fit?.size_pt && el.fit.scale < 1 ? el.fit.size_pt : role?.size_pt ?? 10);
   const cells = new Map(t.cells.map((c) => [`${c.row}|${c.col}`, c]));
+  // the columns it defines, or as many as its cells use (drawn evenly; the painter and the fit measure count the same)
+  const used = 1 + Math.max(0, ...t.cells.map((c) => c.col));
+  const columns = t.columns.length >= used ? t.columns : [...t.columns, ...Array(used - t.columns.length).fill(null)];
   const headerFill = styler.color(st.header_fill_ref as string);
   const headerText = styler.color(st.header_text_ref as string);
   const bodyText = styler.color(st.body_text_ref as string) ?? styler.color(role?.color_ref) ?? "#222";
@@ -259,14 +262,14 @@ function TableEl({ el, styler, page, ui }: { el: El; styler: Styler; page: numbe
       {el.fit && !el.fit.fits && <span className="overflow-tag">Doesn't fit</span>}
       <table style={{ fontFamily: font ? `'${font}', Arial, sans-serif` : undefined, fontSize: size, color: bodyText }}>
         <colgroup>
-          {t.columns.map((w, i) => (
+          {columns.map((w, i) => (
             <col key={i} style={{ width: w ? px(w) : undefined }} />
           ))}
         </colgroup>
         <tbody>
           {t.rows.map((r, ri) => (
             <tr key={ri} style={{ height: r.height_in ? px(r.height_in) : undefined }}>
-              {t.columns.map((_, ci) => {
+              {columns.map((_, ci) => {
                 const c = cells.get(`${ri}|${ci}`);
                 const header = r.kind === "header";
                 const fill = styler.color(c?.fill) ?? (header ? headerFill : r.kind === "data" && ri % 2 === 0 ? banding : null);

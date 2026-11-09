@@ -74,6 +74,10 @@ class Person:
     def get(self, path):
         return self.call("GET", path)
 
+    async def aget(self, path):
+        """GET off the event loop: a slow answer (an export) must not stop the websocket answering the server's pings."""
+        return await asyncio.to_thread(self.get, path)
+
     def post(self, path, body=None):
         return self.call("POST", path, body)
 
