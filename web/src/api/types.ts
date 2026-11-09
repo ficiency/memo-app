@@ -101,6 +101,17 @@ export type ChartData = {
   }[];
 };
 
+export type Pending = {
+  kind: "no_data" | "to_write" | "recipe_missing" | "picture" | "typed_figure" | "section_missing" | string;
+  slide: number | null;
+  slide_id: string | null;
+  element_id: string | null;
+  target_id: string | null;
+  where: string | null;
+  message: string;
+  dismissable: boolean;
+};
+
 export type El = {
   id: string;
   slide_id: string | null;
@@ -123,6 +134,7 @@ export type El = {
   paragraphs: Paragraph[];
   table: TableData | null;
   chart: ChartData | null;
+  image?: { flagged: boolean; alt: string | null }; // a picture people added (flagged: may stand in for native content)
 };
 
 export type SlideData = {

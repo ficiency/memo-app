@@ -24,6 +24,8 @@ export type Interaction = {
   onEditBox?: (el: El) => void; // a person's own table or chart: its rows, columns, figures, kind
   onCell?: (el: El, row: number, col: number, text: string) => void; // a table cell's words written
   onFigure?: (seg: Seg) => void; // a figure clicked: it comes from the deal record
+  pendingIds?: Set<string>; // boxes with something a person must still do or accept
+  onDropPicture?: (slide: SlideData, file: File, at: { x_in: number; y_in: number }) => void; // a picture dropped on a free slide
 };
 
 function Segments({ segments, page }: { segments: Seg[]; page: number }) {
@@ -341,6 +343,13 @@ function ElementView({ el, styler, page, ui }: { el: El; styler: Styler; page: n
     );
   }
   if (el.type === "image") {
+    if (el.image)
+      return (
+        <div className={`el image picture${ui.pendingIds?.has(el.id) ? " to-confirm" : ""}`} style={box(el)}>
+          <img src={withEmail(`/elements/${el.id}/image`)} alt={el.image.alt ?? "picture"} draggable={false} />
+          {ui.pendingIds?.has(el.id) && <span className="picture-flag">Picture to confirm</span>}
+        </div>
+      );
     if (`${el.role ?? ""} ${el.name ?? ""}`.toLowerCase().includes("logo"))
       return (
         <div className="el image" style={box(el)}>
@@ -444,6 +453,18 @@ export function Slide({
     <div
       className={`slide-paper${zone ? " free" : ""}`}
       style={{ width: px(w_in), height: px(h_in), background: styler.color(slide.background) ?? "#ffffff" }}
+      onDragOver={(e) => {
+        if (zone && ui.onDropPicture && e.dataTransfer.types.includes("Files")) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        const file = e.dataTransfer.files?.[0];
+        if (!zone || !ui.onDropPicture || !file) return;
+        e.preventDefault();
+        const paper = e.currentTarget as HTMLElement;
+        const rect = paper.getBoundingClientRect();
+        const scale = rect.width / paper.offsetWidth;
+        ui.onDropPicture(slide, file, { x_in: (e.clientX - rect.left) / scale / 96, y_in: (e.clientY - rect.top) / scale / 96 });
+      }}
     >
       {slide.shows_master && master.map((el) => <ElementView key={el.id} el={el} styler={styler} page={page} ui={ui} />)}
       {zone && <div className="free-zone" style={{ left: px(zone[0]), top: px(zone[1]), width: px(zone[2]), height: px(zone[3]) }} />}

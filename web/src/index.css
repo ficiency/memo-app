@@ -356,3 +356,15 @@ button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
 .series-names h3 { font-size: 13px; margin: 0 0 4px; }
 .series-names label { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; align-items: center; margin: 4px 0; }
 .series-names label > input { margin: 0; }
+
+/* pictures people add: shown whole in their box; marked while still to confirm */
+.slide-paper .el.picture img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.slide-paper .el.picture.to-confirm { outline: 2px dashed #e8a33d; outline-offset: 1px; }
+.slide-paper .picture-flag { position: absolute; left: 4px; bottom: 4px; background: #fff7e8; color: #8a5300; border: 1px solid #e8a33d;
+  border-radius: 4px; font: 600 10px/1.4 system-ui, sans-serif; padding: 1px 6px; pointer-events: none; }
+
+/* the pendings panel */
+.pending { border-bottom: 1px solid var(--line); padding: 10px 0; display: grid; gap: 3px; }
+.pending-where { font-weight: 600; text-align: left; }
+.pending-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.small-button { justify-self: start; font-size: 12px; padding: 3px 10px; }

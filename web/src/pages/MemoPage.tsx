@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { get, post, withEmail } from "../api/client";
-import type { Conflict, El, ImportResult, MemoView, Person, Seg, SlideData, UpdateChanges, UpdateInfo } from "../api/types";
+import type { Conflict, El, ImportResult, MemoView, Pending, Person, Seg, SlideData, UpdateChanges, UpdateInfo } from "../api/types";
 import { useAuth } from "../auth";
 import { Fit, Slide, useWidth, type Interaction } from "../canvas/Slide";
 import { SlideRail } from "../canvas/SlideRail";
@@ -62,7 +62,10 @@ export function MemoPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [panel, setPanel] = useState<"conflicts" | "proposals" | "agent" | null>(null);
+  const [panel, setPanel] = useState<"conflicts" | "proposals" | "agent" | "pendings" | null>(null);
+  const [pendings, setPendings] = useState<Pending[]>([]);
+  const pictureRef = useRef<HTMLInputElement>(null);
+  const pictureFor = useRef<SlideData | null>(null);
   // what the agent works on: the slide (and box) last pointed at
   const [focus, setFocus] = useState<{ slideId: string | null; elementId: string | null; label: string | null }>({
     slideId: null,
@@ -114,6 +117,16 @@ export function MemoPage() {
     get<{ author: string; text: string; proposal_id: string | null }[]>(`/memos/${memoId}/agent`).then(setChat).catch(() => undefined);
   }, [memoId]);
 
+  // what the memo still needs from a person: computed by the server from the memo as it is
+  const pendingTimer = useRef<number | undefined>(undefined);
+  const loadPendings = useCallback(() => {
+    window.clearTimeout(pendingTimer.current);
+    pendingTimer.current = window.setTimeout(
+      () => get<Pending[]>(`/memos/${memoId}/pendings`).then(setPendings).catch(() => undefined),
+      600,
+    );
+  }, [memoId]);
+
   const loadProposals = useCallback(() => {
     get<Proposal[]>(`/memos/${memoId}/proposals`).then(setProposals).catch(() => undefined);
   }, [memoId]);
@@ -129,7 +142,8 @@ export function MemoPage() {
     loadUpdate();
     loadProposals();
     loadChat();
-  }, [load, loadConflicts, loadUpdate, loadProposals, loadChat]);
+    loadPendings();
+  }, [load, loadConflicts, loadUpdate, loadProposals, loadChat, loadPendings]);
 
   const onMessage = useCallback(
     (m: LiveMessage) => {
@@ -147,7 +161,10 @@ export function MemoPage() {
         toast(`${m.by.split("@")[0]} is editing this box`, "warn");
       } else if (m.type === "draft") {
         setDrafts((d) => ({ ...d, [m.element_id]: m.text }));
+      } else if (m.type === "pendings") {
+        loadPendings();
       } else if (m.type === "operation") {
+        if (m.status === "applied") loadPendings();
         if (m.element) setView((v) => (v ? { ...v, slides: replaceElement(v.slides, m.element as El), memo: { ...v.memo, sequence: m.sequence } } : v));
         else if (m.slides) load();
         if (m.by === email) {
@@ -178,11 +195,12 @@ export function MemoPage() {
         const who = m.by.split("@")[0];
         toast(m.reason === "deal record update" ? `${who} applied the newer deal record` : `${who} brought back a PowerPoint file`, "ok");
         load();
+        loadPendings();
         loadConflicts();
         loadUpdate();
       }
     },
-    [email, load, loadConflicts, loadUpdate, loadProposals, toast],
+    [email, load, loadConflicts, loadUpdate, loadProposals, loadPendings, toast],
   );
 
   const { connected, send } = useLive(memoId, onMessage, () => {
@@ -255,6 +273,8 @@ export function MemoPage() {
           seg.path ? ` (${seg.path})` : ""
         }. It is never typed here: change it in the deal record and the memo offers the update.`,
       }),
+    pendingIds: new Set(pendings.map((p) => p.element_id).filter((x): x is string => Boolean(x))),
+    onDropPicture: (s, file, at) => addPicture(s, file, at),
     onRemoveBox: (el) => {
       if (!window.confirm("Remove this box from the slide?")) return;
       if (!send({ type: "op", op: { type: "delete_element", target: el.id, base_revision: el.revision } }))
@@ -381,7 +401,44 @@ export function MemoPage() {
     return (s.layout_id && view.spec.zones?.[s.layout_id]) || null;
   };
 
-  const addBox = (picked: SlideData, payload: Record<string, unknown>) => {
+  // a picture: stored first, then placed in the slide's free area (at the drop point, inside the area)
+  const addPicture = async (s: SlideData, file: File, at?: { x_in: number; y_in: number }) => {
+    const zone = zoneFor(s);
+    if (!zone) return toast("Pictures go on the slides the firm leaves free", "warn");
+    if (!file.type.startsWith("image/")) return toast("That is not a picture", "warn");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const { asset_id } = await post<{ asset_id: string }>(`/memos/${memoId}/pictures`, form);
+      const ratio = await new Promise<number>((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img.naturalWidth / Math.max(1, img.naturalHeight));
+        img.onerror = () => resolve(4 / 3);
+        img.src = URL.createObjectURL(file);
+      });
+      const [zx, zy, zw, zh] = zone;
+      let w = Math.min(4, zw);
+      let h = w / ratio;
+      if (h > zh) [h, w] = [zh, zh * ratio];
+      const x = Math.min(Math.max(at ? at.x_in - w / 2 : zx, zx), zx + zw - w);
+      const y = Math.min(Math.max(at ? at.y_in - h / 2 : zy, zy), zy + zh - h);
+      addBox(s, { type: "image", asset_id, alt: file.name, x_in: x, y_in: y, w_in: w, h_in: h }, Boolean(at));
+    } catch (e) {
+      setNotice({ title: "The picture was not added", body: (e as Error).message });
+    }
+  };
+
+  const dismissPending = async (p: Pending) => {
+    try {
+      await post(`/memos/${memoId}/pendings/dismiss`, { kind: p.kind, target_id: p.target_id });
+      loadPendings();
+    } catch (e) {
+      setNotice({ title: "Not accepted", body: (e as Error).message });
+    }
+  };
+
+  // placed: the position is the person's (a drop), not the next free spot
+  const addBox = (picked: SlideData, payload: Record<string, unknown>, placed = false) => {
     const editing = adding?.el;
     setAdding(null);
     if (editing) {
@@ -394,7 +451,7 @@ export function MemoPage() {
     // each new box a little lower and to the right of the last one, so none hides another; then it is dragged
     const zone = zoneFor(s);
     const own = s.elements.filter((e) => e.firm_lock === "free").length;
-    if (zone) {
+    if (zone && !placed) {
       const [zx, zy, zw, zh] = zone;
       const w = Math.min(Number(payload.w_in), zw);
       const h = Math.min(Number(payload.h_in), zh);
@@ -445,6 +502,20 @@ export function MemoPage() {
               Proposals<span className="count">{proposals.length}</span>
             </button>
           )}
+          <button onClick={() => setPanel(panel === "pendings" ? null : "pendings")}>
+            Pendings{pendings.length > 0 && <span className="count">{pendings.length}</span>}
+          </button>
+          <input
+            ref={pictureRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file && pictureFor.current) addPicture(pictureFor.current, file);
+              e.target.value = "";
+            }}
+          />
           <button onClick={() => setPanel(panel === "conflicts" ? null : "conflicts")}>
             Kept aside{open.length > 0 && <span className="count warn">{open.length}</span>}
           </button>
@@ -525,6 +596,15 @@ export function MemoPage() {
                         </button>
                         <button className="link" onClick={() => setAdding({ slide: s, zone, kind: "chart" })}>
                           Chart
+                        </button>
+                        <button
+                          className="link"
+                          onClick={() => {
+                            pictureFor.current = s;
+                            pictureRef.current?.click();
+                          }}
+                        >
+                          Image
                         </button>
                       </span>
                     )}
@@ -674,6 +754,43 @@ export function MemoPage() {
                         : `Apply ${chosenOf(pr).length} of ${pr.operations.length}`}
                   </button>
                 </div>
+              </div>
+            ))}
+          </aside>
+        )}
+        {panel === "pendings" && (
+          <aside className="panel">
+            <div className="panel-head">
+              <strong>Pendings</strong>
+              <button className="link" onClick={() => setPanel(null)}>
+                Close
+              </button>
+            </div>
+            <p className="muted small">
+              What the memo still needs from a person. Nothing here blocks editing or exporting; each goes away when the memo has
+              it, or when someone accepts it.
+            </p>
+            {pendings.length === 0 && <p className="muted">Nothing pending.</p>}
+            {pendings.map((p, i) => (
+              <div key={`${p.kind}-${p.target_id}-${i}`} className="pending">
+                <button
+                  className="link pending-where"
+                  onClick={() => {
+                    if (!p.slide_id) return;
+                    document.getElementById(`slide-${p.slide_id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    setFocus({ slideId: p.slide_id, elementId: p.element_id, label: p.where });
+                  }}
+                >
+                  {p.slide ? `Slide ${p.slide}` : "Memo"}
+                  {p.where ? ` · ${p.where}` : ""}
+                </button>
+                <div className="pending-kind">{p.kind.replace(/_/g, " ")}</div>
+                <div className="small">{p.message}</div>
+                {p.dismissable && (
+                  <button className="small-button" onClick={() => dismissPending(p)}>
+                    It's fine
+                  </button>
+                )}
               </div>
             ))}
           </aside>
