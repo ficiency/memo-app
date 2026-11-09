@@ -193,3 +193,23 @@ export type ImportResult = {
   kept_aside?: number;
   results: { type: string; target: string; status: string; reason: string | null }[];
 };
+
+export type RevisionInfo = { id: string; number: number; as_of: string | null; created_at: string; created_by: string | null };
+export type UpdateInfo = { current: RevisionInfo; available: RevisionInfo | null };
+export type UpdateChange = {
+  slide: number;
+  element_id: string;
+  element: string;
+  where: string;
+  kind: "figure" | "chart";
+  concept: string | null;
+  before: string;
+  after: string;
+  missing: boolean;
+};
+export type UpdateChanges = {
+  revision: RevisionInfo;
+  current: RevisionInfo;
+  changes: UpdateChange[];
+  warnings: { slide: number; element: string; message: string }[];
+};

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { get, post, withEmail } from "../api/client";
-import type { Conflict, El, ImportResult, MemoView, Person, SlideData } from "../api/types";
+import type { Conflict, El, ImportResult, MemoView, Person, SlideData, UpdateChanges, UpdateInfo } from "../api/types";
 import { useAuth } from "../auth";
 import { Fit, Slide, useWidth, type Interaction } from "../canvas/Slide";
 import { Styler } from "../canvas/style";
@@ -50,6 +50,9 @@ export function MemoPage() {
   const [panel, setPanel] = useState<"conflicts" | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [importing, setImporting] = useState<ImportResult | "busy" | null>(null);
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [changes, setChanges] = useState<UpdateChanges | "loading" | null>(null);
+  const [applying, setApplying] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const wantTake = useRef<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -76,10 +79,16 @@ export function MemoPage() {
     get<Conflict[]>(`/memos/${memoId}/conflicts`).then(setConflicts).catch(() => undefined);
   }, [memoId]);
 
+  // a newer revision of the deal record than the one this memo was built from
+  const loadUpdate = useCallback(() => {
+    get<UpdateInfo>(`/memos/${memoId}/updates`).then(setUpdate).catch(() => undefined);
+  }, [memoId]);
+
   useEffect(() => {
     load();
     loadConflicts();
-  }, [load, loadConflicts]);
+    loadUpdate();
+  }, [load, loadConflicts, loadUpdate]);
 
   const onMessage = useCallback(
     (m: LiveMessage) => {
@@ -120,17 +129,20 @@ export function MemoPage() {
           }
         } else if (m.status === "kept_aside") loadConflicts();
       } else if (m.type === "reload") {
-        toast(`${m.by.split("@")[0]} brought back a PowerPoint file`, "ok");
+        const who = m.by.split("@")[0];
+        toast(m.reason === "deal record update" ? `${who} applied the newer deal record` : `${who} brought back a PowerPoint file`, "ok");
         load();
         loadConflicts();
+        loadUpdate();
       }
     },
-    [email, load, loadConflicts, toast],
+    [email, load, loadConflicts, loadUpdate, toast],
   );
 
   const { connected, send } = useLive(memoId, onMessage, () => {
     load();
     loadConflicts();
+    loadUpdate();
   });
 
   const styler = useMemo(() => (view ? new Styler(view.spec) : null), [view?.spec]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -179,6 +191,39 @@ export function MemoPage() {
     await waitSaved(); // the box someone has open is saved before the export
     window.location.href = withEmail(`/memos/${memoId}/export`);
     window.setTimeout(() => setBusy(null), 2500);
+  };
+
+  const seeChanges = async () => {
+    if (!update?.available) return;
+    setChanges("loading");
+    try {
+      setChanges(await get<UpdateChanges>(`/memos/${memoId}/updates/${update.available.id}`));
+    } catch (e) {
+      setChanges(null);
+      setNotice({ title: "Could not compare the revisions", body: (e as Error).message });
+    }
+  };
+
+  const decide = async (how: "apply" | "ignore") => {
+    if (!update?.available) return;
+    setApplying(true);
+    try {
+      if (how === "apply") await waitSaved(); // the box someone has open is saved first
+      const r = await post<{ status: string; reason: string | null; changed: number }>(
+        `/memos/${memoId}/updates/${update.available.id}/${how}`,
+      );
+      if (r.status !== "applied") setNotice({ title: "Not applied", body: r.reason ?? "" });
+      else if (how === "apply") {
+        toast(`${r.changed} figure${r.changed === 1 ? "" : "s"} updated from record revision ${update.available.number}`, "ok");
+        await load();
+      }
+      setChanges(null);
+      loadUpdate();
+    } catch (e) {
+      setNotice({ title: "Not applied", body: (e as Error).message });
+    } finally {
+      setApplying(false);
+    }
   };
 
   const importPptx = async (file: File) => {
@@ -245,6 +290,22 @@ export function MemoPage() {
           </button>
         </div>
       </div>
+
+      {update?.available && (
+        <div className="update-banner">
+          <span>
+            <strong>Deal record revision {update.available.number}</strong> is available
+            {update.available.created_by ? ` (by ${update.available.created_by.split("@")[0]})` : ""}. This memo uses revision{" "}
+            {update.current.number}.
+          </span>
+          <span className="actions">
+            <button onClick={seeChanges}>See changes</button>
+            <button onClick={() => decide("ignore")} disabled={applying}>
+              Ignore
+            </button>
+          </span>
+        </div>
+      )}
 
       <div className="memo-body">
         <nav className="rail">
@@ -324,6 +385,75 @@ export function MemoPage() {
                 Got it
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {changes && (
+        <div className="overlay" onClick={() => !applying && setChanges(null)}>
+          <div className="dialog wide-dialog" onClick={(e) => e.stopPropagation()}>
+            {changes === "loading" ? (
+              <p>Comparing the memo with the newer revision…</p>
+            ) : (
+              <>
+                <h2>
+                  Record revision {changes.current.number} → {changes.revision.number}
+                </h2>
+                <p className="muted">
+                  {changes.changes.length === 0
+                    ? "None of this memo's figures change. Applying only moves the memo to the newer revision."
+                    : `${changes.changes.length} figure${changes.changes.length === 1 ? "" : "s"} change. Applying writes the new figures; people's words stay and nothing is deleted.`}
+                </p>
+                {changes.warnings.length > 0 && (
+                  <div className="warnings">
+                    {changes.warnings.map((w, i) => (
+                      <div key={i}>
+                        ⚠ Slide {w.slide} · {w.element}: {w.message}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {changes.changes.length > 0 && (
+                  <table className="list compact changes">
+                    <thead>
+                      <tr>
+                        <th>Slide</th>
+                        <th>Where</th>
+                        <th>Before</th>
+                        <th>After</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {changes.changes.map((c, i) => (
+                        <tr key={i} className={c.missing ? "missing" : undefined}>
+                          <td>{c.slide}</td>
+                          <td>
+                            {c.element}
+                            <div className="muted small">{c.where}</div>
+                          </td>
+                          <td className="before">{c.before}</td>
+                          <td className="after">
+                            {c.missing && "⚠ "}
+                            {c.after || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                <div className="dialog-actions">
+                  <button onClick={() => setChanges(null)} disabled={applying}>
+                    Close
+                  </button>
+                  <button onClick={() => decide("ignore")} disabled={applying}>
+                    Ignore
+                  </button>
+                  <button className="primary" onClick={() => decide("apply")} disabled={applying}>
+                    {applying ? "Applying…" : "Apply"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
