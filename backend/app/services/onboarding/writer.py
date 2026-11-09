@@ -223,15 +223,15 @@ class SpecWriter:
                                          source_kind="generated" if {b.get("source") for b in self.step3.get("master") or []} == {"generated"} else "imported",
                                          background_ref=self.colour(self.step3.get("master_background"))))
         self.layouts[MASTER] = master.id
-        for b in self.step3.get("master") or []:
-            self.element(master.id, MASTER, b)
+        for z, b in enumerate(self.step3.get("master") or []):
+            self.element(master.id, MASTER, b, z)
         for i, lay in enumerate(self.step3.get("layouts") or [], start=1):
             row = self.flush_add(S.Layout(spec_version_id=self.v, name=lay["name"], source_kind=lay.get("source") or "imported",
                                           shows_master=lay.get("shows_master", True), position=i,
                                           background_ref=self.colour(lay.get("background"))))
             self.layouts[lay["name"]] = row.id
-            for b in lay.get("boxes") or []:
-                self.element(row.id, lay["name"], b)
+            for z, b in enumerate(lay.get("boxes") or []):     # boxes come in the layout's order: back to front
+                self.element(row.id, lay["name"], b, z)
         for sec in self.structure.get("sections") or []:
             for ln in sec.get("layouts") or []:
                 ln = ln.removeprefix("to_generate:")
@@ -249,7 +249,7 @@ class SpecWriter:
                                                level=(level or look.get("level") or 1) - 1,
                                                color_ref=self.colour(look.get("color")), **kw))
 
-    def element(self, layout_id, layout_name: str, b: dict) -> None:
+    def element(self, layout_id, layout_name: str, b: dict, z: int = 0) -> None:
         f = b.get("frame") or {}
         line = b.get("line") or {}
         line = line if isinstance(line, dict) else {"color": line}
@@ -259,7 +259,7 @@ class SpecWriter:
             firm_lock=LOCK.get(b.get("lock"), "free"), fill_kind="fixed" if b.get("text") else "person",
             description=b.get("prompt") or b.get("what"), fill_ref=self.colour(b.get("fill")),
             line_ref=self.colour(line.get("color")), line_width_pt=line.get("width_pt"),
-            x_in=f.get("x", 0), y_in=f.get("y", 0), w_in=f.get("w", 0), h_in=f.get("h", 0)))
+            x_in=f.get("x", 0), y_in=f.get("y", 0), w_in=f.get("w", 0), h_in=f.get("h", 0), z_index=z))
         self.boxes[(layout_name, b.get("id"))] = el.id
         self.box_data[(layout_name, b.get("id"))] = b
         style = b.get("style") or {}
