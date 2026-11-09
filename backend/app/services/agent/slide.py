@@ -25,7 +25,7 @@ from app.db.record import RecordRevision
 from app.db.session import SessionLocal
 from app.services import boxes as record_boxes
 from app.services import proposals
-from app.services.figures import Figures
+from app.services.figures import TYPED_AMOUNT, Figures
 from app.services.memo_data import MemoData
 from app.services.onboarding.llm import call_with_checks
 from app.services.operations.door import MARKER, Door
@@ -34,7 +34,7 @@ MAX_EDITS = 12
 # an amount typed as text: a currency sign before a number, or a number with %, x, k, m or bn after it
 # a table typed as text: two lines or more with columns split by | or tabs
 TABLE_LINE = re.compile(r"(?:[^|\n]*\|){2,}|\t.*\t")
-TYPED_FIGURE = re.compile(r"[£€$]\s?\d|\d(?:[\d,.]*\d)?\s?(?:%|x\b|k\b|m\b|bn\b)", re.I)
+TYPED_FIGURE = TYPED_AMOUNT
 
 INSTRUCTIONS = """You help a person edit one slide of an investment memo, following the firm's own spec.
 

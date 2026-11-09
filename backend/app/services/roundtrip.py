@@ -93,6 +93,8 @@ def read(path: Path) -> dict:
                                   for plot in shape.chart.plots for s in plot.series]
             elif shape.has_text_frame:
                 info["text"] = _text(shape.text_frame)
+            if info["type"] == "picture" and not sm:            # a picture added in PowerPoint: its bytes come along
+                info["picture"] = (shape.image.blob, shape.image.content_type)
             if sm:
                 shapes[sm.group(1)] = {**info, "revision": int(sm.group(2))}
             else:
@@ -139,7 +141,7 @@ def diff(exported: dict, edited: dict) -> list[dict]:
             out.append({"change": "shape_deleted", "element_id": eid, "revision": b["shapes"][eid]["revision"], "slide_id": sid})
         for extra in s["unnamed"][len(b["unnamed"]):] if len(s["unnamed"]) > len(b["unnamed"]) else []:
             out.append({"change": "shape_added", "slide_id": sid, "type": extra["type"], "frame": extra["frame"],
-                        "text": extra.get("text")})
+                        "text": extra.get("text"), "picture": extra.get("picture")})
     for sid in set(order_before) - set(order_after):
         out.append({"change": "slide_deleted", "slide_id": sid})
     kept = [sid for sid in order_before if sid in order_after]
@@ -171,7 +173,7 @@ def operations(changes: list[dict]) -> list[dict]:
             x, y, w, h = c["frame"]
             ops.append({"type": "add_element", "target": c["slide_id"], "payload": {
                 "slide_id": c["slide_id"], "type": "image" if c["type"] == "picture" else "chart" if c["type"] == "chart" else "text",
-                "x_in": x, "y_in": y, "w_in": w, "h_in": h, "text": c.get("text")}})
+                "x_in": x, "y_in": y, "w_in": w, "h_in": h, "text": c.get("text"), "asset_id": c.get("asset_id")}})
         elif kind == "slide_moved":
             ops.append({"type": "move_slide", "target": c["slide_id"], "payload": {"position": c["position"]}})
         elif kind == "slide_duplicated":
@@ -200,6 +202,12 @@ def import_pptx(memo_id, edited: Path, export_id=None, actor_email: str | None =
         exported = Path(session.get(Asset, exp.asset_id).storage_path)
         user = session.scalar(select(S.User).where(S.User.email == actor_email)) if actor_email else None
         changes = diff(read(exported), read(edited))
+        from app.services import storage
+        for c in changes:                                   # pictures added in PowerPoint: stored, then like any other
+            picture = c.pop("picture", None)
+            if picture:
+                c["asset_id"] = str(storage.put(session, picture[0], "image", memo.firm_id, picture[1]).id)
+        session.commit()
         change_set = ChangeSet(id=uuid.uuid4(), memo_id=memo.id, actor_type="import", on_behalf_of=user.id if user else None,
                                summary=f"PowerPoint import ({len(changes)} changes)", status="applied")
         session.add(change_set)

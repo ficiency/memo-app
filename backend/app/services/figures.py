@@ -16,6 +16,8 @@ from app.db import spec as S
 from app.services.formats import format_date, format_number
 from app.services.records import RELATIVE, Record
 
+# an amount typed as text: a currency sign before a number, or a number with %, x, k, m or bn after it
+TYPED_AMOUNT = re.compile(r"[£€$]\s?\d|\d(?:[\d,.]*\d)?\s?(?:%|x\b|k\b|m\b|bn\b)", re.I)
 ITEM = {"money": "money", "percent": "percent", "multiple": "multiple", "count": "count", "ratio": "multiple",
         "date": "date", "per_share": "per_share", "currency": "currency", "number": "count"}
 CURRENCY = {"£": "GBP", "€": "EUR", "$": "USD", "CHF": "CHF", "¥": "JPY"}

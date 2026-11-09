@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import spec as S
-from ..db.memo import Element, Memo, Slide
+from ..db.memo import Asset, Element, ElementImage, Memo, Slide
 from ..db.session import get_session
 from ..services.painters.pptx import materials, pick_logo
 
@@ -56,6 +56,10 @@ def image(element_id: str, user: S.User = Depends(current_user), session: Sessio
         firm_id = session.get(S.Spec, version.spec_id).firm_id
     if firm_id != user.firm_id:
         raise HTTPException(404, "no such element")
+    picture = session.scalar(select(ElementImage).where(ElementImage.element_id == el.id))
+    asset = session.get(Asset, picture.asset_id) if picture is not None and picture.asset_id else None
+    if asset is not None:                                   # a picture people added
+        return FileResponse(asset.storage_path, media_type=asset.content_type)
     logo = pick_logo(materials(session.get(S.Firm, firm_id).name).get("logo") or [], el)
     if logo is None or not logo.exists():
         raise HTTPException(404, "no picture for this element")

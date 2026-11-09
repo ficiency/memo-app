@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 
 from app.db import spec as S
 from app.db.history import Conflict, MemoUpdate, Operation
-from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
+from app.db.memo import (Asset, ElementImage, ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
                          Segment, Slide, TableCell, TableColumn, TableRow)
 from app.db.record import RecordRevision
 from app.services import updates
@@ -600,7 +600,8 @@ class Door:
         zone = self.free_room(slide)
         if zone is None:
             if actor_type == "import":
-                raise KeepAside(f"a {payload.get('type', 'box')} was added on a template slide in PowerPoint",
+                what = {"image": "picture", "text": "text box"}.get(str(payload.get("type")), str(payload.get("type") or "box"))
+                raise KeepAside(f"a {what} was added on a template slide in PowerPoint",
                                 "pasted_picture" if payload.get("type") == "image" else "added_box")
             raise Refuse("this slide takes no new boxes: the firm lays it out; add a slide of a section it leaves free")
         for k in COLOUR_FIELDS:
@@ -620,6 +621,15 @@ class Door:
                      line_ref=payload.get("line_ref"), rotation_deg=0, z_index=100, **frame)
         self.s.add(el)
         self.s.flush()
+        if kind == "image":
+            # a picture: the asset uploaded for it, of this firm; flagged, since a picture may stand in for a
+            # native chart, table or slide (a person confirms it, or builds it from the record instead)
+            asset = self.s.get(Asset, _uuid(payload.get("asset_id")))
+            if asset is None or asset.firm_id != self.memo.firm_id:
+                raise Refuse("upload the picture first")
+            self.s.add(ElementImage(element_id=el.id, asset_id=asset.id, alt=payload.get("alt"), flagged=True))
+            self.s.flush()
+            return [el.id]
         if kind in ("table", "chart"):
             from app.services import boxes
             figures = Figures(self.s, self.s.get(S.Firm, self.memo.firm_id), self.s.get(S.SpecVersion, self.memo.spec_version_id),
@@ -909,6 +919,9 @@ class Door:
                 self.s.flush()
                 for p in self.s.scalars(select(ElementParagraph).where(ElementParagraph.table_cell_id == cell.id)):
                     self.copy_paragraph(p, self.s.scalars(select(Segment).where(Segment.paragraph_id == p.id)).all(), table_cell_id=c.id)
+        image = self.s.scalar(select(ElementImage).where(ElementImage.element_id == el.id))
+        if image:
+            self.s.add(ElementImage(element_id=new.id, asset_id=image.asset_id, alt=image.alt, flagged=image.flagged))
         chart = self.s.scalar(select(ElementChart).where(ElementChart.element_id == el.id))
         if chart:
             ch = _clone(chart, element_id=new.id)

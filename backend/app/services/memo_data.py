@@ -14,8 +14,8 @@ from sqlalchemy import Date, DateTime, Float, Uuid, func, inspect, literal_colum
 from sqlalchemy.orm import Session
 
 from app.db import spec as S
-from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
-                         Segment, Slide, TableCell, TableColumn, TableRow)
+from app.db.memo import (Asset, ChartPoint, ChartSeries, Element, ElementChart, ElementImage, ElementParagraph,
+                         ElementTable, Memo, Segment, Slide, TableCell, TableColumn, TableRow)
 from app.services.formats import format_date
 
 FRAME = ("x_in", "y_in", "w_in", "h_in", "rotation_deg", "z_index")
@@ -37,8 +37,8 @@ def fetch(session: Session, queries: dict) -> dict[str, list]:
     so a whole memo is read in one. queries: {name: (Model, select(Model)...)}."""
     columns = []
     for name, (_, stmt) in queries.items():
-        sub = stmt.subquery(name)
-        rows = select(func.coalesce(func.json_agg(literal_column(f'"{name}"')), literal_column("'[]'::json"))) \
+        sub = stmt.subquery(f"q_{name}")                  # an alias no column can share
+        rows = select(func.coalesce(func.json_agg(literal_column(f'"q_{name}"')), literal_column("'[]'::json"))) \
             .select_from(sub).scalar_subquery()
         columns.append(rows.label(name))
     row = session.execute(select(*columns)).one()
@@ -78,6 +78,8 @@ def element_queries(element_ids) -> dict:
         "cells": (TableCell, select(TableCell).where(TableCell.element_table_id.in_(tables))),
         "paragraphs": (ElementParagraph, select(ElementParagraph).where(in_text)),
         "segments": (Segment, select(Segment).where(Segment.paragraph_id.in_(select(ElementParagraph.id).where(in_text)))),
+        "images": (ElementImage, select(ElementImage).where(ElementImage.element_id.in_(element_ids))),
+        "assets": (Asset, select(Asset).where(Asset.id.in_(select(ElementImage.asset_id).where(ElementImage.element_id.in_(element_ids))))),
         "charts": (ElementChart, select(ElementChart).where(ElementChart.element_id.in_(element_ids))),
         "series": (ChartSeries, select(ChartSeries).where(ChartSeries.element_chart_id.in_(charts))),
         "points": (ChartPoint, select(ChartPoint).where(ChartPoint.chart_series_id.in_(series))),
@@ -102,6 +104,8 @@ class ElementData:
         self.paras_of_cell = group([p for p in r["paragraphs"] if p.table_cell_id], "table_cell_id")
         self.segments_of = group(r["segments"], "paragraph_id")
         self.chart_of = {c.element_id: c for c in r["charts"]}
+        self.image_of = {i.element_id: i for i in r["images"]}
+        self.asset_of = {a.id: a for a in r["assets"]}
         self.series_of = group(r["series"], "element_chart_id")
         self.points_of = group(r["points"], "chart_series_id")
         self.master_elements: list = []
@@ -147,6 +151,9 @@ class ElementData:
                            "fill": c.fill_ref, "paragraphs": self.paragraphs_json(self.paragraphs(cell_id=c.id))}
                           for c in sorted(self.cells_of.get(table.id, []), key=lambda c: (c.row, c.col))],
             }
+        image = self.image_of.get(el.id)
+        if image is not None:                              # a picture people added: flagged until confirmed
+            out["image"] = {"flagged": bool(image.flagged), "alt": image.alt}
         chart = self.chart_of.get(el.id)
         if chart is not None:
             out["chart"] = {"type": chart.chart_type, "own": chart.chart_template_id is None, "series": [

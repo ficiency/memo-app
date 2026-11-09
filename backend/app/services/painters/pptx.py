@@ -301,8 +301,10 @@ class Painter(MemoData):
                 shape.line.color.rgb = self.rgb(el.line_ref)
             shape.line.width = Pt(el.line_width_pt or 0.75)
         elif el.type == "image":
-            logo = pick_logo(self.files.get("logo") or [], el)
-            if logo is None:
+            image = self.image_of.get(el.id)
+            asset = self.asset_of.get(image.asset_id) if image is not None else None
+            logo = Path(asset.storage_path) if asset is not None else pick_logo(self.files.get("logo") or [], el)
+            if logo is None or not logo.exists():
                 return
             with Image.open(logo) as im:                         # the logo fits its box, never wider than it
                 ratio = im.width / im.height

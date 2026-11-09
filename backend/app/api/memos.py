@@ -105,6 +105,60 @@ class OperationIn(BaseModel):
     payload: dict = {}
 
 
+@router.get("/{memo_id}/pendings")
+def list_pendings(memo_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> list[dict]:
+    """What the memo still needs from a person, computed now."""
+    from ..services import pendings
+    own_memo(session, user, memo_id)
+    return pendings.pendings(session, memo_id)
+
+
+class Dismiss(BaseModel):
+    kind: str
+    target_id: str
+
+
+@router.post("/{memo_id}/pendings/dismiss")
+async def dismiss_pending(memo_id: str, body: Dismiss, user: S.User = Depends(current_user)) -> dict:
+    """"It's fine" on a pending a person may accept; everyone in the memo sees it go."""
+    from ..services import pendings
+
+    def run():
+        with SessionLocal() as session:
+            own_memo(session, user, memo_id)
+            try:
+                pendings.dismiss(session, memo_id, body.kind, body.target_id, user.id)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
+
+    await run_in_threadpool(run)
+    await hub.send(memo_id, {"type": "pendings", "by": user.email})
+    return {"dismissed": True}
+
+
+@router.post("/{memo_id}/pictures")
+async def upload_picture(memo_id: str, file: UploadFile, user: S.User = Depends(current_user)) -> dict:
+    """A picture for this memo (stored once by content); it goes on a slide with an add_element operation."""
+    data = await file.read()
+
+    def store():
+        from ..services import storage
+        with SessionLocal() as session:
+            memo = session.get(Memo, uuid.UUID(memo_id))
+            if memo is None or memo.firm_id != user.firm_id:
+                raise HTTPException(404, "no such memo")
+            if not storage.is_picture(file.content_type):
+                raise HTTPException(400, "a picture is a PNG, JPEG, GIF, BMP, TIFF or SVG file")
+            try:
+                asset = storage.put(session, data, "image", memo.firm_id, file.content_type, file.filename)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
+            session.commit()
+            return {"asset_id": str(asset.id)}
+
+    return await run_in_threadpool(store)
+
+
 @router.post("/{memo_id}/operations")
 async def apply_operation(memo_id: str, op: OperationIn, user: S.User = Depends(current_user)) -> dict:
     """Every edit goes through the door: applied, refused or kept aside, always logged; whoever has the memo
