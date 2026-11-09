@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api import auth, firms, health, memos, onboarding, records, specs
+from .api import auth, bindings, firms, health, memos, onboarding, records, specs
 from .config import settings
 
 app = FastAPI(title="memo-app")
@@ -21,3 +21,4 @@ app.include_router(specs.router)
 app.include_router(records.router)
 app.include_router(memos.router)
 app.include_router(onboarding.router)
+app.include_router(bindings.router)

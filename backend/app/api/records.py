@@ -16,6 +16,8 @@ from ..db import spec as S
 from ..db.record import Deal, RecordRevision, RecordValue
 from ..db.session import SessionLocal, get_session
 from ..services import records
+from ..services.binding_review import resolve
+from ..services.records import PATH_TOKEN, Record
 from .auth import current_user
 
 router = APIRouter(prefix="/records", tags=["records"])
@@ -105,3 +107,20 @@ def revise(revision_id: str, body: Changes, user: S.User = Depends(current_user)
     except ValueError as e:
         raise HTTPException(400, str(e))
     return revision_json(session, new)
+
+
+@router.get("/{revision_id}/usage")
+def usage(revision_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> dict:
+    """Which of the revision's values the firm's memos use, and for which concept (through the binding), so a
+    person editing the record knows which place feeds the memo."""
+    r = own_revision(session, user, revision_id)
+    record = Record(session, r.id)
+    out: dict = {}
+    for b in session.scalars(select(S.Binding).where(S.Binding.firm_id == user.firm_id, S.Binding.record_schema == r.record_schema)):
+        if b.kind == "derived":
+            paths = [x.path for t in PATH_TOKEN.findall(b.formula or "") for x in [record.resolve(t)] if x is not None]
+        else:
+            paths = [x.path for x in resolve(record, b)[2]]
+        for p in paths:
+            out.setdefault(p, []).append(b.concept_name)
+    return out

@@ -34,7 +34,7 @@ from sqlalchemy import JSON, select
 from sqlalchemy.orm import Session
 
 from app.db import spec as S
-from app.db.history import Conflict, Operation
+from app.db.history import Conflict, MemoUpdate, Operation
 from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
                          Segment, Slide, TableCell, TableColumn, TableRow)
 from app.db.record import RecordRevision
@@ -435,22 +435,30 @@ class Door:
         return [el.id]
 
     def update_revision(self, op):
+        """The revision an update brings: a newer one of the deal (record), or the memo's own (the binding
+        changed: the same record, figures from other places)."""
         rev = self.s.get(RecordRevision, _uuid((op.get("payload") or {}).get("revision_id")))
         current = self.s.get(RecordRevision, self.memo.record_revision_id)
         if rev is None or rev.deal_id != current.deal_id or rev.firm_id != self.memo.firm_id:
             raise Refuse("that record revision is not this deal's")
-        if rev.id == current.id:
-            raise Refuse(f"the memo is already on record revision {rev.number}")
-        return rev
+        return rev, current
+
+    def decided(self, kind_status: str, rev, current, actor_id) -> None:
+        self.s.add(MemoUpdate(memo_id=self.memo.id, kind="record" if rev.id != current.id else "binding",
+                              from_id=current.id, to_id=rev.id, status=kind_status,
+                              decided_by=actor_id if isinstance(actor_id, uuid.UUID) else None))
 
     def _apply_update(self, op, actor_type, actor_id):
-        """A newer deal record's figures written into the memo: people's words stay, nothing is deleted."""
-        rev = self.update_revision(op)
+        """A newer deal record's figures, or figures from where the binding now says, written into the memo:
+        people's words stay, nothing is deleted."""
+        rev, current = self.update_revision(op)
         self.update_count = updates.apply(self.s, self.memo, rev.id, actor_id)
+        self.decided("applied", rev, current, actor_id)
 
     def _ignore_update(self, op, actor_type, actor_id):
-        """The memo stays on its record revision; the newer one is not offered again."""
-        self.update_revision(op)
+        """The memo stays as it is; this update is not offered again."""
+        rev, current = self.update_revision(op)
+        self.decided("ignored", rev, current, actor_id)
 
     def order(self) -> list[Slide]:
         return self.s.scalars(select(Slide).where(Slide.memo_id == self.memo.id, Slide.deleted_at.is_(None))

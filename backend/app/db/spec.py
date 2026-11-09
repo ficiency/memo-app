@@ -458,4 +458,22 @@ class Binding(Base):
     path: Mapped[str | None] = mapped_column(String)
     formula: Mapped[str | None] = mapped_column(Text)
     approved_by: Mapped[uuid.UUID | None] = fk("users.id", nullable=True, ondelete="SET NULL")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))   # a person confirmed it
+    created_at: Mapped[datetime] = created_at()
+
+
+class BindingChange(Base):
+    """A person changed where a concept's value comes from: before and after, who and when."""
+    __tablename__ = "binding_changes"
+    id: Mapped[uuid.UUID] = pk()
+    firm_id: Mapped[uuid.UUID] = fk("firms.id")
+    record_schema: Mapped[str] = mapped_column(String)
+    concept_name: Mapped[str] = mapped_column(String)
+    before_kind: Mapped[str | None] = mapped_column(String)
+    before_path: Mapped[str | None] = mapped_column(String)
+    before_formula: Mapped[str | None] = mapped_column(Text)
+    after_kind: Mapped[str] = mapped_column(String)
+    after_path: Mapped[str | None] = mapped_column(String)
+    after_formula: Mapped[str | None] = mapped_column(Text)
+    changed_by: Mapped[uuid.UUID | None] = fk("users.id", nullable=True, ondelete="SET NULL")
     created_at: Mapped[datetime] = created_at()

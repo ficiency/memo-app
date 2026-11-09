@@ -1,7 +1,8 @@
 """A memo and a newer deal record: what would change, and applying it.
 
-Every memo is pinned to the record revision it was built from. When the deal gets a newer revision, the memo
-shows it; the person sees the changes (before → after) and applies or ignores them. What would change is
+Every memo is pinned to the record revision it was built from. When the deal gets a newer revision, or a
+person changes where some of the firm's figures come from (the binding), the memo shows it; the person sees
+the changes (before → after) and applies or ignores them. Each decision is kept (memo_updates). What would change is
 found by building the memo again in memory from the same spec version and stage with the new revision (the
 generator's own formatting, never a second copy of it) and comparing it, box by box, with the memo as it is
 now: the figures in text, in table cells and in charts.
@@ -19,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import spec as S
-from app.db.history import Operation
+from app.db.history import MemoUpdate
 from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
                          Segment, TableCell)
 from app.db.record import RecordRevision
@@ -34,19 +35,22 @@ def revision_json(session: Session, r: RecordRevision) -> dict:
 
 
 def available(session: Session, memo: Memo) -> dict:
-    """The memo's revision and the deal's latest one for this firm, unless the memo already has it or a person
-    chose to ignore it."""
+    """The memo's revision; the deal's latest one for this firm if newer and not ignored; and the binding changes
+    made since the memo was built or last decided on an update."""
     current = session.get(RecordRevision, memo.record_revision_id)
     latest = session.scalar(select(RecordRevision).where(RecordRevision.deal_id == current.deal_id,
                                                          RecordRevision.firm_id == current.firm_id)
                             .order_by(RecordRevision.number.desc()))
+    decisions = session.scalars(select(MemoUpdate).where(MemoUpdate.memo_id == memo.id)).all()
     newer = latest if latest is not None and latest.number > current.number else None
-    if newer is not None:
-        ignored = session.scalars(select(Operation.payload).where(Operation.memo_id == memo.id, Operation.op_type == "ignore_update",
-                                                                  Operation.status == "applied")).all()
-        if any((p or {}).get("revision_id") == str(newer.id) for p in ignored):
-            newer = None
-    return {"current": revision_json(session, current), "available": revision_json(session, newer) if newer else None}
+    if newer is not None and any(d.kind == "record" and d.to_id == newer.id and d.status == "ignored" for d in decisions):
+        newer = None
+    since = max([memo.created_at] + [d.created_at for d in decisions])
+    changed = session.scalars(select(S.BindingChange.concept_name).where(
+        S.BindingChange.firm_id == memo.firm_id, S.BindingChange.record_schema == current.record_schema,
+        S.BindingChange.created_at > since)).all()
+    return {"current": revision_json(session, current), "available": revision_json(session, newer) if newer else None,
+            "binding_changes": sorted(set(changed))}
 
 
 def _by(rows, key) -> dict:

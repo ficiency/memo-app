@@ -72,11 +72,11 @@ class PendingDismissal(Base):
 
 
 class MemoUpdate(Base):
-    """"See changes" → Apply / Ignore, for a new record revision or spec version."""
+    """"See changes" → Apply / Ignore, for a new record revision, a changed binding or a spec version."""
     __tablename__ = "memo_updates"
     id: Mapped[uuid.UUID] = pk()
     memo_id: Mapped[uuid.UUID] = fk("memos.id")
-    kind: Mapped[str] = mapped_column(String)                   # record, spec
+    kind: Mapped[str] = mapped_column(String)                   # record, binding, spec
     from_id: Mapped[uuid.UUID] = mapped_column()
     to_id: Mapped[uuid.UUID] = mapped_column()
     status: Mapped[str] = mapped_column(String)                 # applied, ignored
