@@ -212,6 +212,9 @@ class Generator(Figures):
                 fmt = self.format_for("date", context)
                 value = format_date(value, fmt) if fmt else value
             self.counts["memo_data"] += 1
+            if key == "page":                                      # the slide's position, wherever the slide goes
+                add("page_number", value or "", concept_name=name)
+                return
             add("text" if value else "person_slot", value or f"‹person: {lname}›", concept_name=name)
         elif r.kind == "conditional":
             self.counts["conditionals"] += 1

@@ -638,20 +638,49 @@ class Door:
         self.renumber([s for s in self.order() if s.id != slide.id])
 
     def _add_slide(self, op, actor_type, actor_id):
-        """A free slide on a layout of the firm (a template slide comes from a section and its layout)."""
+        """A slide of a section on one of the firm's layouts for it, with the layout's boxes filled as a new memo's
+        would be (fixed words, figures from the record, marked slots to write). A blank layout gives a free
+        slide. The section's count and the firm's order rules are checked."""
         payload = op.get("payload") or {}
         layout = self.s.get(S.Layout, _uuid(payload.get("layout_id")))
-        if layout is None or layout.spec_version_id != self.memo.spec_version_id:
+        if layout is None or layout.spec_version_id != self.memo.spec_version_id or layout.is_master:
             raise Refuse("the layout is not one of the firm's")
+        allowed = set(self.s.scalars(select(S.SectionLayout.section_id).where(S.SectionLayout.layout_id == layout.id)))
+        section_id = _uuid(payload.get("section_id")) or (next(iter(allowed)) if len(allowed) == 1 else None)
+        sec = self.rules.sections.get(section_id)
+        if sec is None:
+            raise Refuse("say which section the slide is for")
+        if allowed and section_id not in allowed:
+            raise Refuse(f"the firm does not use {layout.name!r} for {sec.name!r}")
         slides = self.order()
-        slide = Slide(id=uuid.uuid4(), memo_id=self.memo.id, position=len(slides), section_id=_uuid(payload.get("section_id")),
-                      layout_id=layout.id, kind=payload.get("kind", "free"), background_ref=layout.background_ref, revision=1)
+        if sec.count == "one" and any(s.section_id == sec.id for s in slides):
+            raise Refuse(f"the firm allows one {sec.name!r} slide")
+        if sec.count == "n" and sec.count_n and sum(1 for s in slides if s.section_id == sec.id) >= sec.count_n:
+            raise Refuse(f"the firm allows {sec.count_n} {sec.name!r} slides")
+        slide = Slide(id=uuid.uuid4(), memo_id=self.memo.id, position=len(slides), section_id=sec.id, layout_id=layout.id,
+                      kind="free" if layout.is_blank else "template", background_ref=layout.background_ref, revision=1)
         self.s.add(slide)
         slides.insert(max(0, min(int(payload.get("position", len(slides))), len(slides))), slide)
         self.check_order(slides)
         self.s.flush()
         self.renumber(slides)
+        self.fill_from_layout(slide, layout)
         return [slide.id]
+
+    def fill_from_layout(self, slide: Slide, layout) -> None:
+        """The layout's boxes on the slide, built by the generator (its recipes, formats and binding) against the
+        memo's spec version, record revision and stage, so an added slide reads like the memo's own."""
+        from app.services.generator.memo import Generator
+        stage = self.s.get(S.Stage, self.memo.stage_id)
+        gen = Generator(self.s, self.s.get(S.Firm, self.memo.firm_id).name, stage.name, self.memo.memo_date, self.memo.deal_team,
+                        spec_version_id=self.memo.spec_version_id, revision_id=self.memo.record_revision_id)
+        gen.memo, gen.memo_data["page"] = self.memo, str(slide.position + 1)
+        for el in sorted(gen.elements_of[layout.id], key=lambda e: (e.z_index or 0, e.y_in or 0, e.x_in or 0)):
+            gen.add_element(slide, el)
+        for cls in (Element, ElementTable, TableColumn, TableRow, TableCell, ElementParagraph, Segment,
+                    ElementChart, ChartSeries, ChartPoint):           # the generator's own log is not kept: this is one operation
+            self.s.add_all([r for r in gen.rows if type(r) is cls])
+            self.s.flush()
 
     def _duplicate_slide(self, op, actor_type, actor_id):
         """A copy of a slide right after it, with new identities for the slide and every element."""

@@ -99,7 +99,7 @@ class Painter(MemoData):
                 para.alignment = ALIGN[p.align]
             for seg in segs:
                 run = para.add_run()
-                text = seg.text or ""
+                text = str(page) if seg.kind == "page_number" else seg.text or ""
                 run.text = text.upper() if p.caps and seg.kind == "text" else text
                 f = run.font
                 if p.size_pt and not keep_layout_style or (p.size_pt and keep_layout_style and len(paras) > 1):
