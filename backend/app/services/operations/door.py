@@ -635,9 +635,15 @@ class Door:
             figures = Figures(self.s, self.s.get(S.Firm, self.memo.firm_id), self.s.get(S.SpecVersion, self.memo.spec_version_id),
                               self.s.get(RecordRevision, self.memo.record_revision_id))
             try:
-                if kind == "table":
-                    style = self.s.scalar(select(S.TableStyle.id).where(S.TableStyle.spec_version_id == self.memo.spec_version_id))
+                style = self.s.scalar(select(S.TableStyle.id).where(S.TableStyle.spec_version_id == self.memo.spec_version_id))
+                if kind == "table" and payload.get("cells") is not None:          # a table that brings its own words
+                    rows = boxes.build_literal_table(el, payload["cells"], style)
+                elif kind == "table":
                     rows = boxes.build_table(figures, el, str(payload.get("table") or ""), payload.get("rows"), payload.get("columns"), style)
+                elif payload.get("data") is not None:                              # a chart that brings its own numbers
+                    data = payload["data"]
+                    rows = boxes.build_literal_chart(el, str(payload.get("chart_type") or "column"), list(data.get("categories") or []),
+                                                     list(data.get("series") or []))
                 else:
                     rows = boxes.build_chart(figures, el, str(payload.get("chart_type") or "column"), list(payload.get("series") or []),
                                              int(payload.get("periods") or 6), payload.get("names"))

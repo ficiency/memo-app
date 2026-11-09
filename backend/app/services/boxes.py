@@ -117,6 +117,47 @@ def build_chart(figures: Figures, el: Element, chart_type: str, families: list[s
     return out
 
 
+def build_literal_table(el: Element, rows: list[list[str]], table_style_id) -> list:
+    """A table as it came (an uploaded slide's): the first row a header, every cell its text. Its numbers are
+    not the record's: they show as typed figures among the memo's pendings."""
+    rows = [[str(c) for c in r[:12]] for r in rows[:40] if r]
+    if not rows:
+        raise ValueError("the table is empty")
+    n_cols = max(len(r) for r in rows)
+    out: list = []
+    table = ElementTable(id=uuid.uuid4(), element_id=el.id, table_style_id=table_style_id)
+    out.append(table)
+    for i in range(n_cols):
+        out.append(TableColumn(id=uuid.uuid4(), element_table_id=table.id, position=i, width_in=(el.w_in or 6) / n_cols))
+    for r, row in enumerate(rows):
+        out.append(TableRow(id=uuid.uuid4(), element_table_id=table.id, position=r, kind="header" if r == 0 else "data"))
+        for c in range(n_cols):
+            tc = TableCell(id=uuid.uuid4(), element_table_id=table.id, row=r, col=c, row_span=1, col_span=1,
+                           kind="fixed" if r == 0 else "text")
+            para = ElementParagraph(id=uuid.uuid4(), table_cell_id=tc.id, element_id=None, position=0, level=0)
+            text = row[c] if c < len(row) else ""
+            out.extend([tc, para, Segment(id=uuid.uuid4(), paragraph_id=para.id, position=0, format_item=None, kind="text", text=text,
+                                          concept_name=None, record_path=None, value_snapshot=None)])
+    return out
+
+
+def build_literal_chart(el: Element, chart_type: str, categories: list, series: list[dict]) -> list:
+    """A chart as it came: its categories and series with their values. Not bound to the record: a pending says
+    so until it is rebuilt from the record or accepted."""
+    if not series or not categories:
+        raise ValueError("the chart has no data")
+    chart = ElementChart(id=uuid.uuid4(), element_id=el.id, chart_type=chart_type if chart_type in ("column", "bar", "line") else "column")
+    out: list = [chart]
+    for i, s in enumerate(series[:6]):
+        cs = ChartSeries(id=uuid.uuid4(), element_chart_id=chart.id, position=i, name=str(s.get("name") or f"Series {i + 1}"),
+                         concept_name=None, record_path=None, color_ref=None)
+        out.append(cs)
+        for j, (cat, v) in enumerate(zip(categories[:24], s.get("values") or [])):
+            out.append(ChartPoint(id=uuid.uuid4(), chart_series_id=cs.id, position=j, category=str(cat),
+                                  value=float(v) if v is not None else None, is_forecast=False))
+    return out
+
+
 def written(d, el) -> dict:
     """What a person wrote on a box of theirs, by record row and column (MemoData d): {"headers": {column: text,
     "": corner}, "labels": {row: text}} for a table, {"names": {family: name}} for a chart."""

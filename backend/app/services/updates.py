@@ -197,6 +197,8 @@ def changes(session: Session, memo_id, revision_id) -> dict:
                 chart_change(el, a, points(d.points_of.get(a.id, [])), points(g_points.get(b.id, [])))
         elif chart is not None:                                                                # a person's chart
             for a in d.series_of.get(chart.id, []):
+                if not a.record_path:                            # its own numbers (an uploaded chart): not the record's
+                    continue
                 n = len(d.points_of.get(a.id, []))
                 rows = [r for r in figures.record.families.get(a.record_path or "", [])
                         if r.number_value is not None and r.period][-n:] if n else []

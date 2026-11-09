@@ -136,6 +136,26 @@ async def dismiss_pending(memo_id: str, body: Dismiss, user: S.User = Depends(cu
     return {"dismissed": True}
 
 
+@router.post("/{memo_id}/slides/upload")
+async def upload_slides(memo_id: str, file: UploadFile, user: S.User = Depends(current_user)) -> dict:
+    """A PPTX's slides or a PDF's pages as free slides at the end of the memo: native where possible, a flagged
+    picture where not; what could not be brought in is listed."""
+    from ..services import slide_upload
+    data = await file.read()
+
+    def run():
+        with SessionLocal() as session:
+            own_memo(session, user, memo_id)
+        try:
+            return slide_upload.upload(memo_id, data, file.filename or "", file.content_type, user)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    out = await run_in_threadpool(run)
+    await hub.send(memo_id, {"type": "reload", "by": user.email, "reason": "slide upload"})
+    return out
+
+
 @router.post("/{memo_id}/pictures")
 async def upload_picture(memo_id: str, file: UploadFile, user: S.User = Depends(current_user)) -> dict:
     """A picture for this memo (stored once by content); it goes on a slide with an add_element operation."""
