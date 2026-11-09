@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from psycopg.types.json import Jsonb
-from sqlalchemy import JSON, select
+from sqlalchemy import JSON, delete, select
 from sqlalchemy.orm import Session
 
 from app.db import spec as S
@@ -48,7 +48,7 @@ FRAME = ("x_in", "y_in", "w_in", "h_in", "rotation_deg")
 STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anchor")
 COLOUR_FIELDS = ("color_ref", "fill_ref", "line_ref", "bullet_color_ref")
 SLOTS = ("model_draft", "person_slot", "conditional")
-STRUCTURE = ("add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide", "apply_update", "ignore_update")
+STRUCTURE = ("edit_box", "add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide", "apply_update", "ignore_update")
 MARKER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")   # {{concept}}: a figure asked for by name
 ELEMENT_OPS = ("set_text", "set_cell", "set_chart_data", "set_frame", "set_style", "delete_element", "set_user_lock")
 
@@ -426,7 +426,9 @@ class Door:
             return Plan(el, noop=True)
         if any(x.kind == "chip" for x in segs):
             raise Refuse(f"the figure {old_text!r} comes from the deal record and cannot be typed over; change it in the record")
-        if cell.kind == "fixed":
+        if cell.kind == "data" and table.table_template_id is None:        # a person's table: its data are the record's
+            raise Refuse("this cell shows a figure of the deal record, which has none for it yet; it is filled in the record")
+        if cell.kind == "fixed" and table.table_template_id is not None:   # a person's own table: all its words
             raise Refuse("this cell is part of the firm's table")
         rows, statements = [], []
         if para is None:
@@ -548,7 +550,7 @@ class Door:
                                 detail=reason, status="open"))
         self.s.commit()
         element = slides = None
-        if status == "applied" and kind == "add_element" and created:
+        if status == "applied" and kind in ("add_element", "edit_box") and created:
             element = MemoData(self.s, self.memo.id, element_ids=created).element_json(self.s.get(Element, created[0]))
         elif status == "applied":
             slides = [{"id": str(x.id), "position": x.position, "section_id": str(x.section_id) if x.section_id else None,
@@ -617,6 +619,59 @@ class Door:
                 self.s.add(para)
                 self.s.flush()
                 self.s.add(Segment(paragraph_id=para.id, position=0, kind="text", text=text))
+        return [el.id]
+
+    def _edit_box(self, op, actor_type, actor_id):
+        """A person's own table or chart built again from the deal record with other rows, columns, figures,
+        periods or kind; what the person wrote on it (headers, row labels, series names) is kept, and the names
+        given here win. The firm's tables and charts follow the firm's template: refused."""
+        from app.services import boxes
+        el = self.s.get(Element, _uuid(op.get("target")))
+        slide = self.s.get(Slide, el.slide_id) if el is not None else None
+        if el is None or el.deleted_at is not None or slide is None or slide.memo_id != self.memo.id:
+            raise Refuse("no such box in this memo")
+        d = MemoData(self.s, self.memo.id, element_ids=[el.id])
+        table, chart = d.table_of.get(el.id), d.chart_of.get(el.id)
+        if (table is None and chart is None) or (table is not None and table.table_template_id is not None) \
+                or (chart is not None and chart.chart_template_id is not None):
+            raise Refuse("only a table or chart people added can be changed this way; the firm's follow its template")
+        if el.user_lock_by is not None:
+            raise Refuse("a person locked this element")
+        if op.get("base_revision") is not None and int(op["base_revision"]) != el.revision:
+            raise Refuse("the box changed since you opened it; open it again")
+        payload = op.get("payload") or {}
+        kept = boxes.written(d, el)
+        figures = Figures(self.s, self.s.get(S.Firm, self.memo.firm_id), self.s.get(S.SpecVersion, self.memo.spec_version_id),
+                          self.s.get(RecordRevision, self.memo.record_revision_id))
+        try:
+            if table is not None:
+                rows = boxes.build_table(figures, el, str(payload.get("table") or ""), payload.get("rows"), payload.get("columns"),
+                                         table.table_style_id, kept.get("headers"), kept.get("labels"))
+            else:
+                names = {**kept.get("names", {}), **(payload.get("names") or {})}
+                rows = boxes.build_chart(figures, el, str(payload.get("chart_type") or chart.chart_type), list(payload.get("series") or []),
+                                         int(payload.get("periods") or 6), names)
+        except ValueError as e:
+            raise Refuse(str(e))
+        if table is not None:                                  # the old table goes, cells and their words with it
+            cells = select(TableCell.id).where(TableCell.element_table_id == table.id)
+            paras = select(ElementParagraph.id).where(ElementParagraph.table_cell_id.in_(cells))
+            self.s.execute(delete(Segment).where(Segment.paragraph_id.in_(paras)))
+            self.s.execute(delete(ElementParagraph).where(ElementParagraph.table_cell_id.in_(cells)))
+            for model in (TableCell, TableRow, TableColumn):
+                self.s.execute(delete(model).where(model.element_table_id == table.id))
+            self.s.execute(delete(ElementTable).where(ElementTable.id == table.id))
+        else:
+            series = select(ChartSeries.id).where(ChartSeries.element_chart_id == chart.id)
+            self.s.execute(delete(ChartPoint).where(ChartPoint.chart_series_id.in_(series)))
+            self.s.execute(delete(ChartSeries).where(ChartSeries.element_chart_id == chart.id))
+            self.s.execute(delete(ElementChart).where(ElementChart.id == chart.id))
+        for cls in (ElementTable, TableColumn, TableRow, TableCell, ElementParagraph, Segment, ElementChart, ChartSeries, ChartPoint):
+            self.s.add_all([r for r in rows if type(r) is cls])
+            self.s.flush()
+        live = self.s.get(Element, el.id)
+        live.revision = (live.revision or 0) + 1
+        live.updated_by = actor_id if isinstance(actor_id, uuid.UUID) else None
         return [el.id]
 
     def update_revision(self, op):

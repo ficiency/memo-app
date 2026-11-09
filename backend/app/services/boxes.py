@@ -49,9 +49,10 @@ def _label(text: str) -> str:
 
 
 def build_table(figures: Figures, el: Element, name: str, rows: list[str] | None, columns: list[str] | None,
-                table_style_id) -> list:
-    """The table's rows (header, then one row per record row), its cells as chips of the record. Raises
-    ValueError for a table the record does not have."""
+                table_style_id, headers: dict | None = None, labels: dict | None = None) -> list:
+    """The table's rows (header, then one row per record row), its cells as chips of the record. Headers and row
+    labels a person wrote (by column and row of the record) are kept. Raises ValueError for a table the record
+    does not have."""
     tables = record_tables(figures)
     if name not in tables:
         raise ValueError(f"the deal record has no table {name!r}")
@@ -74,12 +75,13 @@ def build_table(figures: Figures, el: Element, name: str, rows: list[str] | None
 
     text = lambda s: {"kind": "text", "text": s, "concept_name": None, "record_path": None, "value_snapshot": None}
     out.append(TableRow(id=uuid.uuid4(), element_table_id=table.id, position=0, kind="header"))
-    cell(0, 0, "fixed", text(""))
+    headers, labels = headers or {}, labels or {}
+    cell(0, 0, "fixed", text(headers.get("", "")))
     for c, col in enumerate(columns, start=1):
-        cell(0, c, "fixed", text(_label(col)))
+        cell(0, c, "fixed", text(headers.get(col, _label(col))))
     for r, key in enumerate(rows, start=1):
         out.append(TableRow(id=uuid.uuid4(), element_table_id=table.id, position=r, kind="data"))
-        cell(r, 0, "fixed", text(key))
+        cell(r, 0, "fixed", text(labels.get(key, key)))
         for c, col in enumerate(columns, start=1):
             v = figures.record.by_path.get(f"{name}[{key}].{col}")
             if v is None:
@@ -92,8 +94,10 @@ def build_table(figures: Figures, el: Element, name: str, rows: list[str] | None
     return out
 
 
-def build_chart(figures: Figures, el: Element, chart_type: str, families: list[str], periods: int) -> list:
-    """A chart of record families: one series each, the last periods of each, forecasts marked."""
+def build_chart(figures: Figures, el: Element, chart_type: str, families: list[str], periods: int,
+                names: dict | None = None) -> list:
+    """A chart of record families: one series each, the last periods of each, forecasts marked. A series is
+    named as the person named it, else as the record labels the figure."""
     known = period_families(figures)
     families = [f for f in families if f in known][:4]
     if not families:
@@ -101,7 +105,8 @@ def build_chart(figures: Figures, el: Element, chart_type: str, families: list[s
     chart = ElementChart(id=uuid.uuid4(), element_id=el.id, chart_type=chart_type if chart_type in ("column", "bar", "line") else "column")
     out: list = [chart]
     for i, family in enumerate(families):
-        series = ChartSeries(id=uuid.uuid4(), element_chart_id=chart.id, position=i, name=known[family], concept_name=None,
+        name = str((names or {}).get(family) or "").strip() or known[family]
+        series = ChartSeries(id=uuid.uuid4(), element_chart_id=chart.id, position=i, name=name, concept_name=None,
                              record_path=family, color_ref=None)
         out.append(series)
         rows = [r for r in figures.record.families[family] if r.number_value is not None and r.period][-max(2, min(periods, 12)):]
@@ -110,6 +115,29 @@ def build_chart(figures: Figures, el: Element, chart_type: str, families: list[s
             out.append(ChartPoint(id=uuid.uuid4(), chart_series_id=series.id, position=j, category=label,
                                   value=r.number_value, is_forecast=r.is_forecast))
     return out
+
+
+def written(d, el) -> dict:
+    """What a person wrote on a box of theirs, by record row and column (MemoData d): {"headers": {column: text,
+    "": corner}, "labels": {row: text}} for a table, {"names": {family: name}} for a chart."""
+    table, chart = d.table_of.get(el.id), d.chart_of.get(el.id)
+    if chart is not None:
+        return {"names": {x.record_path: x.name for x in d.series_of.get(chart.id, []) if x.record_path and x.name}}
+    if table is None:
+        return {}
+    text = lambda c: "".join(x.text or "" for _, segs in d.paragraphs(cell_id=c.id) for x in segs)
+    cells = d.cells_of.get(table.id, [])
+    col_key, row_key = {}, {}
+    for c in cells:
+        for _, segs in d.paragraphs(cell_id=c.id):
+            for x in segs:
+                m = CELL.match(x.record_path or "")
+                if m:
+                    col_key[c.col], row_key[c.row] = m.group("col"), m.group("row")
+    headers = {col_key[c.col]: text(c) for c in cells if c.row == 0 and c.col in col_key}
+    headers[""] = next((text(c) for c in cells if c.row == 0 and c.col == 0), "")
+    labels = {row_key[c.row]: text(c) for c in cells if c.col == 0 and c.row in row_key}
+    return {"headers": headers, "labels": labels}
 
 
 def categories(periods: list[str]) -> list[str]:

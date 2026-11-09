@@ -140,7 +140,7 @@ class ElementData:
         }
         table = self.table_of.get(el.id)
         if table is not None:
-            out["table"] = {
+            out["table"] = {"own": table.table_template_id is None,
                 "columns": [c.width_in for c in sorted(self.cols_of.get(table.id, []), key=lambda c: c.position)],
                 "rows": [{"kind": r.kind, "height_in": r.height_in} for r in sorted(self.rows_of.get(table.id, []), key=lambda r: r.position)],
                 "cells": [{"row": c.row, "col": c.col, "row_span": c.row_span, "col_span": c.col_span, "kind": c.kind,
@@ -149,7 +149,7 @@ class ElementData:
             }
         chart = self.chart_of.get(el.id)
         if chart is not None:
-            out["chart"] = {"type": chart.chart_type, "series": [
+            out["chart"] = {"type": chart.chart_type, "own": chart.chart_template_id is None, "series": [
                 {"name": x.name, "concept": x.concept_name, "path": x.record_path, "color": x.color_ref,
                  "points": [{"category": p.category, "value": p.value, "forecast": p.is_forecast}
                             for p in sorted(self.points_of.get(x.id, []), key=lambda p: p.position)]}
