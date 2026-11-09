@@ -147,10 +147,64 @@ def spec_completeness() -> tuple[list[str], list[dict]]:
     return lines, []
 
 
+def third_firm() -> tuple[list[str], list[dict]]:
+    """Measure 7: the firm that came with only a guide (no PowerPoint template, no past memos), as configuration and
+    as code. Configuration: what onboarding wrote for it (its spec's rows). Code: none of it names the firm (the
+    check above); the generic paths only such a firm takes, counted in its spec, with what each one surfaced."""
+    from app.db.memo import ElementParagraph, TableColumn
+    from app.services.fit import _font
+    from app.services.painters.pptx import materials
+    lines, failures = [], []
+    with SessionLocal() as s:
+        for firm in s.scalars(select(S.Firm).order_by(S.Firm.name)):
+            got = materials(firm.name)
+            if got.get("template") or got.get("memo"):
+                continue                                        # a firm with a PowerPoint template or past memos
+            v = s.scalars(select(S.SpecVersion).join(S.Spec).where(S.Spec.firm_id == firm.id).order_by(S.SpecVersion.number.desc())).first()
+            layouts = select(S.Layout.id).where(S.Layout.spec_version_id == v.id)
+
+            def n(model, *where):
+                return s.scalar(select(func.count()).select_from(model).where(*where)) or 0
+
+            config = {
+                "layouts (one generated as its master)": n(S.Layout, S.Layout.spec_version_id == v.id),
+                "boxes on its layouts": n(Element, Element.layout_id.in_(layouts)),
+                "text roles": n(S.TextRole, S.TextRole.spec_version_id == v.id),
+                "number and date formats": n(S.Format, S.Format.spec_version_id == v.id),
+                "palette colours": n(S.PaletteColor, S.PaletteColor.spec_version_id == v.id),
+                "sections and stages": n(S.Section, S.Section.spec_version_id == v.id) + n(S.Stage, S.Stage.spec_version_id == v.id),
+                "order rules and rules": n(S.OrderConstraint, S.OrderConstraint.spec_version_id == v.id) + n(S.Rule, S.Rule.spec_version_id == v.id),
+                "recipe segments (what each box holds)": n(S.RecipeSegment, S.RecipeSegment.spec_version_id == v.id),
+                "concepts (its figures)": n(S.Concept, S.Concept.spec_version_id == v.id),
+                "table templates": n(S.TableTemplate, S.TableTemplate.spec_version_id == v.id),
+                "free areas (where people add boxes)": n(S.LayoutZone, S.LayoutZone.layout_id.in_(layouts)),
+            }
+            tables = s.scalars(select(S.TableTemplate).where(S.TableTemplate.spec_version_id == v.id)).all()
+            no_columns = sum(1 for t in tables if not n(S.TableTemplateColumn, S.TableTemplateColumn.table_template_id == t.id))
+            fonts = {f.family for f in s.scalars(select(S.Font).where(S.Font.spec_version_id == v.id))}
+            missing = sorted(f for f in fonts if not _font(f, False, False)[1])
+            paths = [
+                ("its master generated from the guide (no PowerPoint to take it from)",
+                 n(S.Layout, S.Layout.spec_version_id == v.id, S.Layout.is_master), "—"),
+                ("boxes drawn, not placeholders (the painter places every one; no template insets)",
+                 n(Element, Element.layout_id.in_(layouts), Element.placeholder_idx.is_(None)), "—"),
+                ("tables with no column definitions (measured and drawn with the columns their cells use)", no_columns, "#36, found by measure 3"),
+                ("fonts not installed here (measured with a stand-in, flagged approximate)", len(missing), ", ".join(missing) or "—"),
+            ]
+            lines += [f"\n**{firm.name}** (spec version {v.number}: a guide only, no PowerPoint template, no past memos)", "",
+                      "Configuration: what onboarding wrote for it, with no code of its own.", "", "| Spec item | Rows |", "|---|---|"]
+            lines += [f"| {k} | {val} |" for k, val in config.items()]
+            lines += ["", "Code: no line names the firm (the check above). The generic paths only a guide-only firm takes:", "",
+                      "| Generic path | In its spec | What it surfaced |", "|---|---|---|"]
+            lines += [f"| {k} | {val} | {note} |" for k, val, note in paths]
+    return lines or ["Every firm came with a PowerPoint template."], failures
+
+
 CHECKS = [
     ("Onboarding → DB · every item lands in the tables, no special cases", schema_fits),
     ("Spec completeness · what painters need (G1–G7)", spec_completeness),
     ("Configuration vs code · no firm names in code", no_firm_names_in_code),
+    ("Measure 7 · the third firm: configuration vs code", third_firm),
 ]
 
 

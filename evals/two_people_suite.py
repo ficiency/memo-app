@@ -273,13 +273,14 @@ def record_step(memo_id, pa: Person, pb: Person, record, extra: dict) -> None:
     """B changes a value of the deal record; A applies the newer record: the figure follows, people's words stay."""
     view = pa.get(f"/memos/{memo_id}")[1]
     rev = view["memo"]["record_revision"]["id"]
-    chip = next((x for s in view["slides"] for e in s["elements"] for p in e["paragraphs"] for x in p["segments"]
-                 if x["kind"] == "chip" and (x["path"] or "").startswith("field:") and any(c.isdigit() for c in x["text"])
-                 and not x["text"].startswith("[no data")), None)
-    if chip is None:
-        record("the figure follows a newer deal record", "follows", "no figure of a single record value in the memo")
-        return
     values = {v["path"]: v for v in pa.get(f"/records/{rev}")[1]["values"]}
+    # a figure of one numeric value of the record (a text value such as a grade has no "more" to change it to)
+    chip = next((x for s in view["slides"] for e in s["elements"] for p in e["paragraphs"] for x in p["segments"]
+                 if x["kind"] == "chip" and (x["path"] or "").startswith("field:") and not x["text"].startswith("[no data")
+                 and values.get(x["path"], {}).get("kind") == "number" and values[x["path"]].get("value") is not None), None)
+    if chip is None:
+        record("the figure follows a newer deal record", "follows", "no figure of a single numeric record value in the memo")
+        return
     old = values[chip["path"]]["value"]
     status, new = pb.post(f"/records/{rev}/revise", {"changes": {chip["path"]: round(float(old) * 1.25 + 1, 2)}})
     assert status == 200, new
