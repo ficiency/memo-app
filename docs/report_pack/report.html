@@ -48,6 +48,15 @@ code, .mono { font-family: var(--mono); font-size: 0.9em; }
 .arrow { color: var(--muted); font: 400 16px var(--mono); text-align: center; }
 .caption { font-size: 12.5px; color: var(--muted); max-width: 90ch; }
 
+.paths { display: grid; gap: 0; border-top: 1.5px solid var(--ink); }
+.path { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--rule); }
+.pl { font-weight: 600; font-size: 13px; }
+.pl span { display: block; font: 400 11px var(--mono); color: var(--muted); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; font-size: 12.5px; counter-reset: s; }
+.steps li { max-width: none; min-width: 0; padding: 3px 10px 3px 18px; position: relative; border-left: 1px solid var(--rule); }
+.steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 6px; top: 3px; font: 500 10px var(--mono); color: var(--accent); }
+.steps li.door { background: var(--tint); box-shadow: inset 2px 0 0 var(--accent); }
+@media (max-width: 720px) { .path { grid-template-columns: 1fr; gap: 4px; } .steps { grid-template-columns: 1fr; } }
 .gloss { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 22px; font-size: 12.5px; }
 .gloss div { min-width: 0; }
 .gloss b { font-weight: 600; }
@@ -110,12 +119,16 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   .flow { padding: 8px; gap: 6px; }
   .box { padding: 4px 7px; }
   .pill { font-size: 7.5px; }
+  .steps { font-size: 8.3px; } .pl { font-size: 9px; } .pl span { font-size: 7.5px; }
+  .path { grid-template-columns: 95px minmax(0, 1fr); padding: 3px 0; gap: 8px; }
+  .steps li { padding: 1px 6px 1px 14px; } .steps li::before { left: 4px; top: 1px; font-size: 7px; }
   .bar { height: 8px; }
   .legend { font-size: 8px; }
   tr { break-inside: avoid; }
   :root { --paper: #fff; }
   .tw { overflow: visible; }
   .keep { break-inside: avoid; }
+  .newpage { break-before: page; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -133,32 +146,44 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   written guide. Every number below comes from eval runs on the final code.</p>
 </header>
 
-<section aria-label="How the system fits together">
-  <div class="flow">
-    <div class="col">
-      <div class="box"><b>Deal record</b><span>facts; every upload a new revision</span></div>
-      <div class="box"><b>Firm spec</b><span>layouts, rules, brand; versioned</span></div>
-    </div>
-    <div class="arrow">→</div>
-    <div class="col">
-      <div class="box"><b>Memo</b><span>pinned to one spec version and one record revision until a person moves it</span></div>
-      <div class="box door"><b>The door</b><span>one server check for every edit: applied, refused with a reason, or kept aside</span></div>
-    </div>
-    <div class="arrow">⇄</div>
-    <div class="col">
-      <div class="box"><b>Canvas · Agent · PowerPoint</b><span>three editors, one stream of operations</span></div>
-      <div class="box"><b>PowerPoint · PDF</b><span>native file on the firm's layouts; PDF converted from it</span></div>
-    </div>
+<section>
+  <h2><span class="n">01</span>How it works underneath</h2>
+  <p>Three things are stored apart in Postgres: the <strong>deal record</strong> (every upload a new revision), the
+  firm's <strong>spec</strong> (layouts, rules, brand; every approval a new version) and the <strong>memo</strong>,
+  pinned to one of each until a person moves it. The memo is relational (memo → slide → box → paragraph → run), the
+  same box model for the firm's layouts, the canvas and PowerPoint; history tables are only appended to. A
+  <strong>figure</strong> is a run that remembers its record path. Five paths do all the work:</p>
+  <div class="paths">
+    <div class="path"><div class="pl">One edit<span>canvas, agent or PowerPoint</span></div><ol class="steps">
+      <li>An operation arrives: what, which box, the box revision the editor saw</li>
+      <li class="door">The door: does this person hold the box? Do the firm's rules allow it (locked boxes, free area and grid, slide counts and order, figures never typed over)?</li>
+      <li>Revision matches: rows written in one transaction, revision +1. Older: kept aside as a conflict</li>
+      <li>Operation logged; everyone in the memo's room gets it over the websocket</li></ol></div>
+    <div class="path"><div class="pl">Build and paint<span>no model, $0</span></div><ol class="steps">
+      <li>Spec version + record revision + stage → the sections that stage requires, on their layouts</li>
+      <li>Each box filled by its recipe: fixed words, a figure through the binding, a slot for the model or a person</li>
+      <li>Text measured in the firm's real fonts with the template's insets; shrunk to the minimum or flagged</li>
+      <li>PowerPoint written on the firm's own layouts, every slide and shape named with its id; PDF converted from it</li></ol></div>
+    <div class="path"><div class="pl">PowerPoint back<span>upload the edited file</span></div><ol class="steps">
+      <li>Read each shape's hidden id</li>
+      <li>Compare with the export the file came from, not with the memo now</li>
+      <li>Each difference becomes an operation</li>
+      <li class="door">The same door: applied, refused with a reason, or kept aside</li></ol></div>
+    <div class="path"><div class="pl">Agent<span>one request</span></div><ol class="steps">
+      <li>Code builds the context: the slide's boxes, what the spec puts in each, the rules, record figures by name and path</li>
+      <li>One model call returns operations</li>
+      <li class="door">The door dry-runs them; errors go back to the model with the reason, at most twice</li>
+      <li>A proposal: a person applies it change by change</li></ol></div>
+    <div class="path"><div class="pl">Newer record<span>data moves</span></div><ol class="steps">
+      <li>A new revision is announced live in every open memo</li>
+      <li>See changes: each figure worked out again the way it was made (binding or record path), before → after</li>
+      <li>Apply changes figures only; people's words stay</li></ol></div>
   </div>
-  <div class="gloss">
-    <div><b>Figure.</b> A value from the record, written in the firm's format; it remembers its record path, so it updates, traces and cannot be typed over.</div>
-    <div><b>Kept aside.</b> An edit that would overwrite someone's newer work. Stored as a visible conflict with its content, never lost.</div>
-    <div><b>Pending.</b> What the memo still needs from a person (missing data, text to write, a picture to confirm). Computed from the memo, never stored.</div>
-  </div>
+  <p class="caption"><strong>Kept aside</strong>: an edit that would overwrite newer work, stored as a visible conflict with its content. <strong>Pending</strong>: what the memo still needs from a person, computed from the memo as it is, never stored.</p>
 </section>
 
 <section>
-  <h2><span class="n">01</span>The six capabilities</h2>
+  <h2><span class="n">02</span>The six capabilities</h2>
   <div class="tw"><table>
     <thead><tr><th>Capability</th><th>What the system does</th><th>Status</th></tr></thead>
     <tbody>
@@ -173,24 +198,22 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
 </section>
 
 <section>
-  <h2><span class="n">02</span>Where the brief was silent: what we chose, and why</h2>
+  <h2><span class="n">03</span>Where the brief was silent: what we chose, and why</h2>
   <div class="two">
-    <div><h3>What says "same slide, same number"</h3><p>A hidden identity in each shape's and slide's name, compared against the export the file came from. Titles, order and position change; the name survives PowerPoint saving the file (100% in the desktop suite).</p></div>
-    <div><h3>What wins when two people and the record collide</h3><p>One person holds a box at a time; others see who has it. Each box has a revision, so an edit made on an older view is kept aside instead of overwriting. A newer record never applies itself: it is announced live and applied by a person.</p></div>
-    <div><h3>What each editor may change, and what goes to the record</h3><p>Nobody edits a figure inside the memo; the record changes only by a new revision. A number typed over a figure is <strong>refused</strong>, not written back: a typo in a deck should not change the facts every memo and firm reads.</p></div>
-    <div><h3>What checks the model</h3><p>The same door that checks people. The model proposes, code validates (locked boxes, typed amounts, allowed sections), a person applies. No agent framework: one call per request with a context built by code.</p></div>
-    <div><h3>How much freedom</h3><p>The canvas exists only on free slides, inside the free area and on the grid. Every picture is a pending until someone confirms it, because a picture may be a chart pasted as an image.</p></div>
-    <div><h3>The data model</h3><p>Relational Postgres: memo → slide → box → paragraph → run, the same box model for layouts, slides and PowerPoint. History tables are only appended to (operations, conflicts, updates). A memo is read in one database round trip.</p></div>
+    <div><h3>Identity: a hidden id, not titles or positions</h3><p>People rename, reorder and move. The id in each shape's name survives PowerPoint saving the file (100% in the desktop suite).</p></div>
+    <div><h3>Collisions: nobody's work is overwritten</h3><p>One person holds a box at a time; a stale edit is kept aside; a newer record never applies itself. We chose visible conflicts over merging.</p></div>
+    <div><h3>A typed-over figure is refused, not written back</h3><p>The record changes only by a new revision. A typo in a deck should not change the facts every memo and firm reads.</p></div>
+    <div><h3>Freedom only inside the firm's free areas</h3><p>The canvas works on free slides, inside the free area, on the grid. Every picture is a pending, since it may be a chart pasted as an image.</p></div>
   </div>
 </section>
 
 <section>
-  <h2><span class="n">03</span>How we know it works</h2>
+  <div class="keep" style="display:grid;gap:6px"><h2><span class="n">04</span>How we know it works</h2>
   <p>The evals act as people do: their own server, the API the screens use, websockets like the canvas, real
   PowerPoint files. Expected outcomes come from each firm's rules, never its name, so one suite runs on all three.
   Where layout matters, Microsoft PowerPoint is the judge, not our own measure. To prove the suites catch failures,
   two faults were planted in the canvas suite (pictures exported 0.1 in off; figures allowed to be typed over): it
-  dropped from 100% to 60% and named both.</p>
+  dropped from 100% to 60% and named both.</p></div>
   <div class="tw keep"><table>
     <thead><tr><th>The brief's edits</th><th>Canvas</th><th>Agent (asked in words)</th><th>PowerPoint</th></tr></thead>
     <tbody>
@@ -207,35 +230,37 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
     <thead><tr><th>Brief's measure, per firm</th><th>Merrow</th><th>Corriemoor</th><th>Lumen</th></tr></thead>
     <tbody>
       <tr><td class="k">The edits above, by suite</td><td class="num">canvas 12/12<br>PPT script 30/30<br>PPT desktop 15/15<br>agent 6/6</td><td class="num">12/12<br>30/30<br>15/15<br>6/6</td><td class="num">13/13<br>20/20<br>14/14<br>6/6</td></tr>
-      <tr><td class="k">1 · Edits that survive, conflicts surfaced<br><span style="font-weight:400;color:var(--muted)">5 rounds: two people on websockets (different boxes, the same box at once, a stale view, typing over a figure), the agent fills a slide, the record changes mid-run, the file goes through PowerPoint with a box changed in the app since export</span></td><td class="num">123/123 kept<br>10/10 kept aside, each with a conflict<br>0 lost</td><td class="num">113/113<br>10/10<br>0 lost</td><td class="num">38/38<br>10/10<br>0 lost</td></tr>
-      <tr><td class="k">2 · Canvas slide through PowerPoint and back<br><span style="font-weight:400;color:var(--muted)">text with a figure, record table and chart, two pictures; identity, place ±0.02 in, content, style</span></td><td class="num">5/5 elements<br>whole memo 460/460 untouched</td><td class="num">5/5<br>490/490</td><td class="num">6/6<br>145/145</td></tr>
-      <tr><td class="k">3 · Overflow on our long-content set<br><span style="font-weight:400;color:var(--muted)">six lengths into every writable box, plus a 45→180 word ladder; PowerPoint judges</span></td><td class="num">67 cases: 29 fit<br>6 shrunk, 32 reported<br><strong>0 cut silently</strong></td><td class="num">64: 47 / 1 / 16<br><strong>0 cut</strong></td><td class="num">46: 25 / 4 / 17<br><strong>0 cut</strong></td></tr>
-      <tr><td class="k">4 · AI edits leaving the memo invalid or figures inconsistent<br><span style="font-weight:400;color:var(--muted)">fill slides, titles, shorten, a customer concentration slide with a record chart and table</span></td><td class="num">0 typed amounts<br>0 of 122 figures off the record<br>0 refused when applied</td><td class="num">0<br>0 of 83<br>0</td><td class="num">0<br>0 of 58<br>0</td></tr>
+      <tr><td class="k">1 · Edits that survive, conflicts surfaced<br><span style="font-weight:400;color:var(--muted)">5 rounds: two people at once (same box, stale view, typed-over figure), the agent, a record change, PowerPoint and back</span></td><td class="num">123/123 kept<br>10/10 kept aside w/ conflict<br>0 lost</td><td class="num">113/113<br>10/10<br>0 lost</td><td class="num">38/38<br>10/10<br>0 lost</td></tr>
+      <tr><td class="k">2 · Canvas slide through PowerPoint and back<br><span style="font-weight:400;color:var(--muted)">text, record table and chart, 2 pictures; identity, place ±0.02 in, content, style</span></td><td class="num">5/5 elements<br>memo 460/460 untouched</td><td class="num">5/5<br>490/490</td><td class="num">6/6<br>145/145</td></tr>
+      <tr><td class="k">3 · Overflow on our long-content set<br><span style="font-weight:400;color:var(--muted)">6 lengths in every writable box + a 45→180 word ladder; PowerPoint judges</span></td><td class="num">67 cases: 29 fit<br>6 shrunk, 32 reported<br><strong>0 cut silently</strong></td><td class="num">64: 47 / 1 / 16<br><strong>0 cut</strong></td><td class="num">46: 25 / 4 / 17<br><strong>0 cut</strong></td></tr>
+      <tr><td class="k">4 · AI edits leaving the memo invalid or figures inconsistent<br><span style="font-weight:400;color:var(--muted)">fill, retitle, shorten, a customer concentration slide with chart and table</span></td><td class="num">0 typed amounts<br>0 of 122 figures off record<br>0 refused when applied</td><td class="num">0<br>0 of 83<br>0</td><td class="num">0<br>0 of 58<br>0</td></tr>
       <tr><td class="k">5 · Past memo rebuilt (structure)</td><td class="num">boxes 185/186<br>same place 185/185<br>slides 22/29</td><td class="num">194/195<br>192/194<br>25/31</td><td class="num">no past memos</td></tr>
       <tr><td class="k">6 · Time and cost of a render<br><span style="font-weight:400;color:var(--muted)">build + PowerPoint + PDF; laptop, hosted DB</span></td><td class="num">5.5 + 1.6 + 4.0 s<br>$0 model cost</td><td class="num">4.8 + 1.5 + 5.3 s<br>$0</td><td class="num">3.1 + 1.0 + 4.5 s<br>$0</td></tr>
     </tbody>
   </table></div>
-  <p class="caption">Also measured: our text measure agrees with PowerPoint on fits / does not fit for 208 of 210 boxes;
-  after PowerPoint desktop itself saves an edited file, 336/336 untouched boxes are identical and 244/244 shapes keep
-  their identity. The agent eval cost $1.19 / $1.37 / $1.51 per firm (15, 14, 17 model calls). Measure 5 compares
-  structure only: the past deals' records were not given, and the missing slides are one-off appendices built by hand.</p>
+  <p class="caption">Also: our text measure agrees with PowerPoint on fit for 208/210 boxes; after PowerPoint desktop saves
+  an edited file, 336/336 untouched boxes are identical and 244/244 shapes keep their id; the agent eval cost $1.19 /
+  $1.37 / $1.51 per firm. Measure 5 is structure only (past records not given); missing slides are hand-built appendices.</p>
 </section>
 
 <section>
-  <h2><span class="n">04</span>The third firm: configuration or code</h2>
-  <p><strong>All configuration.</strong> Lumen arrived with a guide only and went in through the same onboarding:
-  10 layouts with a generated master, 81 boxes, 9 text roles, 16 formats, 55 rules, 57 recipe segments, 38 figures,
-  4 table templates, 9 free areas. <strong>No line of code names a firm</strong> (0 hits across backend, scripts and
-  evals). What it cost in code was generic: drawing boxes where there are no placeholders, generating a master. It
-  also exposed one bug that hit every firm (tables with no column definitions were not measured), fixed for all.</p>
+  <h2><span class="n">05</span>The third firm: configuration or code</h2>
+  <p><strong>It took code once, and that was the most useful finding.</strong> Our first onboarding assumed a
+  PowerPoint template from its first step and was run by engineers, with scripts and a separate model chat. Lumen sent
+  only a written guide, so it showed that onboarding was shaped around "a firm with a template". We rebuilt it at the
+  root: six steps inside the product, each model answer checked by code and approved by a person, layouts and a
+  master designed from the guide when there is no template. That code is generic: <strong>no line of code names a
+  firm</strong> (0 hits across backend, scripts and evals). With it, Lumen itself is all configuration: 10 layouts
+  with a generated master, 81 boxes, 9 text roles, 16 formats, 55 rules, 57 recipe segments, 38 figures, 9 free areas.
+  It also exposed one bug that hit every firm (tables with no column definitions were not measured), fixed for all.
+  Not yet shown: a fourth firm going in with no code.</p>
 </section>
 
 <section>
-  <h2><span class="n">05</span>Where it breaks, and how often</h2>
-  <p><strong>45 issues</strong> were logged while building and testing, each with cause, area, severity and status.
-  The evals found three of them late, all fixed at the root: tables without column definitions not measured, template
-  bullets and indents lost, and a picture saved by PowerPoint desktop without an embedded image making the whole file
-  be refused.</p>
+  <h2><span class="n">06</span>Where it breaks, and how often</h2>
+  <p><strong>45 issues</strong> logged while building and testing, each with cause, area, severity and status. The
+  evals found three late, all fixed at the root: tables without column definitions not measured, template bullets and
+  indents lost, a picture PowerPoint saved without an embedded image refusing the whole file.</p>
   <div class="bar" role="img" aria-label="32 fixed, 2 partly fixed, 10 open, 1 not a bug">
     <i style="flex:32;background:var(--ok)"></i><i style="flex:2;background:var(--warn)"></i><i style="flex:10;background:var(--bad)"></i><i style="flex:1;background:var(--muted)"></i>
   </div>
