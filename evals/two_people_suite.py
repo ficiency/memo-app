@@ -193,8 +193,10 @@ async def run_round(memo_id, firm: str, n: int, a, b, A: str, B: str, folder: Pa
         await a.send(set_text(fid, await off(revision, fid), full.replace(chip, "".join("9" if c.isdigit() else c for c in chip), 1)))
         mf = await until(b, result_of(A, fid))
         record("type over a figure (other person told)", "refused", mf["status"])
-        expect_text.setdefault(fid, None)
-        expect_text[("figure", fid)] = chip
+        view = (await pa.aget(f"/memos/{memo_id}"))[1]
+        box = next((e for s_ in view["slides"] for e in s_["elements"] if e["id"] == fid), None)
+        held = box is not None and any(x["kind"] == "chip" and x["text"] == chip for p_ in box["paragraphs"] for x in p_["segments"])
+        record("figure unchanged after typing over", "yes", "yes" if held else "no", f"{chip}")
 
     # 6. the agent: A asks it to fill a slide's model-written boxes and applies what it proposes
     if agent:
@@ -204,8 +206,12 @@ async def run_round(memo_id, firm: str, n: int, a, b, A: str, B: str, folder: Pa
     if record_round:
         await off(record_step, memo_id, pa, pb, record, extra)
 
-    # 8. PowerPoint while the other person keeps editing in the app
+    # 8. PowerPoint while the other person keeps editing in the app; its two boxes picked in the file the person
+    #    edits (the agent may have put figures in the boxes picked at the start of the round)
     await off(export, pa, memo_id, exported)                      # again: the edits above are in this file
+    free_now, _ = await off(boxes, memo_id, exported)
+    if len(free_now) >= 2:
+        x_box, y_box = free_now[(n * 3) % len(free_now)], free_now[(n * 3 + 1) % len(free_now)]
     tx_app = f"B edited X in the app after the export, round {n}"
     await b.send(json.dumps({"type": "take", "element_id": x_box}))
     await b.send(set_text(x_box, await off(revision, x_box), tx_app))
@@ -240,11 +246,17 @@ async def agent_step(memo_id, n: int, pa: Person, log: list, expect_text: dict, 
     """A asks the agent to fill a slide, then applies its proposal: nothing it proposed is lost."""
     view = (await pa.aget(f"/memos/{memo_id}"))[1]
     slides = [s for s in view["slides"] if any(x["kind"] == "model_draft" for e in s["elements"] for p in e["paragraphs"] for x in p["segments"])]
+    request = "Fill the boxes the model should write on this slide."
+    if not slides:                                          # every slot written: ask what a person asks next
+        slides = [s for s in view["slides"] if any(e["type"] == "text" and e["firm_lock"] == "content" and not e.get("master")
+                                                     and len("".join(x["text"] for p in e["paragraphs"] for x in p["segments"])) > 60
+                                                     for e in s["elements"])]
+        request = "Make the text of this slide more concise, keeping its figures."
     if not slides:
-        record("the agent fills a slide", "a proposal applied", "no slide left to fill")
+        record("the agent fills a slide", "a proposal applied", "no slide to work on")
         return
     slide = slides[n % len(slides)]
-    status, r = await asyncio.to_thread(pa.post, f"/memos/{memo_id}/agent", {"message": "Fill the boxes the model should write on this slide.",
+    status, r = await asyncio.to_thread(pa.post, f"/memos/{memo_id}/agent", {"message": request,
                                                                            "slide_id": slide["id"], "element_id": None})
     if status != 200 or not r.get("proposal"):
         record("the agent fills a slide", "a proposal applied", f"no proposal ({status})", (r or {}).get("reply", "") if isinstance(r, dict) else "")
@@ -262,11 +274,15 @@ async def agent_step(memo_id, n: int, pa: Person, log: list, expect_text: dict, 
     now = {e["id"]: e for s in view["slides"] for e in s["elements"]}
     for o, res in zip(applied.get("operations") or [], results):
         target = str((o.get("op") or {}).get("target") or "")
-        if res.get("status") == "applied" and (o.get("op") or {}).get("type") == "set_text" and target in now:
-            words = "\n".join("".join(x["text"] for x in p["segments"]) for p in now[target]["paragraphs"])
-            first = words.split("\n")[0][:40]
-            if first:
-                expect_text[target] = first                # the agent's words, held like people's from here on
+        if res.get("status") == "applied" and target in now:
+            # the box is now what the agent wrote (a person applied it): that is what later rounds must keep. Its
+            # words, not its figures (a newer record changes them on purpose); a box of figures only is held by the door
+            words = [x["text"].strip() for p in now[target]["paragraphs"] for x in p["segments"] if x["kind"] == "text"]
+            longest = max(words, key=len, default="")[:30]
+            if len(longest) >= 5:
+                expect_text[target] = longest
+            else:
+                expect_text.pop(target, None)
 
 
 def record_step(memo_id, pa: Person, pb: Person, record, extra: dict) -> None:
@@ -310,9 +326,9 @@ def survives(memo_id, folder: Path, n: int, expect_text: dict, log: list, person
             ok = want.lower() in shown.get(key[1], "")
             log.append({"round": n, "action": "figure unchanged after the round", "expected": "yes", "got": "yes" if ok else "no"})
         else:
-            ok = shown.get(key, "").startswith(want.lower())
+            ok = want.lower() in shown.get(key, "")
             log.append({"round": n, "action": "applied edit present after the round", "expected": "yes", "got": "yes" if ok else "no",
-                        "detail": "" if ok else f"{key[:8]} shows {shown.get(key, '')[:50]!r}"})
+                        "detail": "" if ok else f"{key[:8]} shows {shown.get(key, '')[:50]!r}, expected {want[:40]!r}"})
 
 
 async def run_firm(firm: str, rounds: int, server: Server, agent: bool) -> dict:
