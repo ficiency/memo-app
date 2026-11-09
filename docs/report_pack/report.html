@@ -72,6 +72,16 @@ table.measures td.num { white-space: normal; }
 tr.grp td { padding-top: 9px; border-bottom: 1px solid var(--rule); font-size: 12.5px; }
 tr.grp b { font-weight: 600; } tr.grp span { color: var(--muted); }
 td.lab { padding-left: 14px; color: var(--ink); }
+.data { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 20px; }
+.data > div { min-width: 0; }
+.data h3 { margin: 0 0 3px; font: 600 13px var(--body); }
+.data h3 span { font-weight: 400; color: var(--muted); font-size: 11.5px; }
+.data ul { gap: 2px; font-size: 12px; padding-left: 14px; }
+.data code { font-size: 11px; color: var(--accent); overflow-wrap: anywhere; }
+.why { color: var(--muted); }
+.tight { gap: 2px; font-size: 13px; }
+.tight li { max-width: none; }
+@media (max-width: 720px) { .data { grid-template-columns: 1fr; } }
 .gloss { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 22px; font-size: 12.5px; }
 .gloss div { min-width: 0; }
 .gloss b { font-weight: 600; }
@@ -134,6 +144,8 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   .flow { padding: 8px; gap: 6px; }
   .box { padding: 4px 7px; }
   .pill { font-size: 7.5px; }
+  .tight { font-size: 8.5px; gap: 0; }
+  .data h3 { font-size: 9px; } .data h3 span { font-size: 8px; } .data ul { font-size: 8.2px; gap: 0; padding-left: 11px; } .data code { font-size: 7.8px; } .data { gap: 4px 14px; }
   .o { font-size: 7.8px; padding: 0 4px; } .oc { font-size: 8.3px; line-height: 1.32; } .legend2 { font-size: 8px; }
   tr.grp td { font-size: 8.5px; padding-top: 2.5px; } table.measures td { padding-block: 1.2px; } td.lab { padding-left: 10px; }
   .next { font-size: 8.5px; gap: 1px; }
@@ -158,7 +170,7 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <h1>One memo engine: what it does, how we know, where it breaks</h1>
   <div class="meta"><span>Luis Chapa</span><span>9 Nov 2026</span><span>FastAPI · Postgres (Supabase) · React · OpenAI</span></div>
   <p class="lede">Each firm's memo format is stored as versioned data. A memo is built from it and a deal's record,
-  then edited in the browser, by an AI agent, or in PowerPoint and back; every edit goes through one server check,
+  then edited on the canvas, by an AI agent, or in PowerPoint and back; every edit goes through one server check,
   and what cannot be applied is kept aside and shown, never dropped. Three firms are loaded on one deal (Tidewell): <strong>Merrow</strong> (16:9 PowerPoint
   template), <strong>Corriemoor</strong> (4:3 template) and <strong>Lumen</strong>, the third firm, which sent only a
   written guide. Every number below comes from eval runs on the final code.</p>
@@ -166,11 +178,24 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
 
 <section>
   <h2><span class="n">01</span>How it works underneath</h2>
-  <p>Three things are stored apart in Postgres: the <strong>deal record</strong> (every upload a new revision), the
-  firm's <strong>spec</strong> (layouts, rules, brand; every approval a new version) and the <strong>memo</strong>,
-  pinned to one of each until a person moves it. The memo is relational (memo → slide → box → paragraph → run), the
-  same box model for the firm's layouts, the canvas and PowerPoint; history tables are only appended to; row-level security is on and the backend is the database's only client. A
-  <strong>figure</strong> is a run that remembers its record path. Five paths do all the work:</p>
+  <p>Three things are stored apart in Postgres, each versioned, so one can change without corrupting the others:</p>
+  <div class="data">
+    <div><h3>Deal record <span>the facts</span></h3><ul>
+      <li><code>record_revisions</code>: one per upload or edit, with who made it and from which revision. A full copy: nothing is overwritten.</li>
+      <li><code>record_values</code>: one row per value: a path (<code>table:pl_summary[FY26].revenue</code>), kind, number, text or date, unit, period, forecast flag.</li>
+      <li><code>bindings</code>: per firm and record format, where each of the firm's figures comes from (a path or a formula).</li></ul></div>
+    <div><h3>Firm spec <span>the rules; every row carries its version</span></h3><ul>
+      <li><code>sections</code>, <code>stages</code>, <code>order_constraints</code>, <code>rules</code>: locked, mandatory, optional or free; how many slides; order; logic rules as a type plus parameters.</li>
+      <li><code>layouts</code>, <code>layout_zones</code>: each layout's boxes (stored as elements, like the memo's) and its free area.</li>
+      <li><code>text_roles</code>, <code>formats</code>: size and minimum size per role; number formats as fields (decimals, scale, symbol, negatives).</li>
+      <li><code>concepts</code>, <code>recipe_segments</code>: the firm's named figures, and what fills each box: fixed words, a figure, text the model or a person writes.</li></ul></div>
+    <div><h3>Memo <span>what people did</span></h3><ul>
+      <li><code>memos</code>: pinned to one spec version and one record revision, with a count of operations.</li>
+      <li><code>slides</code> → <code>elements</code> (type, place in inches, role, lock, revision) → <code>element_paragraphs</code> → <code>segments</code>: text, a slot to write, or a <strong>figure</strong> that keeps its record path and value.</li>
+      <li>History, only appended to: <code>operations</code>, <code>conflicts</code>, <code>memo_updates</code>, <code>pending_dismissals</code>.</li></ul></div>
+  </div>
+  <p>One box model serves the firm's layouts, the canvas and PowerPoint. Row-level security is on and the backend is
+  the database's only client. Five paths do all the work:</p>
   <div class="paths">
     <div class="path"><div class="pl">One edit<span>canvas, agent or PowerPoint</span></div><ol class="steps">
       <li>An operation arrives: what, which box, the box revision the editor saw</li>
@@ -217,25 +242,25 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
 
 <section>
   <h2><span class="n">03</span>Where the brief was silent: what we chose, and why</h2>
-  <div class="two">
-    <div><h3>Identity: a hidden id, not titles or positions</h3><p>People rename, reorder and move. The id in each shape's name survives PowerPoint saving the file (100% in the desktop suite).</p></div>
-    <div><h3>Collisions: nobody's work is overwritten</h3><p>One person holds a box at a time; a stale edit is kept aside; a newer record never applies itself. We chose visible conflicts over merging.</p></div>
-    <div><h3>A typed-over figure is refused, not written back</h3><p>The record changes only by a new revision. A typo in a deck should not change the facts every memo and firm reads.</p></div>
-    <div><h3>Freedom only inside the firm's free areas</h3><p>The canvas works on free slides, inside the free area, on the grid. Every picture is a pending, since it may be a chart pasted as an image.</p></div>
-  </div>
+  <ul class="tight">
+    <li><strong>Identity is a hidden id</strong> in each shape's name, not titles or positions: people rename, reorder and move. It survives PowerPoint saving the file.</li>
+    <li><strong>Collisions never overwrite</strong>: one person holds a box at a time, a stale edit is kept aside, a newer record never applies itself. Visible conflicts over merging.</li>
+    <li><strong>A typed-over figure is refused, not written back</strong>: a typo in a deck should not change the facts every memo and firm reads.</li>
+    <li><strong>Freedom only inside the firm's free areas</strong>, on the grid; every picture is a pending, since it may be a chart pasted as an image.</li>
+  </ul>
 </section>
 
 <section>
   <h2><span class="n">04</span>Where a person checks the model</h2>
-  <div class="two">
-    <div><h3>Firm setup</h3><p>Each onboarding step's answer on its own screen, with what code could not resolve, the open questions, and every guide-versus-template conflict with both sides' evidence. Nothing reaches the spec until approved.</p></div>
-    <div><h3>Binding review</h3><p>Where each figure comes from in the record, flagged when it has no value, a broken path, a value that moved since the last upload, the same value as another figure, or the wrong kind. Changes are offered to memos already built.</p></div>
-    <div><h3>Pendings panel</h3><p>What the memo still needs: missing data, text to write, a picture to confirm, a box that does not fit. Each clears itself when it stops being true.</p></div>
-    <div><h3>Proposals and See changes</h3><p>An agent proposal, a newer record or a newer template version is shown as before → after and applied by a person.</p></div>
-  </div>
+  <ul class="tight">
+    <li><strong>Firm setup</strong>: each onboarding step's answer, what code could not resolve, and every guide-versus-template conflict with both sides' evidence; nothing reaches the spec until approved.</li>
+    <li><strong>Binding review</strong>: where each figure comes from, flagged when it has no value, a broken path, a value that moved since the last upload, a twin of another figure, or the wrong kind.</li>
+    <li><strong>Pendings panel</strong>: missing data, text to write, a picture to confirm, a box that does not fit; each clears itself when it stops being true.</li>
+    <li><strong>Proposals and See changes</strong>: an agent proposal, a newer record or a newer template version, shown before → after and applied by a person.</li>
+  </ul>
 </section>
 
-<section class="newpage">
+<section>
   <div class="keep" style="display:grid;gap:6px"><h2><span class="n">05</span>How we know it works</h2>
   <p>The evals act as people do (own server, the screens' API, websockets, real PowerPoint files). Expected outcomes
   come from each firm's rules, never its name. Where layout matters, PowerPoint itself judges. Two faults planted in
@@ -291,8 +316,8 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
 <section>
   <h2><span class="n">06</span>The third firm: configuration or code</h2>
   <p><strong>It took code once, and that was the most useful finding.</strong> Our first onboarding assumed a
-  PowerPoint template and was run by engineers with scripts and a separate model chat. Lumen sent
-  only a written guide, so it showed that onboarding was shaped around "a firm with a template". We rebuilt it at the
+  PowerPoint template and was run by engineers by hand; Lumen, with only a guide, showed it was shaped around "a firm
+  with a template". We rebuilt it at the
   root: six steps inside the product, each model answer checked by code and approved by a person, layouts and a
   master designed from the guide when there is no template. That code is generic: <strong>no line of code names a
   firm</strong> (0 hits across backend, scripts and evals). With it, Lumen itself is all configuration: 10 layouts
@@ -332,10 +357,10 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <h2><span class="n">08</span>What we would do next, in order</h2>
   <ol class="next">
     <li><strong>Bindings checked, not only reviewed</strong>: against the unit, period and range the guide and past memos give each figure, so a wrong datum (the tenor) is flagged.</li>
-    <li><strong>Long content that continues</strong> <span class="pill warn">not built</span> onto a continuation slide by the firm's rules, instead of only being reported.</li>
-    <li><strong>Promote a slide into the template</strong> <span class="pill warn">not built</span>, as a new spec version that memos move to with See changes.</li>
-    <li><strong>Template editing in the app</strong> <span class="pill warn">not built</span>, as checked operations on the spec, with the history memos already have.</li>
-    <li><strong>Reconnect and replay</strong> <span class="pill warn">not built</span> missed operations by sequence number; then a load test with many people per memo.</li>
+    <li><strong>Long content that continues</strong> <span class="pill warn">not built</span> onto a continuation slide by the firm's rules. <span class="why">Cut: each firm needs its own split rules, and exact measuring came first; today it is reported, never shipped cut.</span></li>
+    <li><strong>Promote a slide into the template</strong> <span class="pill warn">not built</span> As a new spec version. <span class="why">Cut: it sits on template editing (next item), and the PowerPoint round trip mattered more.</span></li>
+    <li><strong>Template editing in the app</strong> <span class="pill warn">not built</span> As checked operations on the spec. <span class="why">Cut at the start: firms arrive with a template or a guide, so learning from them came first.</span></li>
+    <li><strong>Reconnect and replay</strong> <span class="pill warn">not built</span> missed operations, then a load test. <span class="why">Cut: a reconnecting person reloads the memo from the server, so no saved work is lost.</span></li>
   </ol>
 
 </section>
