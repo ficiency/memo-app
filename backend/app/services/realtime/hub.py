@@ -94,15 +94,22 @@ class Hub:
         await self.send(memo_id, {"type": "draft", "by": me.email, "element_id": element_id, "text": text}, skip=socket)
 
     # --- commit through the door ----------------------------------------------------------------
-    async def commit(self, memo_id: str, socket, op: dict) -> None:
-        """An edit, checked by the door. An element held by someone else is refused there, so a client that
-        skips taking the box cannot write into someone else's."""
+    def held_by_other(self, memo_id: str, socket, element_id: str | None) -> str | None:
+        """Who else holds a box right now: asked when an edit arrives, not when it is saved, so leaving the
+        box right after editing it cannot turn one's own edit into someone else's."""
         room = self.rooms.get(memo_id)
         me = room.people.get(socket) if room else None
-        if me is None:
-            return
-        other = self.holder(memo_id, str(op.get("target") or ""))
-        held_by = other.email if other is not None and other is not me else None
+        other = self.holder(memo_id, element_id)
+        return other.email if other is not None and other is not me else None
+
+    def person(self, memo_id: str, socket) -> Person | None:
+        room = self.rooms.get(memo_id)
+        return room.people.get(socket) if room else None
+
+    async def commit(self, memo_id: str, me: Person, op: dict, held_by: str | None) -> None:
+        """An edit, checked by the door, by the person who sent it (taken when it arrived: it is saved even if
+        they leave meanwhile). An element held by someone else is refused there, so a client that skips taking
+        the box cannot write into someone else's."""
 
         def apply():
             with SessionLocal() as session:

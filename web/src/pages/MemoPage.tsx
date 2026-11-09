@@ -153,11 +153,12 @@ export function MemoPage() {
       if (!send({ type: "take", element_id: el.id })) toast("Reconnecting… try again in a moment", "warn");
     },
     onDraft: (el, text) => send({ type: "draft", element_id: el.id, text }),
-    onLeave: (el, text) => {
+    onLeave: (el, text, seenRevision) => {
       setEditing(null);
       if (text !== null) {
         setPending((p) => ({ ...p, [el.id]: text }));
-        send({ type: "op", op: { type: "set_text", target: el.id, base_revision: el.revision, payload: { text } } });
+        // made on the revision shown when editing began: if someone saved the box meanwhile, it is kept aside
+        send({ type: "op", op: { type: "set_text", target: el.id, base_revision: seenRevision, payload: { text } } });
       }
       send({ type: "release", element_id: el.id });
     },

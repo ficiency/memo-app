@@ -2,6 +2,7 @@
 in real time, and the PowerPoint round trip (download, upload an edited copy, what was kept aside)."""
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime
 
@@ -139,6 +140,15 @@ async def live(socket: WebSocket, memo_id: str, email: str):
         await socket.close(code=4403)                            # firms are isolated accounts
         return
     await hub.join(memo_id, socket, user.id, user.email)
+    # Saving runs beside the socket: taking, leaving and drafting are answered at once, while one's own edits
+    # are saved one after the other, in the order they were made.
+    saving = asyncio.Lock()
+    pending: set = set()
+
+    async def save(op: dict, person, held_by: str | None) -> None:
+        async with saving:
+            await hub.commit(memo_id, person, op, held_by)
+
     try:
         while True:
             message = await socket.receive_json()
@@ -150,11 +160,18 @@ async def live(socket: WebSocket, memo_id: str, email: str):
             elif kind == "draft":
                 await hub.draft(memo_id, socket, str(message.get("element_id")), message.get("text"))
             elif kind == "op":
-                await hub.commit(memo_id, socket, message.get("op") or {})
+                op, person = message.get("op") or {}, hub.person(memo_id, socket)
+                if person is None:
+                    continue
+                task = asyncio.create_task(save(op, person, hub.held_by_other(memo_id, socket, str(op.get("target") or ""))))
+                pending.add(task)
+                task.add_done_callback(pending.discard)
     except WebSocketDisconnect:
         pass
     finally:
         await hub.leave(memo_id, socket)
+        if pending:                                              # edits sent before leaving are still saved
+            await asyncio.gather(*pending, return_exceptions=True)
 
 
 # --- PowerPoint round trip ------------------------------------------------------------------------

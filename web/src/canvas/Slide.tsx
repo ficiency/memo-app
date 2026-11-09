@@ -15,7 +15,7 @@ export type Interaction = {
   editing: string | null; // the box I hold
   onPick: (el: El) => void;
   onDraft: (el: El, text: string) => void;
-  onLeave: (el: El, text: string | null) => void;
+  onLeave: (el: El, text: string | null, seenRevision: number) => void; // the revision the edit was made on
   onFigureRemoved: (el: El) => void;
 };
 
@@ -82,6 +82,7 @@ function box(el: El): CSSProperties {
 function Editor({ el, styler, page, ui }: { el: El; styler: Styler; page: number; ui: Interaction }) {
   const ref = useRef<HTMLDivElement>(null);
   const start = useRef(plainText(el.paragraphs));
+  const seen = useRef(el.revision); // the edit is made on what was shown when editing began
   const good = useRef<Paragraph[]>(el.paragraphs);
   const [shown, setShown] = useState<{ version: number; paragraphs: Paragraph[] }>({ version: 0, paragraphs: el.paragraphs });
   const chips = el.paragraphs.flatMap((p) => p.segments.filter((s) => s.kind === "chip")).length;
@@ -126,7 +127,7 @@ function Editor({ el, styler, page, ui }: { el: El; styler: Styler; page: number
         // the figure warning keeps the box: the person goes back to it after reading
         if ((e.relatedTarget as HTMLElement | null)?.closest("[data-keep-editing]")) return;
         const text = read();
-        ui.onLeave(el, text === start.current ? null : text);
+        ui.onLeave(el, text === start.current ? null : text, seen.current);
       }}
       onKeyDown={(e) => {
         if (e.key === "Escape") (e.target as HTMLElement).blur();
