@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.db import spec as S
 from app.db.memo import Element
 from app.db.record import Deal, RecordRevision
-from app.services.memo_data import ElementData, MemoData, group
+from app.services.memo_data import ElementData, MemoData, fetch, group
 
 ROLE = ("font", "size_pt", "min_size_pt", "bold", "italic", "caps", "color_ref")
 TABLE = ("header_fill_ref", "header_text_ref", "header_bold", "forecast_header_fill_ref", "body_text_ref", "banding_ref",
@@ -17,40 +17,59 @@ TABLE = ("header_fill_ref", "header_text_ref", "header_bold", "forecast_header_f
          "number_align", "min_size_pt")
 
 
-def spec_view(session: Session, version_id) -> dict:
-    q = session.scalars
-    v = session.get(S.SpecVersion, version_id)
-    table = session.scalar(select(S.TableStyle).where(S.TableStyle.spec_version_id == v.id))
-    chart = session.scalar(select(S.ChartStyle).where(S.ChartStyle.spec_version_id == v.id))
-    grid = session.scalar(select(S.Grid).where(S.Grid.spec_version_id == v.id))
-    series_colors = [c.color_ref for c in q(select(S.ChartSeriesColor).where(S.ChartSeriesColor.chart_style_id == chart.id)
-                                             .order_by(S.ChartSeriesColor.position))] if chart else []
-    roles = q(select(S.TextRole).where(S.TextRole.spec_version_id == v.id)).all()
+def spec_queries(version_id) -> dict:
+    v = version_id
+    chart = select(S.ChartStyle.id).where(S.ChartStyle.spec_version_id == v)
+    return {
+        "spec_version": (S.SpecVersion, select(S.SpecVersion).where(S.SpecVersion.id == v)),
+        "table_style": (S.TableStyle, select(S.TableStyle).where(S.TableStyle.spec_version_id == v)),
+        "chart_style": (S.ChartStyle, select(S.ChartStyle).where(S.ChartStyle.spec_version_id == v)),
+        "series_colors": (S.ChartSeriesColor, select(S.ChartSeriesColor).where(S.ChartSeriesColor.chart_style_id.in_(chart))),
+        "grid": (S.Grid, select(S.Grid).where(S.Grid.spec_version_id == v)),
+        "roles": (S.TextRole, select(S.TextRole).where(S.TextRole.spec_version_id == v)),
+        "palette": (S.PaletteColor, select(S.PaletteColor).where(S.PaletteColor.spec_version_id == v)),
+        "fonts": (S.Font, select(S.Font).where(S.Font.spec_version_id == v)),
+        "sections": (S.Section, select(S.Section).where(S.Section.spec_version_id == v)),
+    }
+
+
+def spec_view(session: Session, version_id, rows: dict | None = None) -> dict:
+    """What the canvas needs from the spec to paint. rows: the spec_queries() results when the caller already
+    read them in its own round trip."""
+    r = rows or fetch(session, spec_queries(version_id))
+    v = r["spec_version"][0]
+    table = r["table_style"][0] if r["table_style"] else None
+    chart = r["chart_style"][0] if r["chart_style"] else None
+    grid = r["grid"][0] if r["grid"] else None
     return {
         "version": {"id": str(v.id), "number": v.number, "spec_id": str(v.spec_id)},
         "page": {"w_in": v.page_w_in, "h_in": v.page_h_in},
-        "palette": {p.name: p.hex for p in q(select(S.PaletteColor).where(S.PaletteColor.spec_version_id == v.id))},
-        "roles": {r.name: {k: getattr(r, k) for k in ROLE} for r in roles},
-        "fonts": {f.role: f.substitute_family or f.family for f in q(select(S.Font).where(S.Font.spec_version_id == v.id))},
+        "palette": {p.name: p.hex for p in r["palette"]},
+        "roles": {x.name: {k: getattr(x, k) for k in ROLE} for x in r["roles"]},
+        "fonts": {f.role: f.substitute_family or f.family for f in r["fonts"]},
         "table_style": {k: getattr(table, k) for k in TABLE} if table else None,
-        "chart_style": {"series_colors": series_colors, "labels_on": chart.labels_on if chart else None,
-                        "gridlines": chart.gridlines if chart else None, "focus_color": chart.focus_color_ref if chart else None},
+        "chart_style": {"series_colors": [c.color_ref for c in sorted(r["series_colors"], key=lambda c: c.position)],
+                        "labels_on": chart.labels_on if chart else None, "gridlines": chart.gridlines if chart else None,
+                        "focus_color": chart.focus_color_ref if chart else None},
         "grid": {k: getattr(grid, k) for k in ("margin_top_in", "margin_right_in", "margin_bottom_in", "margin_left_in",
                                                 "columns", "gutter_in", "snap_in")} if grid else None,
-        "sections": {str(x.id): {"name": x.name, "status": x.status}
-                     for x in q(select(S.Section).where(S.Section.spec_version_id == v.id))},
+        "sections": {str(x.id): {"name": x.name, "status": x.status} for x in r["sections"]},
     }
 
 
 def memo_view(session: Session, memo_id) -> dict:
+    """The memo and the spec's styles: two round trips (the spec's id comes with the memo)."""
     d = MemoData(session, memo_id)
     m = d.memo
-    revision = session.get(RecordRevision, m.record_revision_id)
+    r = fetch(session, {**spec_queries(m.spec_version_id),
+                        "revision": (RecordRevision, select(RecordRevision).where(RecordRevision.id == m.record_revision_id)),
+                        "deal": (Deal, select(Deal).where(Deal.id == m.deal_id))})
+    revision = r["revision"][0]
     return {
         "memo": {"id": str(m.id), "title": m.title, "status": m.status, "sequence": m.sequence or 0,
-                 "deal": session.get(Deal, m.deal_id).name, "stage": d.stage_name, "memo_date": m.memo_date,
+                 "deal": r["deal"][0].name, "stage": d.stage_name, "memo_date": m.memo_date,
                  "record_revision": {"id": str(revision.id), "number": revision.number}},
-        "spec": spec_view(session, m.spec_version_id),
+        "spec": spec_view(session, m.spec_version_id, r),
         "master": [d.element_json(e, master_box=True) for e in sorted(d.master_elements, key=lambda e: e.z_index or 0)],
         "slides": [d.slide_json(s) for s in d.slides],
     }
@@ -64,25 +83,33 @@ RECIPE_KIND = {"fixed": "text", "memo_data": "text", "figure": "chip", "fact": "
 def layouts_view(session: Session, version_id) -> dict:
     """Every layout of a spec version as a sample slide: each box shows its recipe (fixed words, figures as
     chips, what the model or a person writes), so what is approved is what memos will look like."""
-    q = session.scalars
-    layouts = q(select(S.Layout).where(S.Layout.spec_version_id == version_id).order_by(S.Layout.position)).all()
+    v = version_id
+    ids = select(Element.id).where(Element.layout_id.in_(select(S.Layout.id).where(S.Layout.spec_version_id == v)))
+    data = ElementData(session, ids, {
+        **spec_queries(v),
+        "layouts": (S.Layout, select(S.Layout).where(S.Layout.spec_version_id == v)),
+        "recipe": (S.RecipeSegment, select(S.RecipeSegment).where(S.RecipeSegment.element_id.in_(ids))),
+        "concepts": (S.Concept, select(S.Concept).where(S.Concept.spec_version_id == v)),
+        "formats": (S.Format, select(S.Format).where(S.Format.spec_version_id == v, S.Format.example.isnot(None))),
+        "section_layouts": (S.SectionLayout, select(S.SectionLayout).where(
+            S.SectionLayout.section_id.in_(select(S.Section.id).where(S.Section.spec_version_id == v)))),
+    })
+    r = data.rows
+    layouts = sorted(r["layouts"], key=lambda l: l.position)
     master = next((l for l in layouts if l.is_master), None)
-    elements = q(select(Element).where(Element.layout_id.in_([l.id for l in layouts]))).all()
-    data = ElementData(session, elements)
-    recipe = group(q(select(S.RecipeSegment).where(S.RecipeSegment.element_id.in_([e.id for e in elements]))).all(), "element_id")
-    concept_rows = q(select(S.Concept).where(S.Concept.spec_version_id == version_id)).all()
-    concepts = {c.id: c.name for c in concept_rows}
-    kinds = {c.id: c.value_kind for c in concept_rows}
+    elements = data.elements
+    recipe = group(r["recipe"], "element_id")
+    concepts = {c.id: c.name for c in r["concepts"]}
+    kinds = {c.id: c.value_kind for c in r["concepts"]}
     # a figure is shown as the firm writes that kind of value (its own example), so the sample reads like a memo
     examples: dict = {}
-    for f in q(select(S.Format).where(S.Format.spec_version_id == version_id, S.Format.example.isnot(None))):
+    for f in r["formats"]:
         if f.context in ("any", "prose") or f.item not in examples:
             examples[f.item] = f.example.split(", ")[0]
+    section_names = {x.id: x.name for x in r["sections"]}
     sections: dict = {}
-    for link, name in session.execute(select(S.SectionLayout.layout_id, S.Section.name)
-                                      .join(S.Section, S.Section.id == S.SectionLayout.section_id)
-                                      .where(S.Section.spec_version_id == version_id)):
-        sections.setdefault(link, []).append(name)
+    for link in r["section_layouts"]:
+        sections.setdefault(link.layout_id, []).append(section_names.get(link.section_id))
 
     def paragraphs(el: Element, styles: list[dict]) -> list[dict]:
         out: dict[int, list[dict]] = {}
@@ -116,7 +143,7 @@ def layouts_view(session: Session, version_id) -> dict:
     order = lambda e: (e.z_index or 0, e.y_in or 0, e.x_in or 0)
     by_layout = group(elements, "layout_id")
     return {
-        "spec": spec_view(session, version_id),
+        "spec": spec_view(session, version_id, r),
         "master": [element(e, master_box=True) for e in sorted(by_layout.get(master.id, []), key=order)] if master else [],
         "layouts": [{"id": str(l.id), "position": i, "kind": "layout", "revision": 0, "section_id": None, "layout": l.name,
                      "background": l.background_ref, "shows_master": bool(master) and l.shows_master,

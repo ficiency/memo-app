@@ -7,7 +7,10 @@ cell, charts by series. Nothing here knows any firm.
 """
 from __future__ import annotations
 
-from sqlalchemy import select
+import uuid
+from datetime import date, datetime
+
+from sqlalchemy import Date, DateTime, Float, Uuid, func, inspect, literal_column, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import spec as S
@@ -27,31 +30,80 @@ def group(rows, key) -> dict:
     return out
 
 
-class ElementData:
-    """Elements (of a memo's slides or of a spec's layouts) with their text, tables and charts, read in a
-    handful of queries: a remote database answers each round trip slowly."""
+# --- several reads in one round trip -----------------------------------------------------------------------
+def fetch(session: Session, queries: dict) -> dict[str, list]:
+    """Run several selects as one statement: Postgres returns each one's rows as JSON, and they come back as
+    model objects (read-only copies, not in the session). A remote database answers each round trip slowly,
+    so a whole memo is read in one. queries: {name: (Model, select(Model)...)}."""
+    columns = []
+    for name, (_, stmt) in queries.items():
+        sub = stmt.subquery(name)
+        rows = select(func.coalesce(func.json_agg(literal_column(f'"{name}"')), literal_column("'[]'::json"))) \
+            .select_from(sub).scalar_subquery()
+        columns.append(rows.label(name))
+    row = session.execute(select(*columns)).one()
+    return {name: [_model(model, r) for r in (getattr(row, name) or [])] for name, (model, _) in queries.items()}
 
-    def __init__(self, session: Session, elements: list):
+
+def _model(model, data: dict):
+    values = {}
+    for prop in inspect(model).column_attrs:
+        column = prop.columns[0]
+        v = data.get(column.name)
+        if v is not None:
+            if isinstance(column.type, Uuid):
+                v = uuid.UUID(v)
+            elif isinstance(column.type, DateTime):
+                v = datetime.fromisoformat(v)
+            elif isinstance(column.type, Date):
+                v = date.fromisoformat(v)
+            elif isinstance(column.type, Float):             # JSON writes 3.0 as 3
+                v = float(v)
+        values[prop.key] = v
+    return model(**values)
+
+
+def element_queries(element_ids) -> dict:
+    """What an element is made of, for the elements a subquery names: tables, cells, text, charts."""
+    tables = select(ElementTable.id).where(ElementTable.element_id.in_(element_ids))
+    cells = select(TableCell.id).where(TableCell.element_table_id.in_(tables))
+    in_text = or_(ElementParagraph.element_id.in_(element_ids), ElementParagraph.table_cell_id.in_(cells))
+    charts = select(ElementChart.id).where(ElementChart.element_id.in_(element_ids))
+    series = select(ChartSeries.id).where(ChartSeries.element_chart_id.in_(charts))
+    return {
+        "elements": (Element, select(Element).where(Element.id.in_(element_ids))),
+        "tables": (ElementTable, select(ElementTable).where(ElementTable.element_id.in_(element_ids))),
+        "columns": (TableColumn, select(TableColumn).where(TableColumn.element_table_id.in_(tables))),
+        "rows": (TableRow, select(TableRow).where(TableRow.element_table_id.in_(tables))),
+        "cells": (TableCell, select(TableCell).where(TableCell.element_table_id.in_(tables))),
+        "paragraphs": (ElementParagraph, select(ElementParagraph).where(in_text)),
+        "segments": (Segment, select(Segment).where(Segment.paragraph_id.in_(select(ElementParagraph.id).where(in_text)))),
+        "charts": (ElementChart, select(ElementChart).where(ElementChart.element_id.in_(element_ids))),
+        "series": (ChartSeries, select(ChartSeries).where(ChartSeries.element_chart_id.in_(charts))),
+        "points": (ChartPoint, select(ChartPoint).where(ChartPoint.chart_series_id.in_(series))),
+    }
+
+
+class ElementData:
+    """Elements (of a memo's slides or of a spec's layouts) with their text, tables and charts, read in one
+    round trip with whatever else the caller needs (extra queries, kept in self.rows)."""
+
+    def __init__(self, session: Session, element_ids, extra: dict | None = None):
         self.s = session
-        q = session.scalars
-        self.elements = elements
-        self.elements_of = group(elements, "slide_id")
-        tables = q(select(ElementTable).where(ElementTable.element_id.in_([e.id for e in elements]))).all()
-        self.table_of = {t.element_id: t for t in tables}
-        tids = [t.id for t in tables]
-        self.cols_of = group(q(select(TableColumn).where(TableColumn.element_table_id.in_(tids))).all(), "element_table_id")
-        self.rows_of = group(q(select(TableRow).where(TableRow.element_table_id.in_(tids))).all(), "element_table_id")
-        cells = q(select(TableCell).where(TableCell.element_table_id.in_(tids))).all()
-        self.cells_of = group(cells, "element_table_id")
-        paragraphs = list(q(select(ElementParagraph).where(ElementParagraph.element_id.in_([e.id for e in elements])))) +             list(q(select(ElementParagraph).where(ElementParagraph.table_cell_id.in_([c.id for c in cells]))))
-        self.paras_of_element = group([p for p in paragraphs if p.element_id], "element_id")
-        self.paras_of_cell = group([p for p in paragraphs if p.table_cell_id], "table_cell_id")
-        self.segments_of = group(q(select(Segment).where(Segment.paragraph_id.in_([p.id for p in paragraphs]))).all(), "paragraph_id")
-        charts = q(select(ElementChart).where(ElementChart.element_id.in_([e.id for e in elements]))).all()
-        self.chart_of = {c.element_id: c for c in charts}
-        series = q(select(ChartSeries).where(ChartSeries.element_chart_id.in_([c.id for c in charts]))).all()
-        self.series_of = group(series, "element_chart_id")
-        self.points_of = group(q(select(ChartPoint).where(ChartPoint.chart_series_id.in_([x.id for x in series]))).all(), "chart_series_id")
+        self.rows = fetch(session, {**element_queries(element_ids), **(extra or {})})
+        r = self.rows
+        self.elements = r["elements"]
+        self.elements_of = group(self.elements, "slide_id")
+        self.table_of = {t.element_id: t for t in r["tables"]}
+        self.cols_of = group(r["columns"], "element_table_id")
+        self.rows_of = group(r["rows"], "element_table_id")
+        self.cells_of = group(r["cells"], "element_table_id")
+        self.paras_of_element = group([p for p in r["paragraphs"] if p.element_id], "element_id")
+        self.paras_of_cell = group([p for p in r["paragraphs"] if p.table_cell_id], "table_cell_id")
+        self.segments_of = group(r["segments"], "paragraph_id")
+        self.chart_of = {c.element_id: c for c in r["charts"]}
+        self.series_of = group(r["series"], "element_chart_id")
+        self.points_of = group(r["points"], "chart_series_id")
         self.master_elements: list = []
 
     # --- reading -------------------------------------------------------------------------------
@@ -105,41 +157,46 @@ class ElementData:
 
 
 class MemoData(ElementData):
-    """The whole memo (or only some of its elements) and, for the whole memo, the spec's master."""
+    """The whole memo (or only some of its elements) and, for the whole memo, the spec's master: one round trip."""
 
     def __init__(self, session: Session, memo_id, element_ids: list | None = None):
-        q = session.scalars
-        self.memo = session.get(Memo, memo_id)
-        self.version = session.get(S.SpecVersion, self.memo.spec_version_id)
-        self.slides = q(select(Slide).where(Slide.memo_id == self.memo.id, Slide.deleted_at.is_(None))
-                        .order_by(Slide.position)).all()
-        if element_ids is None:
-            elements = q(select(Element).where(Element.slide_id.in_([x.id for x in self.slides]),
-                                               Element.deleted_at.is_(None))).all()
-        else:
-            elements = q(select(Element).where(Element.id.in_(element_ids))).all()
-        super().__init__(session, elements)
-        if element_ids is None:
-            self.load_master()
-
-    def load_master(self) -> None:
-        """The spec's master boxes (logo, rules, footer) and what their text is made of."""
-        q = self.s.scalars
-        v = self.version.id
-        master = self.s.scalar(select(S.Layout).where(S.Layout.spec_version_id == v, S.Layout.is_master))
-        self.master_elements = q(select(Element).where(Element.layout_id == master.id)).all() if master else []
-        master_paras = q(select(ElementParagraph).where(ElementParagraph.element_id.in_([e.id for e in self.master_elements]))).all()
-        for p in master_paras:
-            self.paras_of_element.setdefault(p.element_id, []).append(p)
-        for seg in q(select(Segment).where(Segment.paragraph_id.in_([p.id for p in master_paras]))):
-            self.segments_of.setdefault(seg.paragraph_id, []).append(seg)
-        self.master_recipe = group(q(select(S.RecipeSegment).where(S.RecipeSegment.element_id.in_([e.id for e in self.master_elements]))).all(), "element_id")
-        self.concept_names = {c.id: c.name for c in q(select(S.Concept).where(S.Concept.spec_version_id == v))}
-        self.stage_name = self.s.get(S.Stage, self.memo.stage_id).name if self.memo.stage_id else ""
-        self.layout_rows = {l.id: l for l in q(select(S.Layout).where(S.Layout.spec_version_id == v))}
-        dates = [f for f in q(select(S.Format).where(S.Format.spec_version_id == v, S.Format.item == "date")) if f.pattern]
-        general = [f for f in dates if f.context == "any"] or dates
-        self.date_format = {"pattern": general[0].pattern} if general else None
+        memo_id = uuid.UUID(str(memo_id))
+        version = select(Memo.spec_version_id).where(Memo.id == memo_id).scalar_subquery()
+        slides = select(Slide.id).where(Slide.memo_id == memo_id, Slide.deleted_at.is_(None))
+        ids = select(Element.id).where(Element.slide_id.in_(slides), Element.deleted_at.is_(None)) if element_ids is None \
+            else select(Element.id).where(Element.id.in_(element_ids))
+        extra = {"memo": (Memo, select(Memo).where(Memo.id == memo_id)),
+                 "version": (S.SpecVersion, select(S.SpecVersion).where(S.SpecVersion.id == version)),
+                 "slides": (Slide, select(Slide).where(Slide.memo_id == memo_id, Slide.deleted_at.is_(None)))}
+        whole = element_ids is None
+        if whole:
+            master = select(Element.id).where(Element.layout_id.in_(
+                select(S.Layout.id).where(S.Layout.spec_version_id == version, S.Layout.is_master)))
+            ids = ids.union(master)                              # the master's text is read with the memo's
+            extra |= {
+                "layouts": (S.Layout, select(S.Layout).where(S.Layout.spec_version_id == version)),
+                "recipe": (S.RecipeSegment, select(S.RecipeSegment).where(S.RecipeSegment.element_id.in_(master))),
+                "concepts": (S.Concept, select(S.Concept).where(S.Concept.spec_version_id == version)),
+                "stage": (S.Stage, select(S.Stage).where(
+                    S.Stage.id == select(Memo.stage_id).where(Memo.id == memo_id).scalar_subquery())),
+                "dates": (S.Format, select(S.Format).where(S.Format.spec_version_id == version, S.Format.item == "date")),
+            }
+        super().__init__(session, ids, extra)
+        r = self.rows
+        self.memo, self.version = r["memo"][0], r["version"][0]
+        self.slides = sorted(r["slides"], key=lambda x: x.position)
+        if whole:
+            master_ids = {l.id for l in r["layouts"] if l.is_master}
+            self.master_elements = [e for e in self.elements if e.layout_id in master_ids]
+            self.elements = [e for e in self.elements if e.slide_id is not None]
+            self.elements_of.pop(None, None)
+            self.master_recipe = group(r["recipe"], "element_id")
+            self.concept_names = {c.id: c.name for c in r["concepts"]}
+            self.stage_name = r["stage"][0].name if r["stage"] else ""
+            self.layout_rows = {l.id: l for l in r["layouts"]}
+            dates = [f for f in r["dates"] if f.pattern]
+            general = [f for f in dates if f.context == "any"] or dates
+            self.date_format = {"pattern": general[0].pattern} if general else None
 
     def shows_master(self, slide: Slide) -> bool:
         layout = self.layout_rows.get(slide.layout_id)
