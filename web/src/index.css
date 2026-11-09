@@ -323,3 +323,24 @@ button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
 .add-section { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
 .add-section.full { opacity: 0.6; }
 .add-layouts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+/* slides the firm leaves free: their free area, and grips to move, resize or remove people's own boxes */
+.slide-paper .free-zone { position: absolute; border: 1px dashed rgb(47 74 122 / 0%); pointer-events: none; transition: border-color 0.15s; }
+.slide-paper.free:hover .free-zone { border-color: rgb(47 74 122 / 30%); }
+.slide-paper .grips { position: absolute; pointer-events: none; z-index: 5000; outline: 1px solid transparent; }
+.slide-paper.free:hover .grips, .slide-paper .grips.dragging { outline-color: rgb(47 74 122 / 35%); }
+.slide-paper .grips.dragging { outline: 1px solid var(--accent); }
+.slide-paper .grip { position: absolute; pointer-events: auto; display: none; place-items: center; width: 18px; height: 18px; border-radius: 4px;
+  background: #fff; border: 1px solid #c9d1de; color: #5b6b85; font-size: 11px; line-height: 1; user-select: none; }
+.slide-paper.free:hover .grip, .slide-paper .grips.dragging .grip { display: grid; }
+.slide-paper .grip.move { top: 2px; left: 2px; cursor: move; }
+.slide-paper .grip.remove { top: 2px; right: 2px; cursor: pointer; }
+.slide-paper .grip.remove:hover { color: #c92a2a; border-color: #c92a2a; }
+.slide-paper .grip.resize { bottom: 2px; right: 2px; cursor: nwse-resize; width: 12px; height: 12px; border-radius: 2px; }
+.slide-caption .add-boxes { margin-left: auto; display: flex; gap: 10px; align-items: baseline; }
+.match.two { grid-template-columns: 1fr auto; margin: 0; color: var(--ink); cursor: pointer; align-items: center; padding: 8px 10px; }
+.pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-height: 340px; overflow: auto; }
+.pick-grid h3 { font-size: 13px; margin: 0 0 6px; }
+.dialog label.check { display: flex; gap: 6px; align-items: center; margin: 4px 0; color: var(--ink); }
+.dialog label.check > input { margin: 0; width: auto; }
+.match.two input[type="checkbox"], .dialog label.check input[type="checkbox"] { width: auto; }

@@ -131,6 +131,7 @@ export type SlideData = {
   revision: number;
   section_id: string | null;
   layout: string | null;
+  layout_id?: string | null;
   background: string | null;
   shows_master: boolean;
   elements: El[];
@@ -154,6 +155,7 @@ export type SpecView = {
   table_style: Record<string, string | number | boolean | null> | null;
   chart_style: { series_colors: string[]; labels_on: boolean | null; gridlines: boolean | null; focus_color: string | null };
   grid: Record<string, number | null> | null;
+  zones?: Record<string, number[]>; // layout id → [x, y, w, h] in inches: where people may place their own boxes
   sections: Record<
     string,
     {

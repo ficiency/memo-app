@@ -19,6 +19,8 @@ export type Interaction = {
   // a figure was deleted while typing: ask whether to take it out of the box (true) or put it back (false)
   askRemove: (el: El, chips: Seg[], text: string, seenRevision: number, removeChips: string[]) => Promise<boolean>;
   proposed?: Set<string>; // boxes an open proposal would change
+  onFrame?: (el: El, frame: { x_in: number; y_in: number; w_in: number; h_in: number }) => void; // a box moved or resized
+  onRemoveBox?: (el: El) => void;
 };
 
 function Segments({ segments, page }: { segments: Seg[]; page: number }) {
@@ -335,28 +337,103 @@ function ElementView({ el, styler, page, ui }: { el: El; styler: Styler; page: n
   );
 }
 
+type Frame4 = { x_in: number; y_in: number; w_in: number; h_in: number };
+const SNAP = 0.1;
+const snapTo = (v: number) => Math.round(v / SNAP) * SNAP;
+
 export function Slide({
   slide,
   master,
   styler,
   ui,
+  zone,
 }: {
   slide: SlideData;
   master: El[];
   styler: Styler;
   ui: Interaction;
+  zone?: number[] | null; // the free area of a slide the firm leaves free: boxes there move and resize
 }) {
   const page = slide.position + 1;
   const { w_in, h_in } = styler.spec.page;
+  // the frame shown while dragging, and after release until the saved box arrives (a refusal puts it back)
+  const [drag, setDrag] = useState<{ id: string; frame: Frame4; revision: number } | null>(null);
+  // the boxes inside the free area move; the header and footer around it stay where the firm puts them
+  const movable = (el: El) => {
+    if (!zone || el.master || el.firm_lock === "fixed" || el.type === "line") return false;
+    const [zx, zy, zw, zh] = zone;
+    const f = el.frame;
+    return f.x_in >= zx - 0.05 && f.y_in >= zy - 0.05 && f.x_in + f.w_in <= zx + zw + 0.05 && f.y_in + f.h_in <= zy + zh + 0.05;
+  };
+  const shown = (el: El) => (drag?.id === el.id && drag.revision === el.revision ? { ...el, frame: { ...el.frame, ...drag.frame } } : el);
+
+  // drag a grip: the box follows (snapped, inside the zone); on release the door decides
+  const start = (e: React.PointerEvent, el: El, mode: "move" | "resize") => {
+    if (!zone) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const paper = (e.currentTarget as HTMLElement).closest(".slide-paper") as HTMLElement;
+    const scale = paper.getBoundingClientRect().width / paper.offsetWidth;
+    const [zx, zy, zw, zh] = zone;
+    const from = { x: e.clientX, y: e.clientY };
+    const base: Frame4 = { x_in: el.frame.x_in, y_in: el.frame.y_in, w_in: el.frame.w_in, h_in: el.frame.h_in };
+    let last = base;
+    const move = (ev: PointerEvent) => {
+      const dx = (ev.clientX - from.x) / scale / 96;
+      const dy = (ev.clientY - from.y) / scale / 96;
+      let f: Frame4;
+      if (mode === "move") {
+        f = {
+          ...base,
+          x_in: Math.min(Math.max(snapTo(base.x_in + dx), zx), zx + zw - base.w_in),
+          y_in: Math.min(Math.max(snapTo(base.y_in + dy), zy), zy + zh - base.h_in),
+        };
+      } else {
+        f = {
+          ...base,
+          w_in: Math.max(0.5, Math.min(snapTo(base.w_in + dx), zx + zw - base.x_in)),
+          h_in: Math.max(0.3, Math.min(snapTo(base.h_in + dy), zy + zh - base.y_in)),
+        };
+      }
+      last = f;
+      setDrag({ id: el.id, frame: f, revision: el.revision });
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (last === base) return setDrag(null);
+      ui.onFrame?.(el, last);
+      window.setTimeout(() => setDrag((d) => (d?.id === el.id && d.frame === last ? null : d)), 2500);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   return (
     <div
-      className="slide-paper"
+      className={`slide-paper${zone ? " free" : ""}`}
       style={{ width: px(w_in), height: px(h_in), background: styler.color(slide.background) ?? "#ffffff" }}
     >
       {slide.shows_master && master.map((el) => <ElementView key={el.id} el={el} styler={styler} page={page} ui={ui} />)}
+      {zone && <div className="free-zone" style={{ left: px(zone[0]), top: px(zone[1]), width: px(zone[2]), height: px(zone[3]) }} />}
       {slide.elements.map((el) => (
-        <ElementView key={el.id} el={el} styler={styler} page={page} ui={ui} />
+        <ElementView key={el.id} el={shown(el)} styler={styler} page={page} ui={ui} />
       ))}
+      {slide.elements.filter(movable).map((el) => {
+        const f = shown(el).frame;
+        return (
+          <div key={`g${el.id}`} className={`grips${drag?.id === el.id ? " dragging" : ""}`}
+               style={{ left: px(f.x_in), top: px(f.y_in), width: px(f.w_in), height: px(f.h_in) }}>
+            <span className="grip move" title="Drag to move" onPointerDown={(e) => start(e, el, "move")}>⠿</span>
+            <span className="grip resize" title="Drag to resize" onPointerDown={(e) => start(e, el, "resize")} />
+            {ui.onRemoveBox && (
+              <span className="grip remove" title="Remove this box" onPointerDown={(e) => e.stopPropagation()} onClick={() => ui.onRemoveBox?.(el)}>
+                ✕
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
