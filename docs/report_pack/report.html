@@ -318,8 +318,6 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
       <tr><td class="lab">Agent request (all firms)</td><td colspan="3">about $0.05, median 13 s, longest 46 s (31 requests); about $0.08 for custom slides</td></tr>
     </tbody>
   </table></div>
-  <p class="caption">Also: our text measure agrees with PowerPoint on fit for 208/210 boxes; after PowerPoint desktop saves
-  an edited file, 336/336 untouched boxes are identical and 244/244 shapes keep their id.</p>
 </section>
 
 <section>
@@ -339,6 +337,10 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <p><strong>47 issues</strong> logged while building and testing, each with cause, severity and status. The
   evals found three late, fixed at the root: unmeasured tables, lost template bullets and indents, a
   picture PowerPoint saved without an embedded image refusing the whole file. Every open issue was re-checked on the final code's exports.</p>
+  <p><strong>How often, in the final runs:</strong> never lost an edit (5 rounds per firm), cut text silently (0 of 177
+  long-content cases) or put a figure off the record (0 of 263); our text measure disagrees with PowerPoint on 2 of 210
+  boxes; long content does not fit and is reported in 65 of 177 cases (37%); 5 of 6 native charts show an unformatted
+  axis; Lumen's generated footer is cut on its slides.</p>
   <div class="bar" role="img" aria-label="33 fixed, 13 open, 1 not a bug">
     <i style="flex:33;background:var(--ok)"></i><i style="flex:13;background:var(--bad)"></i><i style="flex:1;background:var(--muted)"></i>
   </div>
