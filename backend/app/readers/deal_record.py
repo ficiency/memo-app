@@ -7,7 +7,8 @@ rows; nothing after the reader depends on the JSON's shape.
 
 Paths:
     field:<id>                               a field (fields[])
-    table:<table>[<row key>].<column>        a table cell; the row key is the row's first value
+    table:<table>[<row key>].<column>        a table cell; the row key is the row's first value, made unique
+                                             when it repeats (row_keys)
     angle_table:<angle>.<table>[<row>].<col> a cell of a table inside an angle
     series:<name>[<x>]                       a point of a series
     narrative:<key> | narrative:<key>[<id or index>].<field>
@@ -70,6 +71,27 @@ def _text(v) -> str:
     return v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
 
 
+def row_keys(rows: list) -> list[str]:
+    """Each table row's name in its paths: its first value; when that repeats in the table, the first next value
+    that tells the rows apart is added ("Larkspur Ventures · Series A Preferred"), else its count ("#2").
+    Rows whose first value is unique keep that name, so paths that exist stay the same."""
+    first = [str(r[0]) if r else "" for r in rows]
+    keys = []
+    for i, row in enumerate(rows):
+        same = [j for j, f in enumerate(first) if f == first[i]]
+        if len(same) == 1:
+            keys.append(first[i])
+            continue
+        key = None
+        for c in range(1, max(len(rows[j]) for j in same)):
+            values = [str(rows[j][c]) if c < len(rows[j]) else "" for j in same]
+            if len(set(values)) == len(values):                 # this column tells every one of them apart
+                key = f"{first[i]} · {values[same.index(i)]}"
+                break
+        keys.append(key or f"{first[i]} #{same.index(i) + 1}")
+    return keys
+
+
 def read(path: str | Path) -> dict:
     record = json.loads(Path(path).read_text(encoding="utf-8"))
     as_of = date.fromisoformat(str(record.get("as_of"))[:10]) if record.get("as_of") else None
@@ -96,9 +118,9 @@ def read(path: str | Path) -> dict:
 
     def table(prefix: str, name: str, t: dict) -> None:
         cols = [c if isinstance(c, dict) else {"id": str(c)} for c in t.get("columns") or []]
-        for row in t.get("rows") or []:
-            key = str(row[0])
-            period = key if period_end(key, fy_end) else None
+        rows = t.get("rows") or []
+        for row, key in zip(rows, row_keys(rows)):
+            period = str(row[0]) if period_end(str(row[0]), fy_end) else None
             for col, value in zip(cols[1:], row[1:]):
                 add(f"{prefix}{name}[{key}].{col['id']}", value, col.get("kind"), t.get("unit"), period,
                     f"{prefix}{name}.{col['id']}", f"{col.get('label') or col['id']} ({key})", t.get("source"))
@@ -117,6 +139,10 @@ def read(path: str | Path) -> dict:
                 if isinstance(item, dict):
                     first = next((x for x in item.values() if isinstance(x, str) and len(x) <= 60), None)
                     ident = item.get("id") or first or i
+                    named = [x.get("id") or next((y for y in x.values() if isinstance(y, str) and len(y) <= 60), None)
+                             for x in v[:i] if isinstance(x, dict)]
+                    if ident in named:                          # two items with the same name: the second is #2
+                        ident = f"{ident} #{named.count(ident) + 1}"
                 if isinstance(item, dict):
                     for k, val in item.items():
                         if k != "id":
@@ -134,6 +160,9 @@ def read(path: str | Path) -> dict:
                     table(f"angle_table:{angle}.", name, t)
             else:
                 add(f"angle:{angle}.{key}", v, "text")
+    repeated = sorted({r["path"] for r in rows if sum(1 for x in rows if x["path"] == r["path"]) > 1})
+    if repeated:                                                 # every datum must have its own name
+        raise ValueError(f"the record names {len(repeated)} values the same way: {', '.join(repeated[:5])}")
     angles = {name: body.get("memo_name") for name, body in (record.get("angles") or {}).items()}
     return {"format": FORMAT, "deal": (record.get("company") or {}).get("name") or record.get("record_id"),
             "as_of": str(as_of) if as_of else None, "currency": record.get("reporting_currency"),
