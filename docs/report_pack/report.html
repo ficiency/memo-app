@@ -53,10 +53,11 @@ code, .mono { font-family: var(--mono); font-size: 0.9em; }
 .pl { font-weight: 600; font-size: 13px; }
 .pl span { display: block; font: 400 11px var(--mono); color: var(--muted); }
 .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; font-size: 12.5px; counter-reset: s; }
+.steps.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .steps li { max-width: none; min-width: 0; padding: 3px 10px 3px 18px; position: relative; border-left: 1px solid var(--rule); }
 .steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 6px; top: 3px; font: 500 10px var(--mono); color: var(--accent); }
 .steps li.door { background: var(--tint); box-shadow: inset 2px 0 0 var(--accent); }
-@media (max-width: 720px) { .path { grid-template-columns: 1fr; gap: 4px; } .steps { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .path { grid-template-columns: 1fr; gap: 4px; } .steps, .steps.six { grid-template-columns: 1fr; } }
 .next { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; }
 .next li { max-width: none; }
 .next li.nb { list-style: none; margin-left: -18px; color: var(--muted); }
@@ -179,7 +180,7 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
 
 <section>
   <h2><span class="n">01</span>How it works underneath</h2>
-  <p>Three things are stored apart in Postgres, each versioned, so one can change without corrupting the others:</p>
+  <p>Three things are stored apart in Postgres, each versioned, so one changes without corrupting the others:</p>
   <div class="data">
     <div><h3>Deal record <span>the facts</span></h3><ul>
       <li><code>record_revisions</code>: one per upload, with who and from which revision; a full copy, never overwritten.</li>
@@ -187,17 +188,24 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
       <li><code>bindings</code>: per firm and record format, where each figure comes from (path or formula).</li></ul></div>
     <div><h3>Firm spec <span>the rules; every row carries its version</span></h3><ul>
       <li><code>sections</code>, <code>stages</code>, <code>order_constraints</code>, <code>rules</code>: locked, mandatory, optional or free; slide counts; order; rules as type + parameters.</li>
-      <li><code>layouts</code>, <code>layout_zones</code>: each layout's boxes (stored as elements, like the memo's) and its free area.</li>
+      <li><code>layouts</code>, <code>layout_zones</code>: each layout's boxes (as elements) and free area.</li>
       <li><code>text_roles</code>, <code>formats</code>: size and minimum per role; number formats as fields (decimals, scale, symbol).</li>
-      <li><code>concepts</code>, <code>recipe_segments</code>: the firm's named figures, and what fills each box: fixed words, a figure, text the model or a person writes.</li></ul></div>
+      <li><code>concepts</code>, <code>recipe_segments</code>: named figures; what fills each box (fixed words, a figure, text to write).</li></ul></div>
     <div><h3>Memo <span>what people did</span></h3><ul>
-      <li><code>memos</code>: pinned to one spec version and one record revision.</li>
+      <li><code>memos</code>: pinned to a spec version and a record revision.</li>
       <li><code>slides</code> → <code>elements</code> (type, place in inches, role, lock, revision) → <code>element_paragraphs</code> → <code>segments</code>: text, a slot to write, or a <strong>figure</strong> that keeps its record path and value.</li>
       <li>History, only appended to: <code>operations</code>, <code>conflicts</code>, <code>memo_updates</code>, <code>pending_dismissals</code>.</li></ul></div>
   </div>
   <p>One box model serves the firm's layouts, the canvas and PowerPoint. Row-level security is on and the backend is
-  the database's only client. Five paths do all the work:</p>
+  the database's only client. Six paths do all the work:</p>
   <div class="paths">
+    <div class="path"><div class="pl">Onboarding<span>once per firm; code checks each step, a person approves</span></div><ol class="steps six">
+      <li>Materials: code reads every file</li>
+      <li>House style: colours, fonts, formats</li>
+      <li>Structure: sections, order, stages</li>
+      <li>Layouts: from the template, or designed from the guide</li>
+      <li>Recipe: what fills each box</li>
+      <li>Rules: the guide's logic, typed</li></ol></div>
     <div class="path"><div class="pl">One edit<span>canvas, agent or PowerPoint</span></div><ol class="steps">
       <li>An operation arrives: what, which box, the box revision the editor saw</li>
       <li class="door">The door: does this person hold the box? Do the firm's rules allow it (locked boxes, free area and grid, slide counts and order, figures never typed over)?</li>
@@ -223,7 +231,7 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
       <li>See changes: each figure worked out again the way it was made (binding or record path), before → after</li>
       <li>Apply changes figures only; people's words stay</li></ol></div>
   </div>
-  <p class="caption"><strong>Kept aside</strong>: an edit that would overwrite newer work, stored as a visible conflict with its content (you edit in PowerPoint a box a colleague rewrote in the app since your export: both are kept, a person picks). <strong>Pending</strong>: what the memo still needs from a person, computed from the memo as it is, never stored (a figure the record lacks, a box still to write, a pasted picture to confirm).</p>
+  <p class="caption"><strong>Kept aside</strong>: an edit that would overwrite newer work, kept as a visible conflict (a box you edit in PowerPoint that a colleague rewrote since your export). <strong>Pending</strong>: what the memo still needs from a person, worked out by code (a figure the record lacks, a box to write, a picture to confirm).</p>
 </section>
 
 <section>
@@ -231,12 +239,12 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <div class="tw"><table>
     <thead><tr><th>Capability</th><th>What the system does</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td class="k">1 · The template lives in the platform</td><td>Onboarding takes whatever the firm sends (template, guide, past memos, or part of them), says what is missing, and has the model propose what no file has from the rest (Lumen's layouts and master from its guide). Six steps (materials, house style, structure, layouts, recipe, rules), each checked by code and approved by a person, write a versioned spec. Memos change version only by a person, after See changes.<div class="gap">building or editing a template inside the app.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
+      <tr><td class="k">1 · The template lives in the platform</td><td>Onboarding takes whatever the firm sends (template, guide, past memos, or part of them), says what is missing, and has the model propose what no file has from the rest (Lumen's layouts and master from its guide). The six steps (01) write a versioned spec. Memos change version only by a person, after See changes.<div class="gap">building or editing a template inside the app.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
       <tr><td class="k">2 · One memo, every output</td><td>Native PowerPoint on the firm's own master (generated from the guide for Lumen); PDF converted from it by PowerPoint. Text measured in the firm's real fonts; shrunk to the firm's minimum, then flagged "does not fit".<div class="gap">long content is reported, not continued on another slide.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
-      <tr><td class="k">3 · A live editor</td><td>Template slides locked to their layout. Free slides take text, record tables and charts, and pictures inside the free area, on the grid. Sections reorder where the rules allow. Every edit checked on the server and broadcast live.</td><td><span class="pill ok">Built</span></td></tr>
-      <tr><td class="k">4 · Custom slides, three ways in</td><td>Upload a PowerPoint or PDF slide (native where possible, flagged pictures where not), build on the canvas, or ask the agent.<div class="gap">promoting a one-off slide into the template.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
-      <tr><td class="k">5 · AI edits are operations</td><td>Proposals checked by the same door, applied by a person. Figures cited by name or record path, so one figure is one value in text, table and chart.</td><td><span class="pill ok">Built</span></td></tr>
-      <tr><td class="k">6 · PowerPoint is an editor</td><td>The edited file comes back as operations: free edits applied, typed-over figures refused, edits that collide kept aside. A newer record moves figures and keeps people's words.</td><td><span class="pill ok">Built</span></td></tr>
+      <tr><td class="k">3 · A live editor</td><td>Template slides locked to their layout; free slides take text, record tables and charts, and pictures in the free area, on the grid. Sections reorder where the rules allow; every edit is checked on the server and broadcast live.</td><td><span class="pill ok">Built</span></td></tr>
+      <tr><td class="k">4 · Custom slides, three ways in</td><td>Upload a PowerPoint or PDF slide (native where possible, else a flagged picture), build on the canvas, or ask the agent.<div class="gap">promoting a one-off slide into the template.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
+      <tr><td class="k">5 · AI edits are operations</td><td>Proposals checked by the same door, applied by a person; figures cited from the record, so one figure is one value in text, table and chart.</td><td><span class="pill ok">Built</span></td></tr>
+      <tr><td class="k">6 · PowerPoint is an editor</td><td>The edited file comes back as operations: free edits applied, typed-over figures refused, collisions kept aside; a newer record keeps people's words.</td><td><span class="pill ok">Built</span></td></tr>
     </tbody>
   </table></div>
 </section>
@@ -245,7 +253,7 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <h2><span class="n">03</span>Where the brief was silent: what we chose, and why</h2>
   <ul class="tight">
     <li><strong>Identity is a hidden id</strong> in each shape's name, not titles or positions: people rename, reorder and move. It survives PowerPoint saving the file.</li>
-    <li><strong>Collisions never overwrite</strong>: one person holds a box at a time, a stale edit is kept aside, a newer record never applies itself. Visible conflicts over merging.</li>
+    <li><strong>Collisions never overwrite</strong>: one person holds a box at a time, a stale edit is kept aside, a newer record never applies itself.</li>
     <li><strong>A typed-over figure is refused, not written back</strong>: a typo in a deck should not change the facts every memo and firm reads.</li>
     <li><strong>Freedom only inside the firm's free areas</strong>, on the grid; every picture is a pending, since it may be a chart pasted as an image.</li>
   </ul>
@@ -255,9 +263,9 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <h2><span class="n">04</span>The screens where people check and steer</h2>
   <ul class="tight">
     <li><strong>Firm setup</strong>: each onboarding step's answer, what code could not resolve, every guide-versus-template conflict with both sides' evidence; nothing lands unapproved.</li>
-    <li><strong>Deal record</strong>: upload a file or edit values in place; each save is a new revision (memos stay on theirs), and a changed number offers to update its twins.</li>
-    <li><strong>Bindings</strong>: where each figure comes from, flagged (no value, broken path, moved since the last upload, a twin of another figure, wrong kind); a person can change any binding.</li>
-    <li><strong>In the memo</strong>: pendings worked out by code (no model), agent proposals applied change by change, and See changes before a newer record or template version lands.</li>
+    <li><strong>Deal record</strong>: upload a file or edit values in place; each save is a new revision; a changed number offers to update its twins.</li>
+    <li><strong>Bindings</strong>: where each figure comes from, flagged (no value, broken path, value moved, a twin, wrong kind); a person can change any binding.</li>
+    <li><strong>In the memo</strong>: pendings worked out by code (no model), agent proposals applied change by change, See changes before a newer record or template lands.</li>
   </ul>
 </section>
 
@@ -321,16 +329,16 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   with a template". We rebuilt it at the
   root: six steps inside the product, each model answer checked by code and approved by a person, layouts and a
   master designed from the guide when there is no template. That code is generic: <strong>no line of code names a
-  firm</strong> (0 hits across backend, scripts and evals). With it, Lumen itself is all configuration: 10 layouts
-  with a generated master, 81 boxes, 9 text roles, 16 formats, 55 rules, 57 recipe segments, 38 figures, 9 free areas.
+  firm</strong> (0 hits in backend, scripts, evals). With it, Lumen itself is all configuration: 10 layouts
+  with a generated master, 81 boxes, 16 formats, 55 rules, 57 recipe segments, 38 figures.
   It also exposed a bug in every firm (unmeasured tables), fixed for all.</p>
 </section>
 
 <section>
   <h2><span class="n">07</span>Where it breaks, and how often</h2>
   <p><strong>45 issues</strong> logged while building and testing, each with cause, severity and status. The
-  evals found three late, fixed at the root: tables without column definitions not measured, template bullets and
-  indents lost, a picture PowerPoint saved without an embedded image refusing the whole file. The 10 open ones are from earlier runs, not re-confirmed on the final code.</p>
+  evals found three late, fixed at the root: unmeasured tables, lost template bullets and indents, a
+  picture PowerPoint saved without an embedded image refusing the whole file. The 10 open ones are from earlier runs, not re-confirmed on the final code.</p>
   <div class="bar" role="img" aria-label="32 fixed, 2 partly fixed, 10 open, 1 not a bug">
     <i style="flex:32;background:var(--ok)"></i><i style="flex:2;background:var(--warn)"></i><i style="flex:10;background:var(--bad)"></i><i style="flex:1;background:var(--muted)"></i>
   </div>
