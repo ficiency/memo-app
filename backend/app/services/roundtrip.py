@@ -208,7 +208,7 @@ def import_pptx(memo_id, edited: Path, export_id=None, actor_email: str | None =
 
     with SessionLocal() as session:
         memo = session.get(Memo, uuid.UUID(str(memo_id)))
-        q = select(Export).where(Export.memo_id == memo.id)
+        q = select(Export).where(Export.memo_id == memo.id, Export.format == "pptx")   # never a PDF
         exp = session.get(Export, uuid.UUID(str(export_id))) if export_id else session.scalars(q.order_by(Export.created_at.desc())).first()
         exported = Path(session.get(Asset, exp.asset_id).storage_path)
         user = session.scalar(select(S.User).where(S.User.email == actor_email)) if actor_email else None

@@ -243,6 +243,21 @@ async def export(memo_id: str, user: S.User = Depends(current_user)):
                         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation")
 
 
+@router.get("/{memo_id}/export.pdf")
+async def export_pdf(memo_id: str, user: S.User = Depends(current_user)):
+    """The memo as a PDF for committee: the painted PowerPoint, converted (it reads as the PowerPoint does)."""
+    from ..services import pdf
+    with SessionLocal() as session:
+        memo = own_memo(session, user, memo_id)
+        name = "".join(c if c.isalnum() or c in " -_" else "_" for c in memo.title).strip() or "memo"
+    out = FILES / "exports" / memo_id / f"{datetime.now():%Y%m%d_%H%M%S}.pdf"
+    try:
+        await run_in_threadpool(pdf.export_pdf, memo_id, out)
+    except ValueError as e:
+        raise HTTPException(503, str(e))
+    return FileResponse(out, filename=f"{name}.pdf", media_type="application/pdf")
+
+
 @router.post("/{memo_id}/upload")
 async def upload(memo_id: str, file: UploadFile, user: S.User = Depends(current_user)) -> dict:
     """One way in for a PowerPoint or a PDF; the file says what it is:

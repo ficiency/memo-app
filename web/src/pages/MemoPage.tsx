@@ -370,6 +370,30 @@ export function MemoPage() {
     window.setTimeout(() => setBusy(null), 2500);
   };
 
+  // the PDF for committee: the painted PowerPoint, converted; it takes a few seconds, so it is fetched and saved
+  const exportPdf = async () => {
+    setBusy("Making the PDF…");
+    try {
+      await waitSaved();
+      const res = await fetch(withEmail(`/memos/${memoId}/export.pdf`));
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail ?? `${res.status} ${res.statusText}`);
+      // the file name the server gives: filename*=utf-8''… (encoded) or filename="…"
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const encoded = /filename\*=(?:utf-8|UTF-8)''([^;]+)/.exec(disposition)?.[1];
+      const name = encoded ? decodeURIComponent(encoded) : /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? "memo.pdf";
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      setNotice({ title: "The PDF was not made", body: (e as Error).message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   // what an update brings: a newer record revision, or the memo's own revision when the binding changed
   const updateTarget = update?.available ?? (update?.binding_changes.length ? update.current : null);
 
@@ -615,8 +639,11 @@ export function MemoPage() {
                   title="This memo's PowerPoint, edited, comes back with its changes; any other PowerPoint or PDF adds its slides">
             {uploading ? "Bringing it in…" : "Upload PowerPoint or PDF"}
           </button>
+          <button onClick={exportPdf} disabled={Boolean(busy)}>
+            {busy === "Making the PDF…" ? busy : "Export PDF"}
+          </button>
           <button className="primary" onClick={exportPptx} disabled={Boolean(busy)}>
-            {busy ?? "Export PowerPoint"}
+            {busy && busy !== "Making the PDF…" ? busy : "Export PowerPoint"}
           </button>
         </div>
       </div>

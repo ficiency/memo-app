@@ -24,6 +24,7 @@ app.add_middleware(
     allow_origins=[o.strip() for o in settings.cors_origins.split(",")],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],             # a download's file name, read by the page that fetched it
 )
 app.include_router(health.router)
 app.include_router(firms.router)
