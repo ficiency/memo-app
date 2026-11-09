@@ -10,7 +10,7 @@ Operation: {"type": ..., "target": <element or slide id>, "base_revision": <the 
             "payload": {...}}
 Types: set_text, set_cell, set_frame, set_style, set_user_lock, delete_element, set_chart_data, keep_aside
        (one element each), add_element, add_slide, duplicate_slide, move_slide, delete_slide (the memo's
-       structure).
+       structure), apply_update, ignore_update (a newer deal record: its figures written in, or not).
 
 How an edit of one element lands, in few round trips (the database is remote, each one is slow):
   1. read the memo, the element and its text in one statement, outside any transaction;
@@ -37,12 +37,15 @@ from app.db import spec as S
 from app.db.history import Conflict, Operation
 from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
                          Segment, Slide, TableCell, TableColumn, TableRow)
+from app.db.record import RecordRevision
+from app.services import updates
 from app.services.memo_data import MemoData, fetch
 
 FRAME = ("x_in", "y_in", "w_in", "h_in", "rotation_deg")
 STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anchor")
 COLOUR_FIELDS = ("color_ref", "fill_ref", "line_ref", "bullet_color_ref")
 SLOTS = ("model_draft", "person_slot", "conditional")
+STRUCTURE = ("add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide", "apply_update", "ignore_update")
 ELEMENT_OPS = ("set_text", "set_cell", "set_chart_data", "set_frame", "set_style", "delete_element", "set_user_lock")
 
 
@@ -116,7 +119,7 @@ class Door:
               held_by: str | None = None) -> Result:
         """held_by: who is editing the target element right now (real time), when it is not the actor."""
         kind = op.get("type")
-        if kind in ("add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide"):
+        if kind in STRUCTURE:
             return self._apply_structure(op, actor_type, actor_id, on_behalf_of, change_set_id)
         return self._apply_element(op, actor_type, actor_id, on_behalf_of, change_set_id, held_by)
 
@@ -430,6 +433,24 @@ class Door:
                 self.s.flush()
                 self.s.add(Segment(paragraph_id=para.id, position=0, kind="text", text=text))
         return [el.id]
+
+    def update_revision(self, op):
+        rev = self.s.get(RecordRevision, _uuid((op.get("payload") or {}).get("revision_id")))
+        current = self.s.get(RecordRevision, self.memo.record_revision_id)
+        if rev is None or rev.deal_id != current.deal_id or rev.firm_id != self.memo.firm_id:
+            raise Refuse("that record revision is not this deal's")
+        if rev.id == current.id:
+            raise Refuse(f"the memo is already on record revision {rev.number}")
+        return rev
+
+    def _apply_update(self, op, actor_type, actor_id):
+        """A newer deal record's figures written into the memo: people's words stay, nothing is deleted."""
+        rev = self.update_revision(op)
+        self.update_count = updates.apply(self.s, self.memo, rev.id, actor_id)
+
+    def _ignore_update(self, op, actor_type, actor_id):
+        """The memo stays on its record revision; the newer one is not offered again."""
+        self.update_revision(op)
 
     def order(self) -> list[Slide]:
         return self.s.scalars(select(Slide).where(Slide.memo_id == self.memo.id, Slide.deleted_at.is_(None))

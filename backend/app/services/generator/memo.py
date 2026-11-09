@@ -216,7 +216,9 @@ class Generator:
         self.new(Operation, memo_id=self.memo.id, sequence=self.sequence, actor_type="generator", op_type=op_type,
                  target_id=target_id, payload=payload, status="applied")
 
-    def run(self) -> dict:
+    def run(self, save: bool = True) -> dict:
+        """Build the memo. With save=False nothing is written: the rows come back (what this spec and record would
+        give now, to compare with a memo already made)."""
         started = time.perf_counter()
         deal_name = self.record.text("company:name") or "Deal"
         self.memo = self.new(Memo, firm_id=self.firm.id, deal_id=self.revision.deal_id, spec_version_id=self.version.id,
@@ -245,6 +247,8 @@ class Generator:
                 self.add_element(slide, el)
             position += 1
         self.memo.sequence = self.sequence
+        if not save:
+            return {"rows": self.rows, "seconds": round(time.perf_counter() - started, 2)}
         # one batch per table, parents before children (the models declare foreign keys, not relationships)
         for cls in (Memo, Slide, Element, ElementTable, TableColumn, TableRow, TableCell, ElementParagraph, Segment,
                     ElementChart, ChartSeries, ChartPoint, Operation):

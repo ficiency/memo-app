@@ -19,7 +19,7 @@ from ..db.history import Conflict, Operation
 from ..db.memo import Memo
 from ..db.record import Deal, RecordRevision
 from ..db.session import SessionLocal, get_session
-from ..services import binding, roundtrip
+from ..services import binding, roundtrip, updates
 from ..services.generator.memo import Generator
 from ..services.memo_view import memo_view
 from ..services.operations.door import Door
@@ -217,3 +217,51 @@ def conflicts(memo_id: str, user: S.User = Depends(current_user), session: Sessi
                     "operation": op and {"type": op.op_type, "actor": op.actor_type, "by": actor.email if actor else None,
                                          "payload": op.payload}})
     return out
+
+
+# --- a newer deal record ------------------------------------------------------------------------------
+@router.get("/{memo_id}/updates")
+def update_available(memo_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> dict:
+    """The memo's record revision, and a newer one for the deal if there is one the memo has not ignored."""
+    return updates.available(session, own_memo(session, user, memo_id))
+
+
+@router.get("/{memo_id}/updates/{revision_id}")
+async def update_changes(memo_id: str, revision_id: str, user: S.User = Depends(current_user)) -> dict:
+    """What that revision would change in the memo (before → after) and where a person is needed."""
+    def run():
+        with SessionLocal() as session:
+            own_memo(session, user, memo_id)
+            try:
+                return updates.changes(session, memo_id, revision_id)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
+
+    return await run_in_threadpool(run)
+
+
+async def _update_op(memo_id: str, revision_id: str, kind: str, user: S.User) -> dict:
+    def run():
+        with SessionLocal() as session:
+            memo = own_memo(session, user, memo_id)
+            door = Door(session, memo.id)
+            result = door.apply({"type": kind, "target": memo_id, "payload": {"revision_id": revision_id}},
+                                actor_type="update", actor_id=user.id, on_behalf_of=user.id)
+            return result, getattr(door, "update_count", 0)
+
+    result, count = await run_in_threadpool(run)
+    if result.status == "applied" and kind == "apply_update":
+        await hub.send(memo_id, {"type": "reload", "by": user.email, "reason": "deal record update"})
+    return {"status": result.status, "reason": result.reason, "sequence": result.sequence, "changed": count}
+
+
+@router.post("/{memo_id}/updates/{revision_id}/apply")
+async def apply_update(memo_id: str, revision_id: str, user: S.User = Depends(current_user)) -> dict:
+    """The revision's figures written into the memo through the door; everyone in the memo gets it again."""
+    return await _update_op(memo_id, revision_id, "apply_update", user)
+
+
+@router.post("/{memo_id}/updates/{revision_id}/ignore")
+async def ignore_update(memo_id: str, revision_id: str, user: S.User = Depends(current_user)) -> dict:
+    """The memo stays on its revision; this one is not offered again."""
+    return await _update_op(memo_id, revision_id, "ignore_update", user)
