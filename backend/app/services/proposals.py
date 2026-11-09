@@ -46,21 +46,27 @@ def propose(session: Session, memo_id, ops: list[dict], summary: str | None, act
     return as_json(cs)
 
 
-def apply(session: Session, change_set_id, user_id) -> tuple[dict, list]:
-    """Each operation through the door, in order, on behalf of the person who confirms. Returns the proposal and
-    the door's results (for everyone's screens)."""
+def apply(session: Session, change_set_id, user_id, only: list[int] | None = None) -> tuple[dict, list, list]:
+    """The operations the person chose (all, when only is None) through the door, in order, on their behalf; the
+    others are kept in the proposal as not chosen. Returns the proposal, the applied items and the door's results
+    (for everyone's screens)."""
     cs = session.get(ChangeSet, uuid.UUID(str(change_set_id)))
     if cs is None or cs.status != "proposed":
         raise ValueError("this proposal is not open")
-    results, done = [], []
-    for item in cs.operations:
+    chosen = set(range(len(cs.operations))) if only is None else set(only)
+    results, done, applied = [], [], []
+    for i, item in enumerate(cs.operations):
+        if i not in chosen:
+            done.append({**item, "result": {"status": "not_chosen", "reason": None, "warnings": []}})
+            continue
         with SessionLocal() as s:
             r = Door(s, cs.memo_id).apply(item["op"], actor_type=cs.actor_type, on_behalf_of=user_id, change_set_id=cs.id)
         results.append(r)
+        applied.append(item)
         done.append({**item, "result": {"status": r.status, "reason": r.reason, "warnings": r.warnings or []}})
-    cs.operations, cs.status, cs.decided_by = done, "applied", user_id
+    cs.operations, cs.status, cs.decided_by = done, "applied" if applied else "rejected", user_id
     session.commit()
-    return as_json(cs), results
+    return as_json(cs), applied, results
 
 
 def discard(session: Session, change_set_id, user_id) -> dict:

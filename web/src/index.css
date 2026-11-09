@@ -305,3 +305,4 @@ button.active-toggle { border-color: var(--accent); color: var(--accent); }
 .agent-try { display: flex; flex-direction: column; gap: 6px; }
 .agent-try button { text-align: left; white-space: normal; }
 .agent-ask { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+.proposal-op.left-out .before-after { opacity: 0.45; }

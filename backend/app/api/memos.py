@@ -303,19 +303,24 @@ async def _broadcast(memo_id: str, by: str, items: list, results: list) -> None:
                                  "slides": r.slides, "created": [str(x) for x in r.created or []], "warnings": r.warnings or []})
 
 
+class ApplyChoice(BaseModel):
+    only: list[int] | None = None                 # the operations chosen (their positions); all when absent
+
+
 @router.post("/{memo_id}/proposals/{proposal_id}/apply")
-async def apply_proposal(memo_id: str, proposal_id: str, user: S.User = Depends(current_user)) -> dict:
-    """The proposal's operations through the door, on behalf of the person who confirms it."""
+async def apply_proposal(memo_id: str, proposal_id: str, body: ApplyChoice | None = None,
+                         user: S.User = Depends(current_user)) -> dict:
+    """The chosen operations of a proposal through the door, on behalf of the person who confirms them."""
     def run():
         with SessionLocal() as session:
             own_memo(session, user, memo_id)
             try:
-                return proposals.apply(session, proposal_id, user.id)
+                return proposals.apply(session, proposal_id, user.id, body.only if body else None)
             except ValueError as e:
                 raise HTTPException(409, str(e))
 
-    out, results = await run_in_threadpool(run)
-    await _broadcast(memo_id, user.email, out["operations"], results)
+    out, applied, results = await run_in_threadpool(run)
+    await _broadcast(memo_id, user.email, applied, results)
     await hub.send(memo_id, {"type": "proposal", "id": proposal_id, "status": out["status"]})
     return out
 

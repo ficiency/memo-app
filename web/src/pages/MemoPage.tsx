@@ -72,6 +72,8 @@ export function MemoPage() {
   const [question, setQuestion] = useState("");
   const [removing, setRemoving] = useState<{ chips: Seg[]; warnings: string[] | null; resolve: (remove: boolean) => void } | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  // per proposal, the operations left out by the person (all the ones that would apply are chosen by default)
+  const [leftOut, setLeftOut] = useState<Record<string, number[]>>({});
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [importing, setImporting] = useState<ImportResult | "busy" | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
@@ -259,10 +261,14 @@ export function MemoPage() {
     }
   };
 
+  const chosenOf = (pr: Proposal) =>
+    pr.operations.map((_o, i) => i).filter((i) => pr.operations[i].check.status === "applied" && !(leftOut[pr.id] ?? []).includes(i));
+
   const decideProposal = async (id: string, how: "apply" | "discard") => {
     try {
       await waitSaved();
-      await post(`/memos/${memoId}/proposals/${id}/${how}`);
+      const pr = proposals.find((x) => x.id === id);
+      await post(`/memos/${memoId}/proposals/${id}/${how}`, how === "apply" && pr ? { only: chosenOf(pr) } : undefined);
       loadProposals();
     } catch (e) {
       setNotice({ title: "Not done", body: (e as Error).message });
@@ -530,8 +536,22 @@ export function MemoPage() {
                   {pr.actor} · {new Date(pr.created_at).toLocaleString()}
                 </div>
                 {pr.operations.map((o, i) => (
-                  <div key={i} className={`proposal-op ${o.check.status}`}>
+                  <div key={i} className={`proposal-op ${o.check.status}${(leftOut[pr.id] ?? []).includes(i) ? " left-out" : ""}`}>
                     <div className="small">
+                      <input
+                        type="checkbox"
+                        disabled={o.check.status !== "applied"}
+                        checked={o.check.status === "applied" && !(leftOut[pr.id] ?? []).includes(i)}
+                        onChange={(e) =>
+                          setLeftOut((l) => {
+                            const now = new Set(l[pr.id] ?? []);
+                            if (e.target.checked) now.delete(i);
+                            else now.add(i);
+                            return { ...l, [pr.id]: [...now] };
+                          })
+                        }
+                        title={o.check.status === "applied" ? "Apply this change" : "This change would be refused"}
+                      />{" "}
                       <span className={`badge ${o.check.status}`}>{o.check.status === "applied" ? "would apply" : o.check.status.replace("_", " ")}</span>{" "}
                       {o.op.type.replace(/_/g, " ")}
                       {o.check.after?.name ? ` · ${o.check.after.name}` : o.check.before?.name ? ` · ${o.check.before.name}` : ""}
@@ -552,8 +572,8 @@ export function MemoPage() {
                 ))}
                 <div className="dialog-actions">
                   <button onClick={() => decideProposal(pr.id, "discard")}>Discard</button>
-                  <button className="primary" onClick={() => decideProposal(pr.id, "apply")}>
-                    Apply
+                  <button className="primary" disabled={chosenOf(pr).length === 0} onClick={() => decideProposal(pr.id, "apply")}>
+                    {chosenOf(pr).length === pr.operations.length ? "Apply" : `Apply ${chosenOf(pr).length} of ${pr.operations.length}`}
                   </button>
                 </div>
               </div>
