@@ -168,21 +168,27 @@ def part_b(run: Run) -> None:
 def part_d(run: Run) -> None:
     d = run.slides()
     before = {x.id for x in d.slides}
+    boxes_before = {e.id for e in d.elements}
+    with SessionLocal() as ss:
+        free_sections = {x.id for x in ss.scalars(select(S.Section).where(S.Section.spec_version_id == d.version.id, S.Section.status == "free"))}
+    # a slide the firm lays out (not of a section it leaves free), there from the start
+    template = next((x for x in d.slides if x.section_id not in free_sections and x.kind != "free"), d.slides[0])
     r = run.ask("Add a customer concentration slide: a table or chart of the customers from the deal record and a one-line "
                 "takeaway.", d.slides[-1].id)
     d = run.slides()
     new = [x for x in d.slides if x.id not in before]
-    boxes = [e for x in new for e in d.elements_of.get(x.id, []) if e.firm_lock == "free" and e.type in ("table", "chart")]
-    run.record("D", "\"add a customer concentration slide\": a slide with a record table or chart", "applied",
+    # a record table or chart added: on a new slide, or on the free slide asked about
+    boxes = [e for e in d.elements if e.id not in boxes_before and e.firm_lock == "free" and e.type in ("table", "chart")]
+    run.record("D", "\"add a customer concentration slide\": a record table or chart on a slide for it", "applied",
                "applied" if boxes else ("declined" if not r["proposal"] else f"applied {len(new)} slide(s), no table or chart"),
                r["reply"][:140])
-    if new:
-        r = run.ask("Add a chart of revenue over the last periods on this slide.", new[0].id)
+    target = new[0] if new else (next((x for x in d.slides if any(e.id in {b.id for b in boxes} for e in d.elements_of.get(x.id, []))), None))
+    if target is not None:
+        r = run.ask("Add a chart of revenue over the last periods on this slide.", target.id)
         charts = [a for a, i in zip(r["applied"], (r["proposal"] or {}).get("operations", []))
                   if a["status"] == "applied" and i["op"]["type"] == "add_element" and i["op"]["payload"].get("type") == "chart"]
         run.record("D", "add a chart of revenue on the new slide", "applied",
                    "applied" if charts else ("declined" if not r["proposal"] else "no chart applied"), r["reply"][:140])
-    template = next((x for x in d.slides if x.kind == "template" and x.id not in before), d.slides[0])
     r = run.ask("Add a table of the P&L on this slide.", template.id, apply=False)
     adds = [i for i in (r["proposal"] or {}).get("operations", []) if i["op"]["type"] == "add_element"
             and i["op"]["payload"].get("slide_id") == str(template.id)]

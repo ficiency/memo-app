@@ -60,6 +60,8 @@ box (inches, on the page given): the firm's rules decide what is allowed (a lock
 section allowed once is not duplicated, a box the template places does not move). A slide you add comes with
 its layout's boxes (LAYOUT BOXES): write them in the same edit with "texts": {"<role>": "<text>"}. Prefer a
 layout with a title and write the title there, in the firm's style, rather than a blank layout with a text box.
+When the person asks for a slide without saying what goes on it, add it on the section's first layout and leave
+its boxes for later; do not ask what it is about.
 
 On a slide the firm leaves free (its FREE AREA is given) you may add boxes inside that area: text, a table of
 the deal record (one of RECORD TABLES, with the rows and columns you choose) or a chart of record figures with
