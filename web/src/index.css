@@ -368,3 +368,5 @@ button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
 .pending-where { font-weight: 600; text-align: left; }
 .pending-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .small-button { justify-self: start; font-size: 12px; padding: 3px 10px; }
+.rail-upload { margin-top: 6px; font-size: 12px; }
+.dialog p.notice-body { white-space: pre-line; }

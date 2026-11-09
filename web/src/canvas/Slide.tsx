@@ -378,6 +378,12 @@ function ElementView({ el, styler, page, ui }: { el: El; styler: Styler; page: n
 }
 
 type Frame4 = { x_in: number; y_in: number; w_in: number; h_in: number };
+
+// a person's own table or chart built from the record (its rows, columns, figures can be chosen again); one that
+// came with its own data (an uploaded slide's) is not
+const boundToRecord = (el: El) =>
+  Boolean(el.table?.own && el.table.cells.some((c) => c.paragraphs.some((p) => p.segments.some((x) => x.path)))) ||
+  Boolean(el.chart?.own && el.chart.series.some((x) => x.path));
 const SNAP = 0.1;
 const snapTo = (v: number) => Math.round(v / SNAP) * SNAP;
 
@@ -478,7 +484,7 @@ export function Slide({
                style={{ left: px(f.x_in), top: px(f.y_in), width: px(f.w_in), height: px(f.h_in) }}>
             <span className="grip move" title="Drag to move" onPointerDown={(e) => start(e, el, "move")}>⠿</span>
             <span className="grip resize" title="Drag to resize" onPointerDown={(e) => start(e, el, "resize")} />
-            {ui.onEditBox && (el.table?.own || el.chart?.own) && (
+            {ui.onEditBox && boundToRecord(el) && (
               <span className="grip edit" title={`Change the ${el.type}: rows, columns, figures`} onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => ui.onEditBox?.(el)}>
                 ✎

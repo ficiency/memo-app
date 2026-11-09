@@ -85,6 +85,7 @@ export function MemoPage() {
   const [changes, setChanges] = useState<UpdateChanges | "loading" | null>(null);
   const [applying, setApplying] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   // a table or chart being added to a free slide, or a person's own one being changed (el)
   const [adding, setAdding] = useState<{ slide: SlideData; zone: number[]; kind: "table" | "chart"; el?: El } | null>(null);
   const wantTake = useRef<string | null>(null);
@@ -428,6 +429,34 @@ export function MemoPage() {
     }
   };
 
+  // a PPTX's slides or a PDF's pages: native where possible, flagged pictures where not; what did not come is said
+  const uploadSlides = async (file: File) => {
+    setUploading(true);
+    try {
+      await waitSaved();
+      const form = new FormData();
+      form.append("file", file);
+      const r = await post<{ slides: number; boxes: Record<string, number>; pictures: number; skipped: string[]; refused: string[] }>(
+        `/memos/${memoId}/slides/upload`,
+        form,
+      );
+      const boxes = Object.entries(r.boxes).map(([k, v]) => `${v} ${k}`).join(", ");
+      const came = `${r.slides} slide${r.slides === 1 ? "" : "s"} added${boxes ? ` · ${boxes}` : ""}${r.pictures ? ` · ${r.pictures} picture${r.pictures === 1 ? "" : "s"} to confirm` : ""}`;
+      if (r.skipped.length || r.refused.length)
+        setNotice({
+          title: came,
+          body: [...r.skipped.map((x) => `Not brought in: ${x}`), ...r.refused.map((x) => `Refused: ${x}`)].join("\n"),
+        });
+      else toast(came, "ok");
+      await load();
+      loadPendings();
+    } catch (e) {
+      setNotice({ title: "The file was not brought in", body: (e as Error).message });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const dismissPending = async (p: Pending) => {
     try {
       await post(`/memos/${memoId}/pendings/dismiss`, { kind: p.kind, target_id: p.target_id });
@@ -569,6 +598,8 @@ export function MemoPage() {
           onOp={(op) => {
             if (!send({ type: "op", op })) toast("Reconnecting… try again in a moment", "warn");
           }}
+          onUpload={uploadSlides}
+          uploading={uploading}
         />
         <div className="slides" ref={mainRef}>
           {slideWidth > 0 &&
@@ -884,7 +915,7 @@ export function MemoPage() {
         <div className="overlay">
           <div className="dialog small-dialog" data-keep-editing>
             <h2>{notice.title}</h2>
-            <p>{notice.body}</p>
+            <p className="notice-body">{notice.body}</p>
             <div className="dialog-actions">
               <button
                 className="primary"

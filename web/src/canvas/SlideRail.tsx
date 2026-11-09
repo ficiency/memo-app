@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { SlideData, SpecView } from "../api/types";
 
 // The memo's slides: go to one, reorder by dragging, duplicate, delete, add one of a section on one of its
@@ -22,6 +22,8 @@ export function SlideRail({
   focusId,
   onFocus,
   onOp,
+  onUpload,
+  uploading,
 }: {
   memoId: string;
   slides: SlideData[];
@@ -29,7 +31,10 @@ export function SlideRail({
   focusId: string | null;
   onFocus: (slideId: string) => void;
   onOp: (op: Op) => void;
+  onUpload?: (file: File) => void; // a PPTX's slides or a PDF's pages brought in at the end
+  uploading?: boolean;
 }) {
+  const uploadRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
@@ -142,6 +147,25 @@ export function SlideRail({
         <button className="rail-add" onClick={() => setAdding(true)}>
           + Add slide
         </button>
+        {onUpload && (
+          <>
+            <input
+              ref={uploadRef}
+              type="file"
+              accept=".pptx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onUpload(file);
+                e.target.value = "";
+              }}
+            />
+            <button className="rail-add rail-upload" disabled={uploading} onClick={() => uploadRef.current?.click()}
+                    title="Slides from a PowerPoint or pages of a PDF, as slides the firm leaves free">
+              {uploading ? "Bringing it in…" : "Upload PPTX or PDF"}
+            </button>
+          </>
+        )}
       </div>
       {adding && (
         <div className="overlay" onClick={() => setAdding(false)}>
