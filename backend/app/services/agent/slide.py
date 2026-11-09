@@ -50,7 +50,8 @@ FIGURES or RECORD FIELDS. If the person asks to change a figure's value, make no
 record.
 
 Text in ‹model: …› marks what the firm expects the model to write there: replace it with that text. Text in
-‹person: …› is for a person: leave it unless asked. Edit only boxes marked editable, only what was asked, in
+‹person: …› is for a person: leave it unless asked. When the person asks about one box, the request is about that box; edit other boxes of the slide only
+when the request asks for them. Edit only boxes marked editable, only what was asked, in
 the firm's style and in the memo's language; keep each box to what its spec says it holds, short enough for it.
 
 The memo's slides and the firm's sections (with their layouts and how many slides each allows) are listed too.
@@ -134,7 +135,8 @@ def context(session: Session, memo_id, slide_id: str | None, element_id: str | N
     for e in sorted(d.elements_of.get(slide.id, []), key=lambda e: (e.y_in or 0, e.x_in or 0)):
         if e.type not in ("text", "table", "chart"):
             continue
-        editable = e.firm_lock != "fixed" and (element_id is None or str(e.id) == str(element_id))             and (e.origin_element_id not in recipe or e.origin_element_id in writable)
+        # the box a person selected is what the request is about, not a lock on the rest of the slide
+        editable = e.firm_lock != "fixed" and (e.origin_element_id not in recipe or e.origin_element_id in writable)
         box = {"id": str(e.id), "what": e.name or e.role, "role": e.role, "editable": editable, "lock": e.firm_lock,
                "frame": f"x {e.x_in:.2f}, y {e.y_in:.2f}, w {e.w_in:.2f}, h {e.h_in:.2f}",
                "spec": "; ".join(recipe.get(e.origin_element_id, [])) or e.description}
