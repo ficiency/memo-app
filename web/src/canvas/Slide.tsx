@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { withEmail } from "../api/client";
 import type { El, Paragraph, Seg, SlideData } from "../api/types";
 import { Chart } from "./Chart";
@@ -87,6 +87,17 @@ function Editor({ el, styler, page, ui }: { el: El; styler: Styler; page: number
   const [shown, setShown] = useState<{ version: number; paragraphs: Paragraph[] }>({ version: 0, paragraphs: el.paragraphs });
   const chips = el.paragraphs.flatMap((p) => p.segments.filter((s) => s.kind === "chip")).length;
 
+  const typed = useRef(false);
+
+  // someone's save of this box arrived after it was opened: if nothing was typed yet, start again from it
+  useEffect(() => {
+    if (typed.current || el.revision === seen.current) return;
+    start.current = plainText(el.paragraphs);
+    seen.current = el.revision;
+    good.current = el.paragraphs;
+    setShown((v) => ({ version: v.version + 1, paragraphs: el.paragraphs }));
+  }, [el.revision, el.paragraphs]);
+
   const read = () => Array.from(ref.current?.children ?? []).map((c) => (c.textContent ?? "").replace(/\u00a0/g, " ")).join("\n");
 
   useLayoutEffect(() => {
@@ -111,6 +122,7 @@ function Editor({ el, styler, page, ui }: { el: El; styler: Styler; page: number
       return;
     }
     good.current = rebuilt;
+    typed.current = true;
     ui.onDraft(el, text);
   };
 
