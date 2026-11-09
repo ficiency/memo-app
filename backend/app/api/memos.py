@@ -364,3 +364,15 @@ async def ask_agent(memo_id: str, body: AgentRequest, user: S.User = Depends(cur
 def agent_history(memo_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> list[dict]:
     own_memo(session, user, memo_id)
     return agent.history(session, memo_id)
+
+
+
+@router.get("/{memo_id}/record-boxes")
+def record_boxes(memo_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> dict:
+    """What a new table or chart can show: the record's tables (rows, columns) and its figures with periods."""
+    from ..services import boxes
+    from ..services.figures import Figures
+    memo = own_memo(session, user, memo_id)
+    figures = Figures(session, session.get(S.Firm, memo.firm_id), session.get(S.SpecVersion, memo.spec_version_id),
+                      session.get(RecordRevision, memo.record_revision_id))
+    return {"tables": boxes.record_tables(figures), "families": boxes.period_families(figures)}

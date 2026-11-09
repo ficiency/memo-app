@@ -33,6 +33,8 @@ def spec_queries(version_id) -> dict:
         "spec_layouts": (S.Layout, select(S.Layout).where(S.Layout.spec_version_id == v, S.Layout.is_master.is_(False))),
         "section_layouts": (S.SectionLayout, select(S.SectionLayout).where(
             S.SectionLayout.section_id.in_(select(S.Section.id).where(S.Section.spec_version_id == v)))),
+        "zones": (S.LayoutZone, select(S.LayoutZone).where(S.LayoutZone.kind == "free", S.LayoutZone.layout_id.in_(
+            select(S.Layout.id).where(S.Layout.spec_version_id == v)))),
     }
 
 
@@ -62,6 +64,8 @@ def spec_view(session: Session, version_id, rows: dict | None = None) -> dict:
                                              for link in r["section_layouts"] if link.section_id == x.id
                                              for l in r["spec_layouts"] if l.id == link.layout_id]}
                      for x in sorted(r["sections"], key=lambda x: x.position)},
+        # where people may place their own boxes, per layout (used on slides of sections the firm leaves free)
+        "zones": {str(z.layout_id): [z.x_in, z.y_in, z.w_in, z.h_in] for z in r["zones"]},
     }
 
 
@@ -101,6 +105,8 @@ def layouts_view(session: Session, version_id) -> dict:
         "formats": (S.Format, select(S.Format).where(S.Format.spec_version_id == v, S.Format.example.isnot(None))),
         "section_layouts": (S.SectionLayout, select(S.SectionLayout).where(
             S.SectionLayout.section_id.in_(select(S.Section.id).where(S.Section.spec_version_id == v)))),
+        "zones": (S.LayoutZone, select(S.LayoutZone).where(S.LayoutZone.kind == "free", S.LayoutZone.layout_id.in_(
+            select(S.Layout.id).where(S.Layout.spec_version_id == v)))),
     })
     r = data.rows
     layouts = sorted(r["layouts"], key=lambda l: l.position)

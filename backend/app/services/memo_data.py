@@ -232,5 +232,6 @@ class MemoData(ElementData):
         elements = sorted(self.elements_of.get(slide.id, []), key=lambda e: (e.z_index or 0, e.y_in or 0, e.x_in or 0))
         return {"id": str(slide.id), "position": slide.position, "kind": slide.kind, "revision": slide.revision,
                 "section_id": str(slide.section_id) if slide.section_id else None,
-                "layout": layout.name if layout else None, "background": slide.background_ref,
+                "layout": layout.name if layout else None, "layout_id": str(slide.layout_id) if slide.layout_id else None,
+                "background": slide.background_ref,
                 "shows_master": self.shows_master(slide), "elements": [self.element_json(e) for e in elements]}
