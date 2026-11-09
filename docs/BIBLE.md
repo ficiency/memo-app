@@ -225,12 +225,13 @@ What the canvas allows (checked on the server):
   risk rating (Merrow), GBP→EUR rate and "fund fit" (Lumen): record data, human input or an approved calculation.
 - ⬜ Paste from PowerPoint: what the browser receives (test before the canvas).
 - ⬜ The blank layout when a template has none (use the master's zones).
-- ⬜ **Before the canvas (React) connects** (noted 7 Nov; the services exist, their routes and one move do not):
-  1. one shared "resolved memo" service (role → font, size, colour; palette name → hex; inches) used by both
-     painters: today the resolution lives inside the PPTX painter, and a second copy in React would drift;
-  2. `GET /memos/{id}` returning that resolved memo (slides, elements, paragraphs, chips, tables, charts);
-  3. the door returning the element's new state with each result (what real time broadcasts);
-  4. routes to generate a memo, export and import a PPTX (upload and download), and list kept-aside conflicts.
+- ✅ **Before the canvas (React) connects** (done 8 Nov): one loader of the memo (`app/services/memo_data.py`)
+  read by the PPTX painter, `GET /memos/{id}` and the door's answers, so the screen and the file read the same
+  data; the canvas resolves role → font, size, colour and palette name → hex from the spec it receives. Routes
+  to list, create, read, export, import and list what was kept aside.
+- ⬜ Saving a box holds it ~2.5 s and opening a memo takes ~3 s against the remote database (WHERE_IT_BREAKS 28, 29).
+- ⬜ Choosing between materials in a conflict is stored with who chose; the step does not yet run again with that
+  choice (the spec keeps the model's reading until then).
 
 ---
 
@@ -295,12 +296,13 @@ operation types, library entries) grows.
 | 2 | Onboarding port with G1–G7 fixes, run on the three firms, written to the spec tables (moved up on 6 Nov: the generator and painters are built on the complete spec, not on the pilot's gaps) | Spec completeness (G1–G7); configuration vs code | ✅ steps 1–5 fixed and run on the 3 firms (~$12 of model); written as spec v2, then v3 with formats as fields (G8); every item lands in the tables; completeness G1–G7 measured (`evals/reports/2026-11-07_1309.md`). Writer to the DB; review screens come in step 10 |
 | 3 | Spec → memo through operations; PPTX painter | Time and cost of a render; past memo rebuilt | ✅ generator and native PPTX painter on the 3 firms; render ~3 s, $0 of model. Past-memo rebuild not measured yet. Open issues in `evals/WHERE_IT_BREAKS.md` |
 | 4 | Operations door; PPTX export and import | Round trip; edits survive; PowerPoint cases | ✅ the brief's PowerPoint edits in 5 round trips on the 3 firms: 100% as the firm's rules expect, 0 lost, 100% of untouched elements identical, identity kept (`evals/reports/2026-11-07_1530_powerpoint.md`) |
-| 5 | Real time (box lock, live draft) with two scripted clients; canvas UI starts here | Two editors in repeated rounds | ✅ backend: rooms over websockets, one person per box, live drafts, every edit through the door and sent to everyone. Two people in 5 rounds on the 3 firms (live edits at once, a race for the same box, a held box, an older view, typing over a figure, PowerPoint while the other keeps editing): 100% as expected, 100% of applied edits survive, every kept-aside edit has its conflict, 0 lost (`evals/reports/2026-11-07_1637_two_people.md`). The canvas UI is still to build |
-| 6 | Record screen (upload, view, edit → new revision); See changes → Apply / Ignore; bell | Record change during the rounds | ❌ |
+| 5 | Real time (box lock, live draft) with two scripted clients; canvas UI starts here | Two editors in repeated rounds | ✅ backend: rooms over websockets, one person per box, live drafts, every edit through the door and sent to everyone; two people in 5 rounds on the 3 firms: 100% as expected, 0 lost (`evals/reports/2026-11-07_1637_two_people.md`). ✅ UI (8 Nov): sign-in, memos (list, create), the canvas (slides painted from the database, one person per box, live drafts, figures never typed over, PowerPoint out and back, kept aside), compared with PowerPoint's render of the same memo |
+| 6 | Record screen (upload, view, edit → new revision); See changes → Apply / Ignore | Record change during the rounds | 🟡 record screen done (8 Nov: upload, view by kind, edit → next revision, changes highlighted); See changes → Apply / Ignore to build |
 | 7 | AI agent | AI edits never invalid; invented figure refused | ❌ |
 | 8 | Real-font measuring and overflow | Long-content set | ❌ |
 | 9 | Canvas toolbox, blank slide, grid and zones, PPTX upload | Remaining canvas cases | ❌ |
-| 10 | PDF, final review, onboarding review screen, promote a slide | Final report | ❌ |
+| 10 | PDF, final review, onboarding review screens | Final report | 🟡 onboarding screens done (8 Nov: materials, the six steps run, reviewed and approved, layouts painted by the canvas, conflicts with evidence, write the spec version); PDF and final review to build |
+| 10b | Last: notifications bell, promote a slide to the template (decision 8 Nov) | — | ❌ |
 | 11 | Demo rehearsal: two editors, PPTX live, record change | — | ❌ |
 
 **If time runs short,** cut from the end: step 10 (except the report), then parts of 9 and 8. **Never** cut
