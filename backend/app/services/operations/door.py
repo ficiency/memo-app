@@ -345,7 +345,9 @@ class Door:
                 cursor = at + length
             if cursor < len(text) or pos == 0:
                 segments.append(_segment(para.id, pos, "text", text[cursor:]))
-        warnings = self.recipe_warnings(el, [c for c in chips if c.id in remove])
+        # a figure taken out and put back in the same edit is still there: only what is gone is worth saying
+        stays = {c.concept_name for c in chips if c.id not in remove} | {chip["concept_name"] for _, spans in paras for _, _, chip in spans}
+        warnings = self.recipe_warnings(el, [c for c in chips if c.id in remove and c.concept_name not in stays])
 
         def after(revision):
             el.revision = revision
