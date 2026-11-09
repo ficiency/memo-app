@@ -25,7 +25,7 @@ from app.db.memo import Element, Slide
 from app.services.figures import TYPED_AMOUNT
 from app.services.memo_data import MemoData, fetch
 
-DISMISSABLE = {"picture", "typed_figure", "recipe_missing", "chart_not_from_record"}
+DISMISSABLE = {"picture", "typed_figure", "recipe_missing", "chart_not_from_record", "old_layout"}
 
 
 def pendings(session: Session, memo_id) -> list[dict]:
@@ -40,6 +40,7 @@ def pendings(session: Session, memo_id) -> list[dict]:
                                                                   S.RecipeSegment.kind.in_(("figure", "fact")))),
         "required": (S.StageSection, select(S.StageSection).where(S.StageSection.stage_id == memo.stage_id, S.StageSection.required)),
         "sections": (S.Section, select(S.Section).where(S.Section.spec_version_id == memo.spec_version_id)),
+        "slide_layouts": (S.Layout, select(S.Layout).where(S.Layout.id.in_(select(Slide.layout_id).where(Slide.memo_id == memo.id)))),
     })
     dismissed = {(x.kind, x.target_id) for x in r["dismissed"]}
     position = {s.id: s.position + 1 for s in d.slides}
@@ -86,6 +87,12 @@ def pendings(session: Session, memo_id) -> list[dict]:
             if typed:
                 add("typed_figure", el, f"typed, not from the record: {', '.join(typed[:3])}")
 
+    stale = {l.id: l for l in r["slide_layouts"] if l.spec_version_id != memo.spec_version_id}
+    for s in d.slides:                                   # a layout the memo's spec version no longer has
+        if s.layout_id in stale and ("old_layout", s.id) not in dismissed:
+            out.append({"kind": "old_layout", "slide": s.position + 1, "slide_id": str(s.id), "element_id": None, "target_id": str(s.id),
+                        "where": stale[s.layout_id].name, "message": "its layout is not in the firm's current template; it stays as it "
+                        "was: move its content to a slide of the template, or keep it", "dismissable": True})
     have_sections = {s.section_id for s in d.slides}
     sections = {x.id: x for x in r["sections"]}
     for link in r["required"]:

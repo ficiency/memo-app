@@ -48,7 +48,7 @@ FRAME = ("x_in", "y_in", "w_in", "h_in", "rotation_deg")
 STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anchor")
 COLOUR_FIELDS = ("color_ref", "fill_ref", "line_ref", "bullet_color_ref")
 SLOTS = ("model_draft", "person_slot", "conditional")
-STRUCTURE = ("edit_box", "add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide", "apply_update", "ignore_update")
+STRUCTURE = ("move_spec", "ignore_spec", "edit_box", "add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide", "apply_update", "ignore_update")
 # {{concept}}: a figure asked for by the firm's name for it; {{field:kinmoor.arr}}: one value of the deal record
 MARKER = re.compile(r"\{\{\s*([A-Za-z0-9_]+|(?:field|table|angle_table|series|narrative|company|deal):[^{}]+?)\s*\}\}")
 ELEMENT_OPS = ("set_text", "set_cell", "set_chart_data", "set_frame", "set_style", "delete_element", "set_user_lock")
@@ -762,6 +762,29 @@ class Door:
         rev, current = self.update_revision(op)
         self.update_count = updates.apply(self.s, self.memo, rev.id, actor_id)
         self.decided("applied", rev, current, actor_id)
+
+    def _move_spec(self, op, actor_type, actor_id):
+        """The memo moved to a newer version of its spec: what changed applied, what needs a person kept aside or
+        pending, nothing lost (services/spec_move)."""
+        from app.services import spec_move
+        new = self.s.get(S.SpecVersion, _uuid((op.get("payload") or {}).get("version_id")))
+        if new is None:
+            raise Refuse("no such version of the firm's spec")
+        current = self.memo.spec_version_id
+        try:
+            self.spec_report = spec_move.move(self.s, self.memo, new, actor_id)
+        except ValueError as e:
+            raise Refuse(str(e))
+        self.s.add(MemoUpdate(memo_id=self.memo.id, kind="spec", from_id=current, to_id=new.id, status="applied",
+                              decided_by=actor_id if isinstance(actor_id, uuid.UUID) else None))
+
+    def _ignore_spec(self, op, actor_type, actor_id):
+        """The memo stays on its version; this one is not offered again."""
+        new = self.s.get(S.SpecVersion, _uuid((op.get("payload") or {}).get("version_id")))
+        if new is None:
+            raise Refuse("no such version of the firm's spec")
+        self.s.add(MemoUpdate(memo_id=self.memo.id, kind="spec", from_id=self.memo.spec_version_id, to_id=new.id, status="ignored",
+                              decided_by=actor_id if isinstance(actor_id, uuid.UUID) else None))
 
     def _ignore_update(self, op, actor_type, actor_id):
         """The memo stays as it is; this update is not offered again."""

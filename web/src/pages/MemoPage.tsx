@@ -21,6 +21,20 @@ function colorFor(email: string): string {
 }
 
 type Toast = { id: number; text: string; tone?: "warn" | "ok" };
+type SpecVersionInfo = { id: string; number: number; label: string | null; approved_at: string | null };
+type SpecUpdate = { current: SpecVersionInfo; available: SpecVersionInfo | null };
+type SpecReport = {
+  from: number;
+  to: number;
+  slides: number;
+  rebuilt: number;
+  restyled_kept_words: number;
+  added: number;
+  removed_untouched: number;
+  set_aside: string[];
+  layouts_gone: string[];
+  sections_gone: string[];
+};
 type Proposal = {
   id: string;
   summary: string | null;
@@ -82,6 +96,10 @@ export function MemoPage() {
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [importing, setImporting] = useState<ImportResult | "busy" | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  // a newer version of the firm's spec (the template) the memo could move to, and what moving would do
+  const [specUpdate, setSpecUpdate] = useState<SpecUpdate | null>(null);
+  const [specChanges, setSpecChanges] = useState<SpecReport | "loading" | null>(null);
+  const [moving, setMoving] = useState(false);
   const [changes, setChanges] = useState<UpdateChanges | "loading" | null>(null);
   const [applying, setApplying] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -135,6 +153,7 @@ export function MemoPage() {
   // a newer revision of the deal record than the one this memo was built from
   const loadUpdate = useCallback(() => {
     get<UpdateInfo>(`/memos/${memoId}/updates`).then(setUpdate).catch(() => undefined);
+    get<SpecUpdate>(`/memos/${memoId}/spec-update`).then(setSpecUpdate).catch(() => undefined);
   }, [memoId]);
 
   useEffect(() => {
@@ -194,7 +213,13 @@ export function MemoPage() {
         loadProposals();
       } else if (m.type === "reload") {
         const who = m.by.split("@")[0];
-        toast(m.reason === "deal record update" ? `${who} applied the newer deal record` : `${who} brought back a PowerPoint file`, "ok");
+        const what: Record<string, string> = {
+          "deal record update": "applied the newer deal record",
+          "spec version": "moved the memo to the template's newer version",
+          "slide upload": "brought in slides from a file",
+        };
+        toast(`${who} ${what[m.reason] ?? "brought back a PowerPoint file"}`, "ok");
+        loadUpdate();
         load();
         loadPendings();
         loadConflicts();
@@ -378,6 +403,40 @@ export function MemoPage() {
       setNotice({ title: "Not applied", body: (e as Error).message });
     } finally {
       setApplying(false);
+    }
+  };
+
+  // a newer template version: what moving does (the same move, undone), then move or stay
+  const seeSpecChanges = async () => {
+    if (!specUpdate?.available) return;
+    setSpecChanges("loading");
+    try {
+      setSpecChanges(await get<SpecReport>(`/memos/${memoId}/spec-update/${specUpdate.available.id}`));
+    } catch (e) {
+      setSpecChanges(null);
+      setNotice({ title: "Could not compare the versions", body: (e as Error).message });
+    }
+  };
+
+  const decideSpec = async (how: "apply" | "ignore") => {
+    if (!specUpdate?.available || moving) return;
+    setMoving(true);
+    try {
+      if (how === "apply") await waitSaved(); // the box someone has open is saved first
+      const r = await post<{ status: string; reason: string | null }>(`/memos/${memoId}/spec-update/${specUpdate.available.id}/${how}`);
+      if (r.status !== "applied") setNotice({ title: "Not done", body: r.reason ?? "" });
+      else if (how === "apply") {
+        toast(`Moved to the template's version ${specUpdate.available.number}`, "ok");
+        await load();
+        loadConflicts();
+        loadPendings();
+      }
+      setSpecChanges(null);
+      loadUpdate();
+    } catch (e) {
+      setNotice({ title: "Not done", body: (e as Error).message });
+    } finally {
+      setMoving(false);
     }
   };
 
@@ -582,6 +641,74 @@ export function MemoPage() {
               Ignore
             </button>
           </span>
+        </div>
+      )}
+
+      {specUpdate?.available && (
+        <div className="update-banner spec-banner">
+          <span>
+            <strong>The firm's template has version {specUpdate.available.number}</strong>
+            {specUpdate.available.label ? ` (${specUpdate.available.label})` : ""}. This memo uses version {specUpdate.current.number}.
+          </span>
+          <span className="actions">
+            <button onClick={seeSpecChanges}>See changes</button>
+            <button onClick={() => decideSpec("ignore")} disabled={moving}>
+              Ignore
+            </button>
+          </span>
+        </div>
+      )}
+
+      {specChanges && (
+        <div className="overlay" onClick={() => !moving && setSpecChanges(null)}>
+          <div className="dialog wide-dialog" onClick={(e) => e.stopPropagation()}>
+            {specChanges === "loading" ? (
+              <p className="muted">Working out what moving would do…</p>
+            ) : (
+              <>
+                <h2>
+                  Template version {specChanges.from} → {specChanges.to}
+                </h2>
+                <p className="muted">Moving never deletes anyone's work: what has no place in the new version is kept aside or stays pending.</p>
+                <ul className="spec-report">
+                  <li>{specChanges.slides} slides go to the new version's layouts</li>
+                  <li>{specChanges.rebuilt} boxes nobody edited are built again as the new version draws them</li>
+                  {specChanges.restyled_kept_words > 0 && (
+                    <li>{specChanges.restyled_kept_words} boxes people wrote keep their words, with the new style and place</li>
+                  )}
+                  {specChanges.added > 0 && <li>{specChanges.added} boxes the new version adds</li>}
+                  {specChanges.removed_untouched > 0 && <li>{specChanges.removed_untouched} template boxes nobody touched are gone in the new version</li>}
+                </ul>
+                {(specChanges.set_aside.length > 0 || specChanges.layouts_gone.length > 0 || specChanges.sections_gone.length > 0) && (
+                  <>
+                    <h3>Needs a person</h3>
+                    <ul className="spec-report warn">
+                      {specChanges.set_aside.map((x) => (
+                        <li key={x}>{x}: not in the new version; what it held is kept aside</li>
+                      ))}
+                      {specChanges.layouts_gone.map((x) => (
+                        <li key={x}>{x}</li>
+                      ))}
+                      {specChanges.sections_gone.map((x) => (
+                        <li key={x}>{x}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                <div className="dialog-actions">
+                  <button onClick={() => setSpecChanges(null)} disabled={moving}>
+                    Close
+                  </button>
+                  <button onClick={() => decideSpec("ignore")} disabled={moving}>
+                    Ignore
+                  </button>
+                  <button className="primary" onClick={() => decideSpec("apply")} disabled={moving}>
+                    {moving ? "Moving…" : `Move to version ${specChanges.to}`}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 

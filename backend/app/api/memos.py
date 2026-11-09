@@ -353,6 +353,63 @@ async def ignore_update(memo_id: str, revision_id: str, user: S.User = Depends(c
     return await _update_op(memo_id, revision_id, "ignore_update", user)
 
 
+# --- a newer version of the firm's spec ------------------------------------------------------------------
+def _version_json(v: S.SpecVersion) -> dict:
+    return {"id": str(v.id), "number": v.number, "label": v.label, "approved_at": v.approved_at.isoformat() if v.approved_at else None}
+
+
+@router.get("/{memo_id}/spec-update")
+def spec_update(memo_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> dict:
+    """The memo's version of its firm's spec, and a newer approved one if the memo has not ignored it."""
+    from ..services import spec_move
+    memo = own_memo(session, user, memo_id)
+    newer = spec_move.newer(session, memo)
+    return {"current": _version_json(session.get(S.SpecVersion, memo.spec_version_id)), "available": newer and _version_json(newer)}
+
+
+@router.get("/{memo_id}/spec-update/{version_id}")
+async def spec_update_changes(memo_id: str, version_id: str, user: S.User = Depends(current_user)) -> dict:
+    """What moving to that version would do: the same move, undone."""
+    from ..services import spec_move
+
+    def run():
+        with SessionLocal() as session:
+            own_memo(session, user, memo_id)
+            try:
+                return spec_move.preview(session, memo_id, version_id)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
+
+    return await run_in_threadpool(run)
+
+
+async def _spec_op(memo_id: str, version_id: str, kind: str, user: S.User) -> dict:
+    def run():
+        with SessionLocal() as session:
+            memo = own_memo(session, user, memo_id)
+            door = Door(session, memo.id)
+            result = door.apply({"type": kind, "target": memo_id, "payload": {"version_id": version_id}},
+                                actor_type="update", actor_id=user.id, on_behalf_of=user.id)
+            return result, getattr(door, "spec_report", None)
+
+    result, report = await run_in_threadpool(run)
+    if result.status == "applied" and kind == "move_spec":
+        await hub.send(memo_id, {"type": "reload", "by": user.email, "reason": "spec version"})
+    return {"status": result.status, "reason": result.reason, "report": report}
+
+
+@router.post("/{memo_id}/spec-update/{version_id}/apply")
+async def apply_spec_update(memo_id: str, version_id: str, user: S.User = Depends(current_user)) -> dict:
+    """The memo moved to the newer version; everyone in the memo gets it again."""
+    return await _spec_op(memo_id, version_id, "move_spec", user)
+
+
+@router.post("/{memo_id}/spec-update/{version_id}/ignore")
+async def ignore_spec_update(memo_id: str, version_id: str, user: S.User = Depends(current_user)) -> dict:
+    """The memo stays on its version; this one is not offered again."""
+    return await _spec_op(memo_id, version_id, "ignore_spec", user)
+
+
 # --- proposals: edits made for a person to confirm --------------------------------------------------
 @router.get("/{memo_id}/proposals")
 def list_proposals(memo_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> list[dict]:

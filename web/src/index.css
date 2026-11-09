@@ -370,3 +370,8 @@ button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
 .small-button { justify-self: start; font-size: 12px; padding: 3px 10px; }
 .rail-upload { margin-top: 6px; font-size: 12px; }
 .dialog p.notice-body { white-space: pre-line; }
+
+/* a newer template version */
+.spec-banner { background: #f3eefb; }
+.spec-report { margin: 8px 0 14px; padding-left: 18px; font-size: 14px; display: grid; gap: 4px; }
+.spec-report.warn li { color: #8a5300; }
