@@ -49,7 +49,8 @@ STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anc
 COLOUR_FIELDS = ("color_ref", "fill_ref", "line_ref", "bullet_color_ref")
 SLOTS = ("model_draft", "person_slot", "conditional")
 STRUCTURE = ("edit_box", "add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide", "apply_update", "ignore_update")
-MARKER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")   # {{concept}}: a figure asked for by name
+# {{concept}}: a figure asked for by the firm's name for it; {{field:kinmoor.arr}}: one value of the deal record
+MARKER = re.compile(r"\{\{\s*([A-Za-z0-9_]+|(?:field|table|angle_table|series|narrative|company|deal):[^{}]+?)\s*\}\}")
 ELEMENT_OPS = ("set_text", "set_cell", "set_chart_data", "set_frame", "set_style", "delete_element", "set_user_lock")
 
 

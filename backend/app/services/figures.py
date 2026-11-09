@@ -28,6 +28,16 @@ def by(rows, key) -> dict:
     return out
 
 
+def _value(row):
+    """A record row's value: its number, else its text, else its date (as text)."""
+    if row.number_value is not None:
+        return row.number_value
+    if row.text_value is not None:
+        return row.text_value
+    d = getattr(row, "date_value", None)
+    return d.isoformat() if d is not None else None
+
+
 class Figures:
     def __init__(self, session: Session, firm, version, revision):
         self.s = session
@@ -43,7 +53,10 @@ class Figures:
 
     def chip(self, name: str, context: str = "prose") -> dict:
         """A figure as a chip segment's fields, or ValueError when the firm has no such figure or the record
-        has no value for it (a chip is never made up)."""
+        has no value for it (a chip is never made up). The name is a concept of the firm's, or a path of the deal
+        record (one value: field:kinmoor.arr), written by the kind of value it is."""
+        if ":" in name:
+            return self.chip_at(name, context)
         concept = self.concept_named.get(name)
         if concept is None or concept.kind == "memo_data":
             raise ValueError(f"the firm has no figure called {name!r}")
@@ -54,6 +67,31 @@ class Figures:
         if text.startswith("[no data"):
             raise ValueError(f"{name!r} cannot be written: {text}")
         return {"kind": "chip", "text": text, "concept_name": name, "record_path": path, "value_snapshot": str(value)}
+
+    def chip_at(self, path: str, context: str = "prose") -> dict:
+        """One value of the deal record as a chip, by its path."""
+        row = self.record.resolve(path)
+        value = None if row is None else _value(row)
+        if value is None:
+            raise ValueError(f"the deal record has no single value at {path!r}")
+        text = self.write_value(value, row.value_kind, context, row.unit)
+        if not text or text.startswith("[no data"):
+            raise ValueError(f"{path!r} cannot be written: {text or 'empty'}")
+        return {"kind": "chip", "text": text, "concept_name": None, "record_path": row.path, "value_snapshot": str(value)}
+
+    def fields(self, context: str = "prose") -> list[dict]:
+        """The record's single values (field:…) as the firm writes them: {path, value, label}."""
+        out = []
+        for path, row in self.record.by_path.items():
+            if not path.startswith("field:"):                  # one value each (dated as of a day)
+                continue
+            value = _value(row)
+            if value is None:
+                continue
+            text = self.write_value(value, row.value_kind, context, row.unit)
+            if text and not text.startswith("[no data"):
+                out.append({"path": path, "value": text[:80], "label": row.label or ""})
+        return out
 
     # --- formats ---------------------------------------------------------------------------------
     def load_formats(self) -> dict[tuple[str, str], list[dict]]:

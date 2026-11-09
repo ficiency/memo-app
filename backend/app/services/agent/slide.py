@@ -40,10 +40,11 @@ You get the slide's boxes (id, what the box is, whether you may edit it, its tex
 puts in each box and on this section, the firm's rules, and the FIGURES the deal record has for this memo:
 each with its name and its value as the firm writes it.
 
-Figures are never typed. Write a figure as {{name}} with a name from FIGURES; the system writes its value. A
-figure already in a box appears as {{name}}: keep it as {{name}} where it should stay; leave it out to remove it.
+Figures are never typed. Write a figure as {{name}} with a name from FIGURES; the system writes its value. For
+a value FIGURES lacks, use one of RECORD FIELDS by its path: {{field:…}}. A figure already in a box appears as
+{{name}} or {{path}}: keep it as it is where it should stay; leave it out to remove it.
 Never write an amount yourself (no £, €, $, %, x, m, bn, k with a number), and never a figure that is not in
-FIGURES. If the person asks to change a figure's value, make no edit and say that values change in the deal
+FIGURES or RECORD FIELDS. If the person asks to change a figure's value, make no edit and say that values change in the deal
 record.
 
 Text in ‹model: …› marks what the firm expects the model to write there: replace it with that text. Text in
@@ -83,7 +84,8 @@ def _box_text(paragraphs) -> str:
     for _, segs in paragraphs:
         line = ""
         for x in segs:
-            line += f"{{{{{x.concept_name}}}}}" if x.kind == "chip" and x.concept_name and not x.text.startswith("[no data") \
+            key = x.concept_name or x.record_path
+            line += f"{{{{{key}}}}}" if x.kind == "chip" and key and not x.text.startswith("[no data") \
                 else ("" if x.kind == "page_number" else x.text or "")
         out.append(line)
     return "\n".join(out)
@@ -156,6 +158,7 @@ def context(session: Session, memo_id, slide_id: str | None, element_id: str | N
         (sec_rows.get(section_id) is not None and sec_rows[section_id].status == "free") or
         (d.layout_rows.get(layout_id) is not None and d.layout_rows[layout_id].is_blank))
     free_sections = any(x.status == "free" for x in sec_rows.values())
+    fields = figures.fields()
     rules = [r.says for r in q(select(S.Rule).where(S.Rule.spec_version_id == d.version.id,
                                                    (S.Rule.section_id.is_(None)) | (S.Rule.section_id == slide.section_id)))]
     # the memo's slides and the firm's sections with their layouts, for slide edits
@@ -176,7 +179,8 @@ def context(session: Session, memo_id, slide_id: str | None, element_id: str | N
             "free_area": zones.get(slide.layout_id) if is_free(slide.section_id, slide.layout_id) else None,
             "zones": zones,
             "record_tables": record_boxes.record_tables(figures) if free_sections else {},
-            "chart_figures": record_boxes.period_families(figures) if free_sections else {}}
+            "chart_figures": record_boxes.period_families(figures) if free_sections else {},
+            "fields": fields}
 
 
 def package(ctx: dict, request: str, target: str | None) -> str:
@@ -210,6 +214,8 @@ def package(ctx: dict, request: str, target: str | None) -> str:
         lines += [f"- {n} · {label}" for n, label in ctx["chart_figures"].items()]
     lines += ["", "FIGURES (name = value as the firm writes it · what it is)"]
     lines += [f"- {f['name']} = {f['value']} · {f['about']}" for f in ctx["figures"]]
+    lines += ["", "RECORD FIELDS (for what FIGURES lacks: {{path}} = value as the firm writes it · what it is)"]
+    lines += [f"- {f['path']} = {f['value']} · {f['label']}" for f in ctx["fields"]]
     lines += ["", "FIRM RULES"] + [f"- {r}" for r in ctx["rules"][:40]]
     lines += ["", f"THE PERSON ASKS{' (about box ' + target + ')' if target else ''}: {request}"]
     return "\n".join(lines)
@@ -363,14 +369,14 @@ def keep_or_remove(session: Session, element_id: str, text: str) -> dict:
     stays the same chip (its text in place of the marker), a new {{name}} is asked for, one left out is removed."""
     el = session.get(Element, uuid.UUID(element_id))
     d = MemoData(session, _memo_of(session, el), element_ids=[el.id])
-    chips = [x for _, ss in d.paragraphs(element_id=el.id) for x in ss if x.kind == "chip" and x.concept_name]
+    chips = [x for _, ss in d.paragraphs(element_id=el.id) for x in ss if x.kind == "chip" and (x.concept_name or x.record_path)]
     waiting: dict = {}
     for c in chips:
-        waiting.setdefault(c.concept_name, []).append(c)
+        waiting.setdefault(c.concept_name or c.record_path, []).append(c)
     kept = set()
 
     def keep(m):
-        queue = waiting.get(m.group(1))
+        queue = waiting.get(m.group(1).strip())
         if queue:
             c = queue.pop(0)
             kept.add(c.id)
