@@ -13,6 +13,10 @@ inconsistent". Per firm:
      against the record through the binding), one concept shown with two values, refusals when applying,
      figures the firm's recipe expects that were removed
   C  the memo with the agent's edits through PowerPoint and back: nothing found changed
+  D  custom slides through the agent (the brief: "ask the agent, which builds it from the firm's components with
+     figures bound to the record"; "add a customer concentration slide"): a slide added with a record table or
+     chart on it in one request, a chart added on it, and a table asked for on a template slide (declined); the
+     points of the agent's charts are checked against the record too
 
 The model is called: each request is one call (more when code sends errors back). The memos are temporary.
 
@@ -161,6 +165,30 @@ def part_b(run: Run) -> None:
                    if statuses else "no edit", r["reply"][:140])
 
 
+def part_d(run: Run) -> None:
+    d = run.slides()
+    before = {x.id for x in d.slides}
+    r = run.ask("Add a customer concentration slide: a table or chart of the customers from the deal record and a one-line "
+                "takeaway.", d.slides[-1].id)
+    d = run.slides()
+    new = [x for x in d.slides if x.id not in before]
+    boxes = [e for x in new for e in d.elements_of.get(x.id, []) if e.firm_lock == "free" and e.type in ("table", "chart")]
+    run.record("D", "\"add a customer concentration slide\": a slide with a record table or chart", "applied",
+               "applied" if boxes else ("declined" if not r["proposal"] else f"applied {len(new)} slide(s), no table or chart"),
+               r["reply"][:140])
+    if new:
+        r = run.ask("Add a chart of revenue over the last periods on this slide.", new[0].id)
+        charts = [a for a, i in zip(r["applied"], (r["proposal"] or {}).get("operations", []))
+                  if a["status"] == "applied" and i["op"]["type"] == "add_element" and i["op"]["payload"].get("type") == "chart"]
+        run.record("D", "add a chart of revenue on the new slide", "applied",
+                   "applied" if charts else ("declined" if not r["proposal"] else "no chart applied"), r["reply"][:140])
+    template = next((x for x in d.slides if x.kind == "template" and x.id not in before), d.slides[0])
+    r = run.ask("Add a table of the P&L on this slide.", template.id, apply=False)
+    adds = [i for i in (r["proposal"] or {}).get("operations", []) if i["op"]["type"] == "add_element"
+            and i["op"]["payload"].get("slide_id") == str(template.id)]
+    run.record("D", "add a table on a template slide", "declined", "declined" if not adds else "proposed a table there", r["reply"][:140])
+
+
 def checks(run: Run) -> dict:
     """The memo after the agent, by value (a figure may be written differently in a table and in prose, and a
     concept that is a row of a table has one value per period or case):
@@ -188,6 +216,15 @@ def checks(run: Run) -> dict:
                     by_agent += e.id in touched
                 if x.kind == "text" and e.id in touched:
                     typed += [m.group(0) for m in agent.TYPED_FIGURE.finditer(x.text or "")]
+        chart = d.chart_of.get(e.id)
+        if chart is not None and chart.chart_template_id is None:
+            for series in d.series_of.get(chart.id, []):
+                periods = {str(r.period): r.number_value for r in record.families.get(series.record_path or "", [])}
+                for pt in d.points_of.get(series.id, []):
+                    have = [v for k, v in periods.items() if k.startswith(pt.category) or pt.category.startswith(k)]
+                    if pt.value is not None and not any(_close(v, pt.value) for v in have):
+                        wrong.append(f"chart {series.name}: {pt.category} holds {pt.value}, not the record's")
+                    values[("chart " + (series.record_path or ""), pt.category)].add(str(pt.value))
     two_values = {f"{c} at {p}": v for (c, p), v in values.items() if len(v) > 1}
     warnings = [w for o in ops for w in (o.payload or {}).get("warnings", [])]
     refused = sum(1 for o in ops if o.status != "applied")
@@ -234,6 +271,11 @@ def report(results: list[dict]) -> str:
     row("**Measure 4** · one figure holding two values", lambda r: str(len(r["checks"]["two_values"])))
     row("Recipe figures removed (warned, pending)", lambda r: str(len(r["checks"]["warnings"])))
     row("C · changes found after PowerPoint and back", lambda r: str(r["roundtrip"]["changes"]))
+
+    def d_ok(r):
+        x = [y for y in r["log"] if y["part"] == "D"]
+        return f"{sum(1 for y in x if y['got'] == y['expected'])}/{len(x)}"
+    row("D · custom slides through the agent (table or chart from the record)", d_ok)
     row("Model calls · tokens in / out", lambda r: f"{r['calls']} · {r['tokens_in']:,} / {r['tokens_out']:,}")
     row("Cost (USD) · time (s)", lambda r: f"${r['tokens_in'] * 5e-6 + r['tokens_out'] * 30e-6:.2f} · {r['seconds']:.0f}")
     lines += ["", "## Each request", ""]
@@ -250,11 +292,12 @@ def report(results: list[dict]) -> str:
         broke += [f"- {r['firm']} · typed amount in an agent edit: {t}" for t in c["typed"]]
         broke += [f"- {r['firm']} · {w}" for w in c["wrong"]]
         broke += [f"- {r['firm']} · {k} shown as {sorted(v)}" for k, v in c["two_values"].items()]
-        broke += [f"- {r['firm']} · A · {x['what']}: expected {x['expected']}, got {x['got']}" for x in r["log"] if x["part"] == "A" and x["got"] != x["expected"]]
+        broke += [f"- {r['firm']} · {x['part']} · {x['what']}: expected {x['expected']}, got {x['got']}" for x in r["log"]
+                  if x["part"] in ("A", "D") and x["got"] != x["expected"]]
         broke += [f"- {r['firm']} · C · {r['roundtrip']['changes']} change(s) found after PowerPoint and back"] if r["roundtrip"]["changes"] else []
     lines += broke or ["Nothing broke."]
     lines += ["", "## Not covered yet", "",
-              "- Images (\"add this image\"): the agent cannot place one until the canvas has images and free zones (step 9).",
+              "- Images (\"add this image\"): the agent cannot place one until the canvas has images (step 9).",
               "- The agent inside the two-people rounds: its edits here are applied one request at a time on one memo.",
               "- Overflow of what the agent writes: measured with real fonts in step 8."]
     return "\n".join(lines) + "\n"
@@ -272,6 +315,7 @@ def main() -> None:
         try:
             part_a(run)
             part_b(run)
+            part_d(run)
             c = checks(run)
             rt = part_c(run)
             results.append({"firm": firm, "log": run.log, "checks": c, "roundtrip": rt, "calls": run.calls,

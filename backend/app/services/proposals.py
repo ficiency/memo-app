@@ -17,11 +17,13 @@ from sqlalchemy.orm import Session
 from app.db.history import ChangeSet
 from app.db.memo import Element
 from app.db.session import SessionLocal
-from app.services.operations.door import ELEMENT_OPS, Door
+from app.services.operations.door import ELEMENT_OPS, STRUCTURE, Door
 
 
 def _check_all(memo_id, ops: list[dict], actor_type: str) -> list[dict]:
-    out = []
+    """Each operation checked by the door, in order: a structure change as the memo would be after the earlier
+    ones of the proposal (a table on the slide it adds first)."""
+    out, earlier = [], []
     for op in ops:
         op = dict(op)
         with SessionLocal() as session:
@@ -30,7 +32,9 @@ def _check_all(memo_id, ops: list[dict], actor_type: str) -> list[dict]:
                 el = session.get(Element, uuid.UUID(str(target))) if _is_uuid(target) else None
                 if el is not None:
                     op["base_revision"] = el.revision          # made on what the proposal saw
-            c = Door(session, memo_id).check(op, actor_type=actor_type)
+            c = Door(session, memo_id).check_after(earlier, op, actor_type=actor_type)
+        if op.get("type") in STRUCTURE:
+            earlier.append(op)
         out.append({"op": op, "check": {"status": c.status, "reason": c.reason, "warnings": c.warnings,
                                         "before": c.before, "after": c.after, "slides": c.slides}})
     return out

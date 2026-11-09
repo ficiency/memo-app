@@ -164,6 +164,29 @@ class Door:
         self.s.commit()
         return Check(status, reason, plan.warnings if plan is not None else [], before, after, None)
 
+    def check_after(self, earlier: list[dict], op: dict, actor_type: str = "person", actor_id=None) -> Check:
+        """A change checked as the memo would be after the earlier structure changes of the same proposal (a box
+        on a slide the proposal adds first); everything is undone. Without earlier ones it is check()."""
+        if not earlier or op.get("type") not in STRUCTURE:
+            return self.check(op, actor_type, actor_id)
+        self.memo = self.s.get(Memo, self.memo_id)
+        self.rules = rules(self.s, self.memo.spec_version_id)
+        outer = self.s.begin_nested()
+        try:
+            for e in earlier:
+                inner = self.s.begin_nested()
+                try:
+                    getattr(self, f"_{e.get('type')}")(e, actor_type, actor_id)
+                    self.s.flush()
+                    inner.commit()
+                except (Refuse, KeepAside):
+                    inner.rollback()                         # refused itself: the later ones see the memo without it
+            return self._check_structure(op, actor_type, actor_id)
+        finally:
+            if outer.is_active:
+                outer.rollback()
+            self.s.rollback()
+
     def _check_structure(self, op, actor_type, actor_id) -> Check:
         """A change to the memo's structure, tried inside a savepoint and undone."""
         self.memo = self.s.get(Memo, self.memo_id)
@@ -606,7 +629,7 @@ class Door:
                     rows = boxes.build_table(figures, el, str(payload.get("table") or ""), payload.get("rows"), payload.get("columns"), style)
                 else:
                     rows = boxes.build_chart(figures, el, str(payload.get("chart_type") or "column"), list(payload.get("series") or []),
-                                             int(payload.get("periods") or 6))
+                                             int(payload.get("periods") or 6), payload.get("names"))
             except ValueError as e:
                 raise Refuse(str(e))
             for cls in (ElementTable, TableColumn, TableRow, TableCell, ElementParagraph, Segment, ElementChart, ChartSeries, ChartPoint):
@@ -614,11 +637,27 @@ class Door:
                 self.s.flush()
             return [el.id]
         if payload.get("text") is not None:
-            for i, text in enumerate(str(payload["text"]).split("\n")):
+            figures = None
+            for i, line in enumerate(str(payload["text"]).split("\n")):
                 para = ElementParagraph(element_id=el.id, position=i, level=0)
                 self.s.add(para)
                 self.s.flush()
-                self.s.add(Segment(paragraph_id=para.id, position=0, kind="text", text=text))
+                parts, pos = [], 0
+                for m in MARKER.finditer(line):                  # {{concept}}: a figure from the record
+                    if m.start() > pos:
+                        parts.append({"kind": "text", "text": line[pos:m.start()]})
+                    figures = figures or Figures(self.s, self.s.get(S.Firm, self.memo.firm_id),
+                                                 self.s.get(S.SpecVersion, self.memo.spec_version_id),
+                                                 self.s.get(RecordRevision, self.memo.record_revision_id))
+                    try:
+                        parts.append(figures.chip(m.group(1)))
+                    except ValueError as e:
+                        raise Refuse(str(e))
+                    pos = m.end()
+                if pos < len(line) or not parts:
+                    parts.append({"kind": "text", "text": line[pos:]})
+                for n, part in enumerate(parts):
+                    self.s.add(Segment(paragraph_id=para.id, position=n, **part))
         return [el.id]
 
     def _edit_box(self, op, actor_type, actor_id):
@@ -784,7 +823,8 @@ class Door:
             raise Refuse(f"the firm allows one {sec.name!r} slide")
         if sec.count == "n" and sec.count_n and sum(1 for s in slides if s.section_id == sec.id) >= sec.count_n:
             raise Refuse(f"the firm allows {sec.count_n} {sec.name!r} slides")
-        slide = Slide(id=uuid.uuid4(), memo_id=self.memo.id, position=len(slides), section_id=sec.id, layout_id=layout.id,
+        slide = Slide(id=_uuid(payload.get("id")) or uuid.uuid4(), memo_id=self.memo.id, position=len(slides), section_id=sec.id,
+                      layout_id=layout.id,
                       kind="free" if layout.is_blank else "template", background_ref=layout.background_ref, revision=1)
         self.s.add(slide)
         slides.insert(max(0, min(int(payload.get("position", len(slides))), len(slides))), slide)
