@@ -19,7 +19,7 @@ from ..db.history import Conflict, Operation
 from ..db.memo import Memo
 from ..db.record import Deal, RecordRevision
 from ..db.session import SessionLocal, get_session
-from ..services import binding, roundtrip, updates
+from ..services import binding, proposals, roundtrip, updates
 from ..services.generator.memo import Generator
 from ..services.memo_view import memo_view
 from ..services.operations.door import Door
@@ -120,7 +120,8 @@ async def apply_operation(memo_id: str, op: OperationIn, user: S.User = Depends(
     result = await run_in_threadpool(apply)
     message = {"type": "operation", "by": user.email, "op": body["type"], "target": body.get("target"),
                "status": result.status, "reason": result.reason, "sequence": result.sequence,
-               "element": result.element, "slides": result.slides, "created": [str(x) for x in result.created or []]}
+               "element": result.element, "slides": result.slides, "created": [str(x) for x in result.created or []],
+                   "warnings": result.warnings or []}
     await hub.send(memo_id, message)
     return message
 
@@ -265,3 +266,69 @@ async def apply_update(memo_id: str, revision_id: str, user: S.User = Depends(cu
 async def ignore_update(memo_id: str, revision_id: str, user: S.User = Depends(current_user)) -> dict:
     """The memo stays on its revision; this one is not offered again."""
     return await _update_op(memo_id, revision_id, "ignore_update", user)
+
+
+# --- proposals: edits made for a person to confirm --------------------------------------------------
+@router.get("/{memo_id}/proposals")
+def list_proposals(memo_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> list[dict]:
+    own_memo(session, user, memo_id)
+    return proposals.open_for(session, memo_id)
+
+
+class OperationCheck(BaseModel):
+    type: str
+    target: str | None = None
+    base_revision: int | None = None
+    payload: dict = {}
+
+
+@router.post("/{memo_id}/operations/check")
+async def check_operation(memo_id: str, op: OperationCheck, user: S.User = Depends(current_user)) -> dict:
+    """What an edit would do, without doing it (the canvas asks before removing a figure)."""
+    def run():
+        with SessionLocal() as session:
+            own_memo(session, user, memo_id)
+            c = Door(session, uuid.UUID(memo_id)).check(op.model_dump(), actor_type="person", actor_id=user.id)
+            return {"status": c.status, "reason": c.reason, "warnings": c.warnings}
+
+    return await run_in_threadpool(run)
+
+
+async def _broadcast(memo_id: str, by: str, items: list, results: list) -> None:
+    for item, r in zip(items, results):
+        op = item["op"]
+        await hub.send(memo_id, {"type": "operation", "by": by, "op": op.get("type"), "target": str(op.get("target") or ""),
+                                 "status": r.status, "reason": r.reason, "sequence": r.sequence, "element": r.element,
+                                 "slides": r.slides, "created": [str(x) for x in r.created or []], "warnings": r.warnings or []})
+
+
+@router.post("/{memo_id}/proposals/{proposal_id}/apply")
+async def apply_proposal(memo_id: str, proposal_id: str, user: S.User = Depends(current_user)) -> dict:
+    """The proposal's operations through the door, on behalf of the person who confirms it."""
+    def run():
+        with SessionLocal() as session:
+            own_memo(session, user, memo_id)
+            try:
+                return proposals.apply(session, proposal_id, user.id)
+            except ValueError as e:
+                raise HTTPException(409, str(e))
+
+    out, results = await run_in_threadpool(run)
+    await _broadcast(memo_id, user.email, out["operations"], results)
+    await hub.send(memo_id, {"type": "proposal", "id": proposal_id, "status": out["status"]})
+    return out
+
+
+@router.post("/{memo_id}/proposals/{proposal_id}/discard")
+async def discard_proposal(memo_id: str, proposal_id: str, user: S.User = Depends(current_user)) -> dict:
+    def run():
+        with SessionLocal() as session:
+            own_memo(session, user, memo_id)
+            try:
+                return proposals.discard(session, proposal_id, user.id)
+            except ValueError as e:
+                raise HTTPException(409, str(e))
+
+    out = await run_in_threadpool(run)
+    await hub.send(memo_id, {"type": "proposal", "id": proposal_id, "status": out["status"]})
+    return out

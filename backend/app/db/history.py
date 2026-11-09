@@ -23,6 +23,9 @@ class ChangeSet(Base):
     summary: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String, default="proposed")  # proposed, applied, rejected
     source_message_id: Mapped[uuid.UUID | None] = mapped_column()
+    # a proposal's operations, each with what the door said when it was checked (and, once applied, its result)
+    operations: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
+    decided_by: Mapped[uuid.UUID | None] = fk("users.id", nullable=True, ondelete="SET NULL")
     created_at: Mapped[datetime] = created_at()
 
 
