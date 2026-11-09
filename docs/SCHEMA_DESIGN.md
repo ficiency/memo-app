@@ -189,6 +189,10 @@ apply_update.
 **Write path:** client (canvas, agent proposal, import) → API → checks (locks, chips, rules, box held by
 someone else) → apply, refuse or keep aside → bump the element's revision and the memo's sequence → store the
 operation → broadcast the new state of the element to the room.
+An edit of one element is read in one statement and checked in memory; it lands with a compare-and-set on the
+element's revision (written only if still the revision read, else kept aside) and the memo's next sequence in
+one statement, then its rows, the operation and the commit sent together. Changes to the memo's structure
+(slides, a new box) lock the memo's row for their transaction.
 
 **PPTX import:** each shape is matched by its name. A box changed in the app since the export
 (revision differs) → kept aside. A chip changed in the file → refused. Added, deleted or pasted things →

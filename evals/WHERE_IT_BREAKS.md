@@ -42,8 +42,8 @@ quality issue; **low** = cosmetic. Grey italic slots (text the agent or a person
 | 25 | A wide logo ran past its box (Lumen, right edge) | The picture took the box's height and kept its ratio, whatever the width | painter, canvas | medium | **fixed**: the logo fits inside its box in both |
 | 26 | A second line in a placeholder (Merrow KPI detail line) is Georgia on the canvas, Arial in PowerPoint | The paragraph's stored font is the box's first-level font; the template's own level-2 font is not read | onboarding step 3 | low | open |
 | 27 | Letter spacing of small caps labels is missing on the canvas | Character spacing is not in the element model | schema / canvas | low | open |
-| 28 | After a save, the box stays held for ~2.5 s | The door checks and saves against the remote database before the box is released | door, database latency | medium | open: measure where the time goes |
-| 29 | Opening a memo takes ~3 s | The memo and the spec's styles are read in ~25 queries against the remote database | memo read | medium | open |
+| 28 | After a save, the box stayed held for ~2.5 s | The door locked the memo's row first, then read the spec and the element one query at a time, rewrote the text row by row and read the element again (~23 round trips, the memo locked for ~15 of them); the socket released the box only after the save | door, real time | medium | **fixed** (8 Nov): one read, checks in memory, the spec's rules kept per version, a compare-and-set on the element's revision with the memo's sequence in one statement, the writes and the commit sent together (4 round trips, ~0.5 s); the box is released at once and the others see the saved text ~0.6 s later; eight edits on one box at once: 1 applied, 7 kept aside |
+| 29 | Opening a memo took ~3 s | The memo and the spec's styles were read in ~33 queries against the remote database | memo read | medium | **fixed** (8 Nov): read as two statements, 0.7 s |
 
 ## How to see an open issue again
 

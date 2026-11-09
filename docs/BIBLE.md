@@ -229,7 +229,8 @@ What the canvas allows (checked on the server):
   read by the PPTX painter, `GET /memos/{id}` and the door's answers, so the screen and the file read the same
   data; the canvas resolves role → font, size, colour and palette name → hex from the spec it receives. Routes
   to list, create, read, export, import and list what was kept aside.
-- ⬜ Saving a box holds it ~2.5 s and opening a memo takes ~3 s against the remote database (WHERE_IT_BREAKS 28, 29).
+- ✅ Saving a box ~0.5 s with the box released at once, opening a memo ~0.7 s (8 Nov; WHERE_IT_BREAKS 28, 29). Each
+  connection still checks it is alive before use (one round trip): kept, since the database drops idle connections.
 - ⬜ Choosing between materials in a conflict is stored with who chose; the step does not yet run again with that
   choice (the spec keeps the model's reading until then).
 
