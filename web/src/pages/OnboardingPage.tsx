@@ -96,7 +96,10 @@ export function OnboardingPage() {
     setWriting(true);
     try {
       const r = await post<{ spec: string; version: number }>("/onboarding/write");
-      setNotice(`Written as ${r.spec} v${r.version}. New memos can be built from it; memos already made stay on their version.`);
+      setNotice(
+        `Written as ${r.spec} v${r.version}. New memos can be built from it; memos already made stay on their version. ` +
+          "Figures that have no place in the record yet are being bound now: review them under Binding before the first memo.",
+      );
       load();
     } catch (e) {
       setNotice((e as Error).message);

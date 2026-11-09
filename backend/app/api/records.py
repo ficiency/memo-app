@@ -15,7 +15,7 @@ from ..config import REPO
 from ..db import spec as S
 from ..db.record import Deal, RecordRevision, RecordValue
 from ..db.session import SessionLocal, get_session
-from ..services import records
+from ..services import binding, records
 from ..services.binding_review import resolve
 from ..services.records import PATH_TOKEN, Record
 from .auth import current_user
@@ -87,7 +87,10 @@ async def upload(file: UploadFile, user: S.User = Depends(current_user)) -> dict
                 r = records.load(session, firm.name, path, created_by=user.id)
             except (ValueError, KeyError) as e:
                 raise HTTPException(400, f"could not read this record: {e}")
-            return revision_json(session, r)
+            firm_name = firm.name
+            out = revision_json(session, r)
+        binding.start(firm_name)                 # a firm's first record: its concepts are bound now, for review
+        return out
 
     return await run_in_threadpool(load)
 

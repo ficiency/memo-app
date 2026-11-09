@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..db import spec as S
 from ..db.session import get_session
+from ..services import binding
 from ..services.onboarding import service
 from ..services.onboarding.writer import write
 from .auth import current_user
@@ -81,4 +82,5 @@ async def write_spec(user: S.User = Depends(current_user), session: Session = De
     if missing:
         raise HTTPException(409, f"approve these steps first: {', '.join(missing)}")
     result = await run_in_threadpool(write, firm.name)
-    return {"spec": result["spec"], "version": result["version"], "rows": result["rows"]}
+    binding.start(firm.name)                     # new concepts are bound now, for review before the first memo
+    return {"spec": result["spec"], "version": result["version"], "rows": result["rows"], "binding": "started"}

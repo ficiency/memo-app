@@ -1,4 +1,8 @@
-"""Bind a firm's concepts to paths of a deal record: once per firm and record format, at its first memo.
+"""Bind a firm's concepts to paths of a deal record, for a person to review (Firm setup → Binding).
+
+It runs when a spec version is written and when a firm's first record arrives, so the binding is reviewed
+before the first memo uses it (and, as a fallback, when a memo is created without one). Only concepts with no
+binding yet go to the model: bindings that exist, and those a person set or confirmed, are kept.
 
 Code builds an index of the record from its normalised values (any format with a reader), the model maps
 each concept of the firm's latest spec to a path, a relative path, a formula or "missing", and code checks
@@ -14,7 +18,7 @@ import argparse
 import sys
 from collections import defaultdict
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import spec as S
@@ -148,22 +152,30 @@ def bind(firm_name: str) -> dict:
         firm = session.scalar(select(S.Firm).where(S.Firm.name == firm_name))
         spec = session.scalar(select(S.Spec).where(S.Spec.firm_id == firm.id))
         version = session.scalar(select(S.SpecVersion).where(S.SpecVersion.spec_id == spec.id)
-                                 .order_by(S.SpecVersion.number.desc()))
+                                 .order_by(S.SpecVersion.number.desc())) if spec else None
         revision = session.scalar(select(RecordRevision).where(RecordRevision.firm_id == firm.id)
                                   .order_by(RecordRevision.number.desc()))
+        if version is None or revision is None:
+            return {"firm": firm_name, "skipped": "no spec or no record yet", "calls": 0}
+        bound = set(session.scalars(select(S.Binding.concept_name).where(S.Binding.firm_id == firm.id,
+                                                                         S.Binding.record_schema == revision.record_schema)))
+        wanted = [c for c in concepts(session, version.id) if c["name"] not in bound]
+        if not wanted:                                           # every concept has a binding: nothing to ask
+            return {"firm": firm_name, "concepts": 0, "kept": len(bound), "calls": 0, "unresolved": [], "answer": {}}
         record = Record(session, revision.id)
         # which angle of the record is this firm's view: the one named after the firm's memo
         angle = next((p.split(".")[0].split(":")[1] for p, r in record.by_path.items()
                       if p.startswith("angle:") and p.endswith(".memo_name") and r.text_value == spec.name), None)
-        wanted = concepts(session, version.id)
         text = (f"FIRM MEMO: {spec.name}; this firm's angle: {angle or 'none'}\n\n=== CONCEPTS\n"
                 + "\n".join(f"{c['name']} | {c['type']} | {c['value_kind'] or ''} | {c['description'] or ''}" for c in wanted)
                 + f"\n\n=== RECORD INDEX ({revision.record_schema})\n{record_index(record, angle)}")
         result = call_with_checks(INSTRUCTIONS, text, [], make_validate(record, wanted))
-        session.execute(delete(S.Binding).where(S.Binding.firm_id == firm.id,
-                                                S.Binding.record_schema == revision.record_schema))
-        counts = defaultdict(int)
+        counts = defaultdict(int)                                # new concepts only: the bindings there are stay
+        asked = {c["name"] for c in wanted}
         for b in result["answer"].get("bindings") or []:
+            if b.get("concept") not in asked:                    # not asked, or answered twice
+                continue
+            asked.discard(b.get("concept"))
             status = b.get("status")
             kind = {"found": "path", "derive": "derived"}.get(status, "missing")
             counts[kind] += 1
@@ -172,7 +184,7 @@ def bind(firm_name: str) -> dict:
                                   formula=b.get("formula") if kind == "derived" else None))
         session.commit()
         att = result["attempts"]
-        return {"firm": firm_name, "concepts": len(wanted), "angle": angle, **counts, "unresolved": result["unresolved"],
+        return {"firm": firm_name, "concepts": len(wanted), "kept": len(bound), "angle": angle, **counts, "unresolved": result["unresolved"],
                 "calls": len(att), "tokens_in": sum(a["prompt_tokens"] or 0 for a in att),
                 "tokens_out": sum(a["completion_tokens"] or 0 for a in att), "answer": result["answer"]}
 
@@ -181,6 +193,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("firm")
     r = bind(parser.parse_args().firm)
+    if not r.get("concepts"):
+        sys.stdout.write(f"{r['firm']}: nothing to bind ({r.get('skipped') or 'every concept has a binding'})\n")
+        return
     sys.stdout.write(f"{r['firm']}: {r['concepts']} concepts → found {r.get('path', 0)}, derived {r.get('derived', 0)}, "
                      f"missing {r.get('missing', 0)}; angle {r['angle']}; calls {r['calls']}, tokens {r['tokens_in']}/{r['tokens_out']}; "
                      f"still failing {len(r['unresolved'])}\n")
@@ -191,3 +206,27 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# --- in the background, so writing a spec or uploading a record does not wait for the model ------------------
+import threading                                                     # noqa: E402
+import time                                                          # noqa: E402
+
+RUNNING: dict[str, dict] = {}                                        # firm → {"started", "finished", "error", "result"}
+
+
+def start(firm_name: str) -> None:
+    """Bind the firm's concepts that have no binding yet, in the background (nothing to do costs nothing)."""
+    if RUNNING.get(firm_name, {}).get("finished") is None and firm_name in RUNNING:
+        return                                                       # already running
+    RUNNING[firm_name] = {"started": time.time(), "finished": None, "error": None, "result": None}
+
+    def work():
+        try:
+            r = bind(firm_name)
+            RUNNING[firm_name]["result"] = {k: v for k, v in r.items() if k != "answer"}
+        except Exception as e:                                       # shown on the binding screen
+            RUNNING[firm_name]["error"] = f"{type(e).__name__}: {e}"
+        RUNNING[firm_name]["finished"] = time.time()
+
+    threading.Thread(target=work, daemon=True).start()

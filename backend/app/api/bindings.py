@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..db import spec as S
 from ..db.session import get_session
-from ..services import binding_review
+from ..services import binding, binding_review
 from .auth import current_user
 
 router = APIRouter(prefix="/bindings", tags=["bindings"])
@@ -18,6 +18,8 @@ router = APIRouter(prefix="/bindings", tags=["bindings"])
 def review(user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> dict:
     firm = session.get(S.Firm, user.firm_id)
     out = binding_review.review(session, firm)
+    run = binding.RUNNING.get(firm.name)
+    out["binding_run"] = run and {"running": run["finished"] is None, "error": run["error"], "result": run["result"]}
     users = {u.id: u.email for u in session.scalars(select(S.User).where(S.User.firm_id == firm.id))}
     out["history"] = [{"concept": c.concept_name, "before": c.before_path or c.before_formula or c.before_kind,
                        "after": c.after_path or c.after_formula or c.after_kind, "by": users.get(c.changed_by),

@@ -35,6 +35,7 @@ type Review = {
   to_look_at: number;
   approved: number;
   history: { concept: string; before: string | null; after: string | null; by: string | null; at: string }[];
+  binding_run: { running: boolean; error: string | null; result: Record<string, unknown> | null } | null;
 };
 
 const human = (s: string) => s.replace(/_/g, " ");
@@ -62,6 +63,14 @@ export function BindingPanel() {
   useEffect(() => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // while the model binds new figures, look again every few seconds
+  const running = Boolean(data?.binding_run?.running);
+  useEffect(() => {
+    if (!running) return;
+    const t = window.setInterval(load, 4000);
+    return () => window.clearInterval(t);
+  }, [running, load]);
 
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p className="muted">Reading the binding against the record…</p>;
@@ -97,6 +106,20 @@ export function BindingPanel() {
           </button>
         </div>
       </div>
+      {data.binding_run?.running && <div className="notice">Binding the figures that have no place yet against the record…</div>}
+      {data.binding_run?.error && <p className="error">The binding stopped: {data.binding_run.error}</p>}
+      {data.binding_run?.result && !data.binding_run.running && Number(data.binding_run.result.concepts ?? 0) > 0 && (
+        <div className="notice">
+          {String(data.binding_run.result.concepts)} new figure(s) were bound by the model; the ones there were stay as people left them.
+          Review them below.
+        </div>
+      )}
+      {data.approved === 0 && !running && (
+        <div className="warnings">
+          ⚠ No one has reviewed this binding yet. Memos take their figures from it: look at the flagged ones and confirm before the
+          first memo.
+        </div>
+      )}
       <div className="tabs" style={{ margin: "10px 0" }}>
         <button className={filter === "look" ? "active" : ""} onClick={() => setFilter("look")}>
           To look at <span className="count warn">{data.to_look_at}</span>
