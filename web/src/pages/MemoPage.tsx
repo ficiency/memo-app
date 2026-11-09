@@ -60,7 +60,16 @@ export function MemoPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [panel, setPanel] = useState<"conflicts" | "proposals" | null>(null);
+  const [panel, setPanel] = useState<"conflicts" | "proposals" | "agent" | null>(null);
+  // what the agent works on: the slide (and box) last pointed at
+  const [focus, setFocus] = useState<{ slideId: string | null; elementId: string | null; label: string | null }>({
+    slideId: null,
+    elementId: null,
+    label: null,
+  });
+  const [chat, setChat] = useState<{ author: string; text: string; proposal_id: string | null }[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [question, setQuestion] = useState("");
   const [removing, setRemoving] = useState<{ chips: Seg[]; warnings: string[] | null; resolve: (remove: boolean) => void } | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
@@ -95,6 +104,10 @@ export function MemoPage() {
   }, [memoId]);
 
   // edits made for a person to confirm (the agent's)
+  const loadChat = useCallback(() => {
+    get<{ author: string; text: string; proposal_id: string | null }[]>(`/memos/${memoId}/agent`).then(setChat).catch(() => undefined);
+  }, [memoId]);
+
   const loadProposals = useCallback(() => {
     get<Proposal[]>(`/memos/${memoId}/proposals`).then(setProposals).catch(() => undefined);
   }, [memoId]);
@@ -109,7 +122,8 @@ export function MemoPage() {
     loadConflicts();
     loadUpdate();
     loadProposals();
-  }, [load, loadConflicts, loadUpdate, loadProposals]);
+    loadChat();
+  }, [load, loadConflicts, loadUpdate, loadProposals, loadChat]);
 
   const onMessage = useCallback(
     (m: LiveMessage) => {
@@ -179,6 +193,7 @@ export function MemoPage() {
     pending,
     editing,
     onPick: (el) => {
+      setFocus({ slideId: el.slide_id, elementId: el.id, label: el.name ?? el.role ?? null });
       (document.activeElement as HTMLElement | null)?.blur(); // leaving the box I hold saves it first
       const holder = people.find((p) => p.editing === el.id);
       if (holder && holder.email !== email) {
@@ -221,6 +236,27 @@ export function MemoPage() {
     removing?.resolve(remove);
     setRemoving(null);
     window.setTimeout(() => (document.querySelector(".editor") as HTMLElement | null)?.focus(), 0);
+  };
+
+  const askAgent = async (text: string) => {
+    if (!text.trim() || asking) return;
+    const slideId = focus.slideId ?? view?.slides[0]?.id ?? null;
+    setChat((c) => [...c, { author: "person", text, proposal_id: null }]);
+    setQuestion("");
+    setAsking(true);
+    try {
+      const r = await post<{ reply: string; proposal: { id: string } | null }>(`/memos/${memoId}/agent`, {
+        message: text,
+        slide_id: slideId,
+        element_id: focus.elementId,
+      });
+      setChat((c) => [...c, { author: "agent", text: r.reply, proposal_id: r.proposal?.id ?? null }]);
+      if (r.proposal) loadProposals();
+    } catch (e) {
+      setChat((c) => [...c, { author: "agent", text: `Something went wrong: ${(e as Error).message}`, proposal_id: null }]);
+    } finally {
+      setAsking(false);
+    }
   };
 
   const decideProposal = async (id: string, how: "apply" | "discard") => {
@@ -326,6 +362,9 @@ export function MemoPage() {
           <span className={`dot ${connected ? "on" : "off"}`} title={connected ? "Live" : "Reconnecting…"} />
         </div>
         <div className="actions">
+          <button className={panel === "agent" ? "active-toggle" : ""} onClick={() => setPanel(panel === "agent" ? null : "agent")}>
+            Agent
+          </button>
           {proposals.length > 0 && (
             <button onClick={() => setPanel(panel === "proposals" ? null : "proposals")}>
               Proposals<span className="count">{proposals.length}</span>
@@ -377,7 +416,12 @@ export function MemoPage() {
       <div className="memo-body">
         <nav className="rail">
           {view.slides.map((s) => (
-            <a key={s.id} href={`#slide-${s.id}`} className="rail-item">
+            <a
+              key={s.id}
+              href={`#slide-${s.id}`}
+              className={`rail-item${(focus.slideId ?? view.slides[0]?.id) === s.id ? " focus" : ""}`}
+              onClick={() => setFocus({ slideId: s.id, elementId: null, label: null })}
+            >
               <span className="rail-n">{s.position + 1}</span>
               <span className="rail-name">{(s.section_id && view.spec.sections[s.section_id]?.name) || s.layout || "Slide"}</span>
             </a>
@@ -398,6 +442,76 @@ export function MemoPage() {
               </section>
             ))}
         </div>
+        {panel === "agent" && (
+          <aside className="panel agent-panel">
+            <div className="panel-head">
+              <strong>Agent</strong>
+              <button className="link" onClick={() => setPanel(null)}>
+                Close
+              </button>
+            </div>
+            <p className="muted small">
+              It works on one slide, with the firm's spec and the deal record's figures, and proposes; nothing changes until you apply.
+              Figures are never typed: they come from the record.
+            </p>
+            <div className="agent-scope small">
+              On slide {(view.slides.find((x) => x.id === (focus.slideId ?? view.slides[0]?.id))?.position ?? 0) + 1}
+              {focus.elementId ? ` · box "${focus.label ?? "selected"}"` : " · the whole slide"}
+              {focus.elementId && (
+                <button className="link" onClick={() => setFocus({ ...focus, elementId: null, label: null })}>
+                  {" "}
+                  (whole slide)
+                </button>
+              )}
+            </div>
+            <div className="agent-chat">
+              {chat.length === 0 && (
+                <div className="agent-try">
+                  {["Fill the boxes the model should write on this slide", "Write the title as a one-line conclusion", "Shorten the text of this slide"].map((t) => (
+                    <button key={t} onClick={() => askAgent(t)} disabled={asking}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {chat.map((m, i) => (
+                <div key={i} className={`msg ${m.author}`}>
+                  {m.text}
+                  {m.proposal_id && proposals.some((pr) => pr.id === m.proposal_id) && (
+                    <button className="link" onClick={() => setPanel("proposals")}>
+                      {" "}
+                      See the proposal
+                    </button>
+                  )}
+                </div>
+              ))}
+              {asking && <div className="msg agent muted">Working on it… (about half a minute)</div>}
+            </div>
+            <form
+              className="agent-ask"
+              onSubmit={(e) => {
+                e.preventDefault();
+                askAgent(question);
+              }}
+            >
+              <textarea
+                rows={3}
+                value={question}
+                placeholder="Ask for an edit of this slide"
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    askAgent(question);
+                  }
+                }}
+              />
+              <button className="primary" disabled={asking || !question.trim()}>
+                Ask
+              </button>
+            </form>
+          </aside>
+        )}
         {panel === "proposals" && (
           <aside className="panel">
             <div className="panel-head">

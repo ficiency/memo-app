@@ -20,6 +20,7 @@ from ..db.memo import Memo
 from ..db.record import Deal, RecordRevision
 from ..db.session import SessionLocal, get_session
 from ..services import binding, proposals, roundtrip, updates
+from ..services.agent import slide as agent
 from ..services.generator.memo import Generator
 from ..services.memo_view import memo_view
 from ..services.operations.door import Door
@@ -332,3 +333,29 @@ async def discard_proposal(memo_id: str, proposal_id: str, user: S.User = Depend
     out = await run_in_threadpool(run)
     await hub.send(memo_id, {"type": "proposal", "id": proposal_id, "status": out["status"]})
     return out
+
+
+# --- the memo's agent ---------------------------------------------------------------------------------
+class AgentRequest(BaseModel):
+    message: str
+    slide_id: str | None = None
+    element_id: str | None = None
+
+
+@router.post("/{memo_id}/agent")
+async def ask_agent(memo_id: str, body: AgentRequest, user: S.User = Depends(current_user)) -> dict:
+    """A request in words for one slide (or one box): the agent's reply and its proposal, never applied."""
+    with SessionLocal() as session:
+        own_memo(session, user, memo_id)
+    if not body.message.strip():
+        raise HTTPException(400, "say what to do")
+    out = await run_in_threadpool(agent.ask, memo_id, user, body.message.strip(), body.slide_id, body.element_id)
+    if out["proposal"]:
+        await hub.send(memo_id, {"type": "proposal", "id": out["proposal"]["id"], "status": "proposed"})
+    return out
+
+
+@router.get("/{memo_id}/agent")
+def agent_history(memo_id: str, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> list[dict]:
+    own_memo(session, user, memo_id)
+    return agent.history(session, memo_id)

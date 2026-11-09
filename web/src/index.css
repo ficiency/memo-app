@@ -292,3 +292,16 @@ table.bindings .mono, .change-binding .mono { overflow-wrap: anywhere; }
 .before-after { display: grid; gap: 4px; margin-top: 4px; font-size: 12px; white-space: pre-wrap; }
 .before-after .before { color: var(--muted); text-decoration: line-through; }
 .before-after .after { background: #f4effb; border-radius: 4px; padding: 4px 6px; }
+
+/* the agent */
+.rail-item.focus { background: #efeeea; font-weight: 600; }
+button.active-toggle { border-color: var(--accent); color: var(--accent); }
+.agent-panel { display: flex; flex-direction: column; }
+.agent-scope { background: #f4effb; border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+.agent-chat { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
+.msg { padding: 8px 10px; border-radius: 8px; font-size: 13px; white-space: pre-wrap; }
+.msg.person { background: #eef3fb; align-self: flex-end; max-width: 90%; }
+.msg.agent { background: #f6f5f2; align-self: flex-start; max-width: 95%; }
+.agent-try { display: flex; flex-direction: column; gap: 6px; }
+.agent-try button { text-align: left; white-space: normal; }
+.agent-ask { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
