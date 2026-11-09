@@ -30,6 +30,9 @@ def spec_queries(version_id) -> dict:
         "palette": (S.PaletteColor, select(S.PaletteColor).where(S.PaletteColor.spec_version_id == v)),
         "fonts": (S.Font, select(S.Font).where(S.Font.spec_version_id == v)),
         "sections": (S.Section, select(S.Section).where(S.Section.spec_version_id == v)),
+        "spec_layouts": (S.Layout, select(S.Layout).where(S.Layout.spec_version_id == v, S.Layout.is_master.is_(False))),
+        "section_layouts": (S.SectionLayout, select(S.SectionLayout).where(
+            S.SectionLayout.section_id.in_(select(S.Section.id).where(S.Section.spec_version_id == v)))),
     }
 
 
@@ -53,7 +56,12 @@ def spec_view(session: Session, version_id, rows: dict | None = None) -> dict:
                         "focus_color": chart.focus_color_ref if chart else None},
         "grid": {k: getattr(grid, k) for k in ("margin_top_in", "margin_right_in", "margin_bottom_in", "margin_left_in",
                                                 "columns", "gutter_in", "snap_in")} if grid else None,
-        "sections": {str(x.id): {"name": x.name, "status": x.status} for x in r["sections"]},
+        # each section with what the firm allows (status, how many slides) and its layouts, for adding slides
+        "sections": {str(x.id): {"name": x.name, "status": x.status, "count": x.count, "count_n": x.count_n, "position": x.position,
+                                 "layouts": [{"id": str(l.id), "name": l.name, "blank": l.is_blank}
+                                             for link in r["section_layouts"] if link.section_id == x.id
+                                             for l in r["spec_layouts"] if l.id == link.layout_id]}
+                     for x in sorted(r["sections"], key=lambda x: x.position)},
     }
 
 

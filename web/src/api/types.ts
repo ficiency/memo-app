@@ -154,7 +154,17 @@ export type SpecView = {
   table_style: Record<string, string | number | boolean | null> | null;
   chart_style: { series_colors: string[]; labels_on: boolean | null; gridlines: boolean | null; focus_color: string | null };
   grid: Record<string, number | null> | null;
-  sections: Record<string, { name: string; status: string }>;
+  sections: Record<
+    string,
+    {
+      name: string;
+      status: string;
+      count: string;
+      count_n: number | null;
+      position: number;
+      layouts: { id: string; name: string; blank: boolean }[];
+    }
+  >;
 };
 
 export type Person = { email: string; editing: string | null };

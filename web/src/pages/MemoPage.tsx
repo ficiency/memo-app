@@ -4,6 +4,7 @@ import { get, post, withEmail } from "../api/client";
 import type { Conflict, El, ImportResult, MemoView, Person, Seg, SlideData, UpdateChanges, UpdateInfo } from "../api/types";
 import { useAuth } from "../auth";
 import { Fit, Slide, useWidth, type Interaction } from "../canvas/Slide";
+import { SlideRail } from "../canvas/SlideRail";
 import { Styler } from "../canvas/style";
 import { useLive, type LiveMessage } from "../canvas/useLive";
 
@@ -426,19 +427,16 @@ export function MemoPage() {
       )}
 
       <div className="memo-body">
-        <nav className="rail">
-          {view.slides.map((s) => (
-            <a
-              key={s.id}
-              href={`#slide-${s.id}`}
-              className={`rail-item${(focus.slideId ?? view.slides[0]?.id) === s.id ? " focus" : ""}`}
-              onClick={() => setFocus({ slideId: s.id, elementId: null, label: null })}
-            >
-              <span className="rail-n">{s.position + 1}</span>
-              <span className="rail-name">{(s.section_id && view.spec.sections[s.section_id]?.name) || s.layout || "Slide"}</span>
-            </a>
-          ))}
-        </nav>
+        <SlideRail
+          memoId={memoId}
+          slides={view.slides}
+          spec={view.spec}
+          focusId={focus.slideId}
+          onFocus={(id) => setFocus({ slideId: id, elementId: null, label: null })}
+          onOp={(op) => {
+            if (!send({ type: "op", op })) toast("Reconnecting… try again in a moment", "warn");
+          }}
+        />
         <div className="slides" ref={mainRef}>
           {slideWidth > 0 &&
             view.slides.map((s) => (

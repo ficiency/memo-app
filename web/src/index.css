@@ -306,3 +306,19 @@ button.active-toggle { border-color: var(--accent); color: var(--accent); }
 .agent-try button { text-align: left; white-space: normal; }
 .agent-ask { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
 .proposal-op.left-out .before-after { opacity: 0.45; }
+
+/* the slide rail: reorder, duplicate, delete, add */
+.rail-slot { position: relative; border-top: 2px solid transparent; }
+.rail-slot.drop-before { border-top-color: var(--accent); }
+.rail-slot .rail-item { padding-right: 52px; }
+.rail-item.dragging { opacity: 0.4; }
+.rail-lock { font-size: 10px; margin-left: auto; opacity: 0.6; }
+.rail-actions { position: absolute; right: 4px; top: 4px; display: none; gap: 2px; }
+.rail-slot:hover .rail-actions { display: flex; }
+button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
+.rail-slot.end { padding-top: 8px; }
+.rail-add { width: 100%; border-style: dashed; color: var(--muted); }
+.add-sections { display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow: auto; }
+.add-section { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
+.add-section.full { opacity: 0.6; }
+.add-layouts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
