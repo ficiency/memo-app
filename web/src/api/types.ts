@@ -195,7 +195,7 @@ export type ImportResult = {
 };
 
 export type RevisionInfo = { id: string; number: number; as_of: string | null; created_at: string; created_by: string | null };
-export type UpdateInfo = { current: RevisionInfo; available: RevisionInfo | null };
+export type UpdateInfo = { current: RevisionInfo; available: RevisionInfo | null; binding_changes: string[] };
 export type UpdateChange = {
   slide: number;
   element_id: string;

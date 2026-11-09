@@ -3,6 +3,9 @@ import { get, post } from "../api/client";
 import type { El, SlideData, SpecView } from "../api/types";
 import { Fit, Slide, useWidth, type Interaction } from "../canvas/Slide";
 import { fontStack, Styler } from "../canvas/style";
+import { BindingPanel } from "./BindingPanel";
+
+const BINDING = 99; // the binding review, after the six steps
 
 // Firm setup: the firm's materials go through six steps. Code extracts, the model interprets, code checks
 // the model; a person reviews every step and approves it. The approved steps are written as the spec's next
@@ -84,7 +87,7 @@ export function OnboardingPage() {
   if (error) return <main className="page"><p className="error">{error}</p></main>;
   if (!data) return <main className="page"><p className="muted">Loading…</p></main>;
 
-  const step = data.steps.find((s) => s.number === selected)!;
+  const step = data.steps.find((s) => s.number === selected) ?? data.steps[0];
   const ready = data.steps.filter((s) => s.number > 0).every((s) => s.status === "approved");
   const latest = data.versions[0];
   const total = data.steps.reduce((sum, s) => sum + s.cost_usd, 0);
@@ -136,8 +139,19 @@ export function OnboardingPage() {
               </span>
             </button>
           ))}
+          <button className={`step${selected === BINDING ? " active" : ""}`} onClick={() => setSelected(BINDING)}>
+            <span className="step-dot review">↔</span>
+            <span className="step-text">
+              <strong>Binding</strong>
+              <span className="muted small">where each figure comes from</span>
+            </span>
+          </button>
         </nav>
-        <StepPanel key={selected} step={step} versionId={latest?.id ?? null} onChange={load} />
+        {selected === BINDING ? (
+          <BindingPanel />
+        ) : (
+          <StepPanel key={selected} step={step} versionId={latest?.id ?? null} onChange={load} />
+        )}
       </div>
     </main>
   );

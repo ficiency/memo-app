@@ -47,6 +47,8 @@ function tabOf(path: string): Tab {
   return "company";
 }
 
+type Offer = { from: string; path: string; label: string | null; oldValue: number; newText: string; used: string[]; chosen: boolean };
+
 const TABLE_PATH = /^(table|angle_table):(.+)\[(.+)\]\.([^.\]]+)$/;
 
 export function RecordPage() {
@@ -61,6 +63,8 @@ export function RecordPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [usage, setUsage] = useState<Record<string, string[]>>({});
+  const [offers, setOffers] = useState<Offer[] | null>(null);
 
   const loadDeals = useCallback(async (select?: string) => {
     const d = await get<Deal[]>("/records");
@@ -76,6 +80,8 @@ export function RecordPage() {
     if (!selected) return;
     setRecord(null);
     get<RecordRevisionFull>(`/records/${selected}`).then(setRecord).catch((e: Error) => setError(e.message));
+    // which values the firm's memos use (through the binding), to show which place feeds a memo
+    get<Record<string, string[]>>(`/records/${selected}/usage`).then(setUsage).catch(() => setUsage({}));
   }, [selected]);
 
   const latest = deals?.[0]?.revisions[0];
@@ -103,16 +109,43 @@ export function RecordPage() {
     }
   };
 
-  const save = async () => {
+  // Before saving: other places that held the same old value (the record often repeats a figure). Offered,
+  // never changed on their own; the ones a memo uses come first and checked.
+  const offersFor = (edits: Record<string, string>): Offer[] => {
+    if (!record) return [];
+    const byPath = new Map(record.values.map((v) => [v.path, v]));
+    const out: Offer[] = [];
+    for (const [path, text] of Object.entries(edits)) {
+      const v = byPath.get(path);
+      if (!v || v.kind !== "number" || typeof v.value !== "number" || Math.abs(v.value) < 10 || v.value_kind === "percent") continue;
+      for (const o of record.values) {
+        if (o.path === path || o.path in edits || o.kind !== "number" || o.value !== v.value) continue;
+        if (o.value_kind && v.value_kind && o.value_kind !== v.value_kind) continue;
+        out.push({ from: path, path: o.path, label: o.label, oldValue: v.value, newText: text, used: usage[o.path] ?? [], chosen: Boolean(usage[o.path]) });
+      }
+    }
+    return out.sort((a, b) => Number(b.used.length > 0) - Number(a.used.length > 0));
+  };
+
+  const save = async (extra: Record<string, string> = {}, asked = false) => {
     if (!record) return;
+    if (!asked) {
+      const found = offersFor(changes);
+      if (found.length) {
+        setOffers(found);
+        return;
+      }
+    }
+    setOffers(null);
     setBusy(true);
     setError(null);
     try {
-      const r = await post<Revision>(`/records/${record.id}/revise`, { changes });
+      const all = { ...changes, ...extra };
+      const r = await post<Revision>(`/records/${record.id}/revise`, { changes: all });
       setEditing(false);
       setChanges({});
       await loadDeals(r.id);
-      setMessage(`Saved as revision ${r.number} (${Object.keys(changes).length} changed). Revision ${record.number} stays as it was.`);
+      setMessage(`Saved as revision ${r.number} (${Object.keys(all).length} changed). Revision ${record.number} stays as it was.`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -123,9 +156,16 @@ export function RecordPage() {
   const field = (v: RecordValue) => {
     if (!editing) {
       return (
-        <span className={v.changed ? "changed" : undefined} title={v.changed ? `was ${v.before ?? "empty"}` : undefined}>
-          {show(v)}
-        </span>
+        <>
+          <span className={v.changed ? "changed" : undefined} title={v.changed ? `was ${v.before ?? "empty"}` : undefined}>
+            {show(v)}
+          </span>
+          {usage[v.path] && (
+            <span className="used" title={`The firm's memos take ${usage[v.path].join(", ")} from here`}>
+              memo: {usage[v.path].map((c) => c.replace(/_/g, " ")).join(", ")}
+            </span>
+          )}
+        </>
       );
     }
     const current = changes[v.path] ?? (v.value === null ? "" : String(v.value));
@@ -180,7 +220,7 @@ export function RecordPage() {
               >
                 Cancel
               </button>
-              <button className="primary" onClick={save} disabled={busy || Object.keys(changes).length === 0}>
+              <button className="primary" onClick={() => save()} disabled={busy || Object.keys(changes).length === 0}>
                 Save as revision {(latest?.number ?? 0) + 1}
                 {Object.keys(changes).length > 0 ? ` (${Object.keys(changes).length})` : ""}
               </button>
@@ -199,6 +239,51 @@ export function RecordPage() {
       )}
       {error && <p className="error">{error}</p>}
       {deals && deals.length === 0 && <div className="empty">No record yet. Upload the deal record (JSON).</div>}
+      {offers && (
+        <div className="overlay" onClick={() => setOffers(null)}>
+          <div className="dialog wide-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2>The same value is in other places</h2>
+            <p className="muted">
+              The record often repeats a figure. Change these too? The ones a memo uses are checked; the rest are probably the same
+              number by chance.
+            </p>
+            <table className="list compact">
+              <tbody>
+                {offers.slice(0, 12).map((o, i) => (
+                  <tr key={o.path}>
+                    <td style={{ width: 30 }}>
+                      <input
+                        type="checkbox"
+                        checked={o.chosen}
+                        onChange={(e) => setOffers(offers.map((x, j) => (j === i ? { ...x, chosen: e.target.checked } : x)))}
+                      />
+                    </td>
+                    <td>
+                      {o.label ?? o.path}
+                      <div className="mono small muted">{o.path}</div>
+                    </td>
+                    <td className="num">
+                      {o.oldValue.toLocaleString()} → {o.newText}
+                    </td>
+                    <td>{o.used.length > 0 && <span className="used">memo: {o.used.map((c) => c.replace(/_/g, " ")).join(", ")}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {offers.length > 12 && <p className="muted small">{offers.length - 12} more places hold the same number; left as they are.</p>}
+            <div className="dialog-actions">
+              <button onClick={() => setOffers(null)}>Back</button>
+              <button onClick={() => save({}, true)}>Save only my change</button>
+              <button
+                className="primary"
+                onClick={() => save(Object.fromEntries(offers.filter((o) => o.chosen).map((o) => [o.path, o.newText])), true)}
+              >
+                Save with the checked ones
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="record">
         <aside className="revisions">

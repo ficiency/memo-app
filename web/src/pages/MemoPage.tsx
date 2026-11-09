@@ -193,11 +193,14 @@ export function MemoPage() {
     window.setTimeout(() => setBusy(null), 2500);
   };
 
+  // what an update brings: a newer record revision, or the memo's own revision when the binding changed
+  const updateTarget = update?.available ?? (update?.binding_changes.length ? update.current : null);
+
   const seeChanges = async () => {
-    if (!update?.available) return;
+    if (!updateTarget) return;
     setChanges("loading");
     try {
-      setChanges(await get<UpdateChanges>(`/memos/${memoId}/updates/${update.available.id}`));
+      setChanges(await get<UpdateChanges>(`/memos/${memoId}/updates/${updateTarget.id}`));
     } catch (e) {
       setChanges(null);
       setNotice({ title: "Could not compare the revisions", body: (e as Error).message });
@@ -205,16 +208,16 @@ export function MemoPage() {
   };
 
   const decide = async (how: "apply" | "ignore") => {
-    if (!update?.available) return;
+    if (!updateTarget) return;
     setApplying(true);
     try {
       if (how === "apply") await waitSaved(); // the box someone has open is saved first
       const r = await post<{ status: string; reason: string | null; changed: number }>(
-        `/memos/${memoId}/updates/${update.available.id}/${how}`,
+        `/memos/${memoId}/updates/${updateTarget.id}/${how}`,
       );
       if (r.status !== "applied") setNotice({ title: "Not applied", body: r.reason ?? "" });
       else if (how === "apply") {
-        toast(`${r.changed} figure${r.changed === 1 ? "" : "s"} updated from record revision ${update.available.number}`, "ok");
+        toast(`${r.changed} figure${r.changed === 1 ? "" : "s"} updated`, "ok");
         await load();
       }
       setChanges(null);
@@ -291,13 +294,20 @@ export function MemoPage() {
         </div>
       </div>
 
-      {update?.available && (
+      {update && updateTarget && (
         <div className="update-banner">
-          <span>
-            <strong>Deal record revision {update.available.number}</strong> is available
-            {update.available.created_by ? ` (by ${update.available.created_by.split("@")[0]})` : ""}. This memo uses revision{" "}
-            {update.current.number}.
-          </span>
+          {update.available ? (
+            <span>
+              <strong>Deal record revision {update.available.number}</strong> is available
+              {update.available.created_by ? ` (by ${update.available.created_by.split("@")[0]})` : ""}. This memo uses revision{" "}
+              {update.current.number}.
+            </span>
+          ) : (
+            <span>
+              <strong>Where some figures come from changed</strong> ({update.binding_changes.map((c) => c.replace(/_/g, " ")).join(", ")}
+              ). This memo still shows the earlier figures.
+            </span>
+          )}
           <span className="actions">
             <button onClick={seeChanges}>See changes</button>
             <button onClick={() => decide("ignore")} disabled={applying}>
@@ -397,7 +407,9 @@ export function MemoPage() {
             ) : (
               <>
                 <h2>
-                  Record revision {changes.current.number} → {changes.revision.number}
+                  {changes.current.id === changes.revision.id
+                    ? "Figures from where the binding now says"
+                    : `Record revision ${changes.current.number} → ${changes.revision.number}`}
                 </h2>
                 <p className="muted">
                   {changes.changes.length === 0
