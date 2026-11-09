@@ -42,6 +42,7 @@ from app.db.record import RecordRevision
 from app.services import updates
 from app.services.figures import Figures
 from app.services.memo_data import MemoData, fetch
+from app.services.zones import snap
 
 FRAME = ("x_in", "y_in", "w_in", "h_in", "rotation_deg")
 STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anchor")
@@ -91,6 +92,8 @@ class Rules:
     palette: dict           # lower-case name → upper-case hex
     sections: dict          # id → Section
     constraints: list       # OrderConstraint
+    zones: dict             # layout id → (x, y, w, h) of its free zone, inches
+    grid: object            # the firm's grid (margins, snap step), or None
 
 
 _RULES: dict[uuid.UUID, Rules] = {}
@@ -103,9 +106,14 @@ def rules(session: Session, version_id) -> Rules:
             "palette": (S.PaletteColor, select(S.PaletteColor).where(S.PaletteColor.spec_version_id == version_id)),
             "sections": (S.Section, select(S.Section).where(S.Section.spec_version_id == version_id)),
             "constraints": (S.OrderConstraint, select(S.OrderConstraint).where(S.OrderConstraint.spec_version_id == version_id)),
+            "zones": (S.LayoutZone, select(S.LayoutZone).where(S.LayoutZone.kind == "free", S.LayoutZone.layout_id.in_(
+                select(S.Layout.id).where(S.Layout.spec_version_id == version_id)))),
+            "grid": (S.Grid, select(S.Grid).where(S.Grid.spec_version_id == version_id)),
         })
         _RULES[version_id] = Rules({p.name.lower(): p.hex.upper() for p in r["palette"]},
-                                   {x.id: x for x in r["sections"]}, r["constraints"])
+                                   {x.id: x for x in r["sections"]}, r["constraints"],
+                                   {z.layout_id: (z.x_in, z.y_in, z.w_in, z.h_in) for z in r["zones"]},
+                                   r["grid"][0] if r["grid"] else None)
     return _RULES[version_id]
 
 
@@ -249,6 +257,26 @@ class Door:
         self.s.commit()                                          # ends the session's read-only use of the connection
         return Result(status, reason, log.id, sequence, [], element if status == "applied" else None, None,
                       plan.warnings if plan is not None and status == "applied" else None)
+
+    def free_room(self, slide) -> tuple | None:
+        """The free zone of a slide where people may place their own boxes: a slide of a section the firm leaves
+        free (or a free slide), on a layout with a zone. None elsewhere."""
+        sec = self.rules.sections.get(slide.section_id)
+        if slide.kind != "free" and (sec is None or sec.status != "free"):
+            return None
+        return self.rules.zones.get(slide.layout_id)
+
+    def inside(self, frame: dict, zone: tuple) -> None:
+        x, y, w, h = zone
+        f = frame
+        if f["x_in"] < x - 0.05 or f["y_in"] < y - 0.05 or f["x_in"] + f["w_in"] > x + w + 0.05 or f["y_in"] + f["h_in"] > y + h + 0.05:
+            raise Refuse(f"outside the free area the firm leaves on this slide (from {x:.1f}, {y:.1f} in, "
+                         f"{w:.1f} × {h:.1f} in): the header, footer and margins stay as they are")
+        if f["w_in"] < 0.3 or f["h_in"] < 0.2:
+            raise Refuse("too small to hold anything")
+
+    def snapped(self, frame: dict) -> dict:
+        return {k: snap(v, self.rules.grid) for k, v in frame.items()}
 
     def element_in(self, read: MemoData, target) -> Element:
         el = next((e for e in read.elements if e.id == target), None)
@@ -418,13 +446,26 @@ class Door:
         return Plan(el, statements=statements, rows=rows, after=after)
 
     def _plan_set_frame(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
-        if el.firm_lock in ("fixed", "content"):
+        """Move or resize a box. Only on a free slide, inside its free zone, snapped to the firm's grid; a box the
+        template placed there (its content area) may be resized too; fixed boxes (header, footer, logo) never."""
+        slide = next(x for x in read.slides if x.id == el.slide_id)
+        zone = self.free_room(slide)
+        if el.firm_lock == "fixed" or (el.firm_lock == "content" and zone is None):
             raise Refuse("the firm's template places this element; it cannot move")
         if el.user_lock_by is not None:
             raise Refuse("a person locked this element")
+        if zone is None:
+            raise Refuse("boxes move only on the slides the firm leaves free")
         self.fresh(el, op)
         payload = op.get("payload") or {}
-        sets = {k: float(payload[k]) for k in FRAME if k in payload}
+        frame = {k: float(payload[k]) if k in payload else float(getattr(el, k) or 0) for k in ("x_in", "y_in", "w_in", "h_in")}
+        frame = self.snapped(frame)
+        self.inside(frame, zone)
+        sets = {k: v for k, v in frame.items() if abs(v - float(getattr(el, k) or 0)) > 1e-6}
+        if "rotation_deg" in payload:
+            sets["rotation_deg"] = float(payload["rotation_deg"])
+        if not sets:
+            return Plan(el, noop=True)
         return Plan(el, sets=sets, after=_set_on(el, sets))
 
     def _plan_set_style(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
@@ -459,7 +500,9 @@ class Door:
         return Plan(el, sets=sets, after=_set_on(el, sets))
 
     def _plan_delete_element(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
-        if el.firm_lock in ("fixed", "content"):
+        slide = next(x for x in read.slides if x.id == el.slide_id)
+        free_slide = self.free_room(slide) is not None
+        if el.firm_lock == "fixed" or (el.firm_lock == "content" and not free_slide):
             # from PowerPoint a deleted template box is kept aside and the box stays; elsewhere it is refused
             if actor_type == "import":
                 raise KeepAside("a box of the firm's template was deleted in PowerPoint; the box stays", "deleted_box")
@@ -523,22 +566,51 @@ class Door:
         return [(p, self.s.scalars(select(Segment).where(Segment.paragraph_id == p.id).order_by(Segment.position)).all()) for p in paras]
 
     def _add_element(self, op, actor_type, actor_id):
-        """Add a box to a slide. Template slides take no new boxes: refused, or kept aside from PowerPoint."""
+        """Add a box to a slide the firm leaves free, inside its free zone and snapped to the grid: text, a table of
+        the record, a chart of the record. Template slides take no new boxes: refused, or kept aside from
+        PowerPoint."""
         payload = op.get("payload") or {}
         slide = self.slide(payload.get("slide_id") or op.get("target"))
-        if slide.kind == "template":
+        zone = self.free_room(slide)
+        if zone is None:
             if actor_type == "import":
                 raise KeepAside(f"a {payload.get('type', 'box')} was added on a template slide in PowerPoint",
                                 "pasted_picture" if payload.get("type") == "image" else "added_box")
-            raise Refuse("template slides take no new boxes; add a free slide")
+            raise Refuse("this slide takes no new boxes: the firm lays it out; add a slide of a section it leaves free")
         for k in COLOUR_FIELDS:
             if k in payload:
                 self.colour_ok(payload[k])
-        el = Element(id=uuid.uuid4(), slide_id=slide.id, type=payload.get("type", "text"), role=payload.get("role"),
+        kind = payload.get("type", "text")
+        if kind not in ("text", "table", "chart", "image"):
+            raise Refuse(f"a new box is text, a table, a chart or a picture, not {kind!r}")
+        x, y, w, h = zone
+        frame = {"x_in": float(payload.get("x_in", x)), "y_in": float(payload.get("y_in", y)),
+                 "w_in": float(payload.get("w_in", min(w, 6.0))), "h_in": float(payload.get("h_in", min(h, 3.0)))}
+        if actor_type != "import":                           # from PowerPoint the position is the file's
+            frame = self.snapped(frame)
+            self.inside(frame, zone)
+        el = Element(id=uuid.uuid4(), slide_id=slide.id, type=kind, role=payload.get("role"),
                      fill_kind="person", firm_lock="free", revision=1, fill_ref=payload.get("fill_ref"),
-                     line_ref=payload.get("line_ref"), **{k: float(payload.get(k, 0)) for k in FRAME})
+                     line_ref=payload.get("line_ref"), rotation_deg=0, z_index=100, **frame)
         self.s.add(el)
         self.s.flush()
+        if kind in ("table", "chart"):
+            from app.services import boxes
+            figures = Figures(self.s, self.s.get(S.Firm, self.memo.firm_id), self.s.get(S.SpecVersion, self.memo.spec_version_id),
+                              self.s.get(RecordRevision, self.memo.record_revision_id))
+            try:
+                if kind == "table":
+                    style = self.s.scalar(select(S.TableStyle.id).where(S.TableStyle.spec_version_id == self.memo.spec_version_id))
+                    rows = boxes.build_table(figures, el, str(payload.get("table") or ""), payload.get("rows"), payload.get("columns"), style)
+                else:
+                    rows = boxes.build_chart(figures, el, str(payload.get("chart_type") or "column"), list(payload.get("series") or []),
+                                             int(payload.get("periods") or 6))
+            except ValueError as e:
+                raise Refuse(str(e))
+            for cls in (ElementTable, TableColumn, TableRow, TableCell, ElementParagraph, Segment, ElementChart, ChartSeries, ChartPoint):
+                self.s.add_all([r for r in rows if type(r) is cls])
+                self.s.flush()
+            return [el.id]
         if payload.get("text") is not None:
             for i, text in enumerate(str(payload["text"]).split("\n")):
                 para = ElementParagraph(element_id=el.id, position=i, level=0)

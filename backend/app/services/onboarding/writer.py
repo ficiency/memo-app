@@ -133,6 +133,8 @@ class SpecWriter:
         self.rules()
         self.questions_and_conflicts()
         self.s.commit()
+        from app.services.zones import write_zones
+        self.counts["layout_zones"] = write_zones(self.s, self.v)   # where people may place their own boxes
         return {"firm": name, "spec": spec_name, "version": number, "rows": dict(self.counts)}
 
     # --- step 1 ---------------------------------------------------------------------------------
