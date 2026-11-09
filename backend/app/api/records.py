@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -17,6 +17,7 @@ from ..db.record import Deal, RecordRevision, RecordValue
 from ..db.session import SessionLocal, get_session
 from ..services import binding, records
 from ..services.binding_review import resolve
+from ..services.realtime.hub import hub
 from ..services.records import PATH_TOKEN, Record
 from .auth import current_user
 
@@ -92,7 +93,9 @@ async def upload(file: UploadFile, user: S.User = Depends(current_user)) -> dict
         binding.start(firm_name)                 # a firm's first record: its concepts are bound now, for review
         return out
 
-    return await run_in_threadpool(load)
+    out = await run_in_threadpool(load)
+    await hub.send_firm(user.firm_id, {"type": "record", "by": user.email, "reason": "record"})   # open memos ask again
+    return out
 
 
 class Changes(BaseModel):
@@ -100,7 +103,8 @@ class Changes(BaseModel):
 
 
 @router.post("/{revision_id}/revise")
-def revise(revision_id: str, body: Changes, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> dict:
+def revise(revision_id: str, body: Changes, tasks: BackgroundTasks, user: S.User = Depends(current_user),
+           session: Session = Depends(get_session)) -> dict:
     """Edited values: a new revision with them; the one edited stays."""
     r = own_revision(session, user, revision_id)
     if not body.changes:
@@ -109,6 +113,7 @@ def revise(revision_id: str, body: Changes, user: S.User = Depends(current_user)
         new = records.revise(session, r.id, body.changes, created_by=user.id)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    tasks.add_task(hub.send_firm, user.firm_id, {"type": "record", "by": user.email, "reason": "record"})
     return revision_json(session, new)
 
 

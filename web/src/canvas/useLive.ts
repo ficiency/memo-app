@@ -23,7 +23,8 @@ export type LiveMessage =
       warnings?: string[];
     }
   | { type: "proposal"; id: string; status: string }
-  | { type: "reload"; by: string; reason: string };
+  | { type: "reload"; by: string; reason: string }
+  | { type: "record"; by: string; reason: "record" | "binding" }; // a newer deal record or binding: ask again
 
 export function useLive(memoId: string, onMessage: (m: LiveMessage) => void, onReconnect: () => void) {
   const socket = useRef<WebSocket | null>(null);

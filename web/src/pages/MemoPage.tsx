@@ -170,6 +170,8 @@ export function MemoPage() {
             loadConflicts();
           }
         } else if (m.status === "kept_aside") loadConflicts();
+      } else if (m.type === "record") {
+        loadUpdate();
       } else if (m.type === "proposal") {
         loadProposals();
       } else if (m.type === "reload") {

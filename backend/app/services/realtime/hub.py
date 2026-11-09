@@ -16,7 +16,9 @@ import uuid
 from dataclasses import dataclass, field
 
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import select
 
+from app.db.memo import Memo
 from app.db.session import SessionLocal
 from app.services.operations.door import Door
 
@@ -124,6 +126,20 @@ class Hub:
         await self.send(memo_id, message)
 
     # --- messages ------------------------------------------------------------------------------
+    async def send_firm(self, firm_id, message: dict) -> None:
+        """A message for every open memo of a firm (a newer deal record, a binding changed): each asks again
+        what it is offered."""
+        open_ids = [uuid.UUID(x) for x in self.rooms]
+        if not open_ids:
+            return
+
+        def memos() -> list[str]:
+            with SessionLocal() as s:
+                return [str(i) for i in s.scalars(select(Memo.id).where(Memo.firm_id == firm_id, Memo.id.in_(open_ids)))]
+
+        for memo_id in await run_in_threadpool(memos):
+            await self.send(memo_id, message)
+
     async def send(self, memo_id: str, message: dict, skip=None) -> None:
         room = self.rooms.get(memo_id)
         for socket in list(room.people) if room else []:

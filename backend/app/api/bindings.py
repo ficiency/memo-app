@@ -1,7 +1,7 @@
 """The firm's binding (concept → where its value comes from in the deal record): review, change, confirm."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..db import spec as S
 from ..db.session import get_session
 from ..services import binding, binding_review
+from ..services.realtime.hub import hub
 from .auth import current_user
 
 router = APIRouter(prefix="/bindings", tags=["bindings"])
@@ -36,12 +37,16 @@ class Change(BaseModel):
 
 
 @router.post("/concepts/{concept}")
-def change(concept: str, body: Change, user: S.User = Depends(current_user), session: Session = Depends(get_session)) -> dict:
-    """Where a concept's value comes from, set by a person (kept as a change; memos built before are offered it)."""
+def change(concept: str, body: Change, tasks: BackgroundTasks, user: S.User = Depends(current_user),
+           session: Session = Depends(get_session)) -> dict:
+    """Where a concept's value comes from, set by a person (kept as a change; memos built before are offered it,
+    the open ones at once)."""
     try:
-        return binding_review.change(session, session.get(S.Firm, user.firm_id), user, concept, body.kind, body.path, body.formula)
+        out = binding_review.change(session, session.get(S.Firm, user.firm_id), user, concept, body.kind, body.path, body.formula)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    tasks.add_task(hub.send_firm, user.firm_id, {"type": "record", "by": user.email, "reason": "binding"})
+    return out
 
 
 class Approve(BaseModel):
