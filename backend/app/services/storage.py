@@ -56,3 +56,20 @@ def path(asset: Asset) -> Path:
 
 def is_picture(content_type: str | None) -> bool:
     return (content_type or "").lower() in PICTURES
+
+
+def as_picture(data: bytes, content_type: str | None) -> tuple[bytes, str]:
+    """A picture PowerPoint can hold: kept as it is when it already is one; another format a picture can be read
+    from (WebP, AVIF…) is turned into PNG. ValueError when it is not a picture."""
+    if is_picture(content_type):
+        return data, content_type.lower()
+    import io
+
+    from PIL import Image, UnidentifiedImageError
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            out = io.BytesIO()
+            im.convert("RGBA" if im.mode in ("RGBA", "LA", "P") else "RGB").save(out, "PNG")
+            return out.getvalue(), "image/png"
+    except (UnidentifiedImageError, OSError):
+        raise ValueError("this file is not a picture")

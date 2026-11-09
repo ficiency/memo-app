@@ -147,10 +147,9 @@ async def upload_picture(memo_id: str, file: UploadFile, user: S.User = Depends(
             memo = session.get(Memo, uuid.UUID(memo_id))
             if memo is None or memo.firm_id != user.firm_id:
                 raise HTTPException(404, "no such memo")
-            if not storage.is_picture(file.content_type):
-                raise HTTPException(400, "a picture is a PNG, JPEG, GIF, BMP, TIFF or SVG file")
             try:
-                asset = storage.put(session, data, "image", memo.firm_id, file.content_type, file.filename)
+                picture, content_type = storage.as_picture(data, file.content_type)
+                asset = storage.put(session, picture, "image", memo.firm_id, content_type, file.filename)
             except ValueError as e:
                 raise HTTPException(400, str(e))
             session.commit()
