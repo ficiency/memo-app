@@ -57,6 +57,9 @@ code, .mono { font-family: var(--mono); font-size: 0.9em; }
 .steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 6px; top: 3px; font: 500 10px var(--mono); color: var(--accent); }
 .steps li.door { background: var(--tint); box-shadow: inset 2px 0 0 var(--accent); }
 @media (max-width: 720px) { .path { grid-template-columns: 1fr; gap: 4px; } .steps { grid-template-columns: 1fr; } }
+.next { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; }
+.next li { max-width: none; }
+.next li.nb { list-style: none; margin-left: -18px; color: var(--muted); }
 .gloss { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 22px; font-size: 12.5px; }
 .gloss div { min-width: 0; }
 .gloss b { font-weight: 600; }
@@ -101,9 +104,9 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   h1 { font-size: 28px; }
 }
 @media print {
-  @page { size: A4; margin: 10mm 12mm; }
-  body { font-size: 9px; line-height: 1.38; padding: 0; }
-  main { gap: 10px; max-width: none; }
+  @page { size: A4; margin: 8mm 11mm; }
+  body { font-size: 9px; line-height: 1.3; padding: 0; }
+  main { gap: 7px; max-width: none; }
   section { gap: 6px; }
   h1 { font-size: 20px; } h2 { font-size: 13.5px; break-after: avoid; }
   .eyebrow, .meta { font-size: 8.5px; }
@@ -119,6 +122,7 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   .flow { padding: 8px; gap: 6px; }
   .box { padding: 4px 7px; }
   .pill { font-size: 7.5px; }
+  .next { font-size: 8.5px; gap: 1px; }
   .steps { font-size: 8.3px; } .pl { font-size: 9px; } .pl span { font-size: 7.5px; }
   .path { grid-template-columns: 95px minmax(0, 1fr); padding: 3px 0; gap: 8px; }
   .steps li { padding: 1px 6px 1px 14px; } .steps li::before { left: 4px; top: 1px; font-size: 7px; }
@@ -138,10 +142,9 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <div class="eyebrow">Soal technical assessment · One memo, every firm</div>
   <h1>One memo engine: what it does, how we know, where it breaks</h1>
   <div class="meta"><span>Luis Chapa</span><span>9 Nov 2026</span><span>FastAPI · Postgres (Supabase) · React · OpenAI</span></div>
-  <p class="lede">Each firm's memo format is stored as versioned data. A memo is built from that format and a deal's
-  record, then edited in the browser, through an AI agent, or in PowerPoint and back. Every edit, from any of the
-  three, goes through one server check before it lands, and nothing that cannot be applied is dropped: it is kept
-  aside and shown. Three firms are loaded on one deal (Tidewell): <strong>Merrow</strong> (16:9 PowerPoint
+  <p class="lede">Each firm's memo format is stored as versioned data. A memo is built from it and a deal's record,
+  then edited in the browser, by an AI agent, or in PowerPoint and back; every edit goes through one server check,
+  and what cannot be applied is kept aside and shown, never dropped. Three firms are loaded on one deal (Tidewell): <strong>Merrow</strong> (16:9 PowerPoint
   template), <strong>Corriemoor</strong> (4:3 template) and <strong>Lumen</strong>, the third firm, which sent only a
   written guide. Every number below comes from eval runs on the final code.</p>
 </header>
@@ -151,7 +154,7 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <p>Three things are stored apart in Postgres: the <strong>deal record</strong> (every upload a new revision), the
   firm's <strong>spec</strong> (layouts, rules, brand; every approval a new version) and the <strong>memo</strong>,
   pinned to one of each until a person moves it. The memo is relational (memo → slide → box → paragraph → run), the
-  same box model for the firm's layouts, the canvas and PowerPoint; history tables are only appended to. A
+  same box model for the firm's layouts, the canvas and PowerPoint; history tables are only appended to; row-level security is on and the backend is the database's only client. A
   <strong>figure</strong> is a run that remembers its record path. Five paths do all the work:</p>
   <div class="paths">
     <div class="path"><div class="pl">One edit<span>canvas, agent or PowerPoint</span></div><ol class="steps">
@@ -187,12 +190,12 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   <div class="tw"><table>
     <thead><tr><th>Capability</th><th>What the system does</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td class="k">1 · The template lives in the platform</td><td>Onboarding reads the firm's template, guide and past memos in six steps (materials, house style, structure, layouts, recipe, rules). Each step is one model call, checked by code, retried with the errors, then approved by a person, and written as a spec version in tables. A memo moves to a new version only when a person does it: See changes shows what moves, what keeps people's words and what is kept aside.<div class="gap">a firm cannot yet build or edit its template inside the app; it comes from its materials.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
-      <tr><td class="k">2 · One memo, every output</td><td>Native PowerPoint on the firm's own master, a master generated from the guide for Lumen, and a PDF converted by PowerPoint so it reads exactly like the editable file. Text is measured in the firm's real fonts, with each box's insets and paragraph formats; it shrinks by half points to the firm's minimum, then is flagged "does not fit".<div class="gap">long content is reported, not yet continued or split onto another slide.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
-      <tr><td class="k">3 · A live editor</td><td>Template slides are locked to their layout. Free slides take text, tables and charts from the record, and pictures, only inside the free area worked out from the layout, snapped to the firm's grid. Sections reorder where the firm's rules allow. Every edit is an operation checked on the server and broadcast to everyone in the memo.</td><td><span class="pill ok">Built</span></td></tr>
-      <tr><td class="k">4 · Custom slides, three ways in</td><td>Upload a PowerPoint or PDF slide: title, text, tables and charts come back native; pictures and PDF pages come back flagged. Build on the canvas. Or ask the agent, which uses the firm's layouts with figures from the record.<div class="gap">promoting a one-off slide into the template is designed, not built.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
-      <tr><td class="k">5 · AI edits are operations</td><td>The agent turns a request into operations that the door dry-runs; anything wrong goes back to the model with the reason, at most twice. A person applies the proposal. It cites figures by name or record path, so a figure is one value everywhere it appears: text, table and chart.</td><td><span class="pill ok">Built</span></td></tr>
-      <tr><td class="k">6 · PowerPoint is an editor</td><td>Identity lives in each slide's and shape's hidden name. An uploaded file is compared with the export it came from, and every difference becomes an operation. Free edits are applied; a figure typed over is refused; a box changed in the app since the export is kept aside. A newer record is shown live and applied by a person: figures move, people's words stay.</td><td><span class="pill ok">Built</span></td></tr>
+      <tr><td class="k">1 · The template lives in the platform</td><td>Onboarding reads the template, guide and past memos in six steps, each checked by code and approved by a person, into a versioned spec in tables. A memo moves version only when a person does it, after See changes.<div class="gap">building or editing a template inside the app.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
+      <tr><td class="k">2 · One memo, every output</td><td>Native PowerPoint on the firm's own master (generated from the guide for Lumen); PDF converted from it by PowerPoint. Text measured in the firm's real fonts; shrunk to the firm's minimum, then flagged "does not fit".<div class="gap">long content is reported, not continued on another slide.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
+      <tr><td class="k">3 · A live editor</td><td>Template slides locked to their layout. Free slides take text, record tables and charts, and pictures inside the free area, on the grid. Sections reorder where the rules allow. Every edit checked on the server and broadcast live.</td><td><span class="pill ok">Built</span></td></tr>
+      <tr><td class="k">4 · Custom slides, three ways in</td><td>Upload a PowerPoint or PDF slide (native where possible, flagged pictures where not), build on the canvas, or ask the agent.<div class="gap">promoting a one-off slide into the template.</div></td><td><span class="pill warn">Mostly built</span></td></tr>
+      <tr><td class="k">5 · AI edits are operations</td><td>Proposals checked by the same door, applied by a person. Figures cited by name or record path, so one figure is one value in text, table and chart.</td><td><span class="pill ok">Built</span></td></tr>
+      <tr><td class="k">6 · PowerPoint is an editor</td><td>The edited file comes back as operations: free edits applied, typed-over figures refused, edits that collide kept aside. A newer record moves figures and keeps people's words.</td><td><span class="pill ok">Built</span></td></tr>
     </tbody>
   </table></div>
 </section>
@@ -208,20 +211,28 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
 </section>
 
 <section>
-  <div class="keep" style="display:grid;gap:6px"><h2><span class="n">04</span>How we know it works</h2>
-  <p>The evals act as people do: their own server, the API the screens use, websockets like the canvas, real
-  PowerPoint files. Expected outcomes come from each firm's rules, never its name, so one suite runs on all three.
-  Where layout matters, Microsoft PowerPoint is the judge, not our own measure. To prove the suites catch failures,
-  two faults were planted in the canvas suite (pictures exported 0.1 in off; figures allowed to be typed over): it
-  dropped from 100% to 60% and named both.</p></div>
+  <h2><span class="n">04</span>Where a person checks the model</h2>
+  <div class="two">
+    <div><h3>Firm setup</h3><p>Each onboarding step's answer on its own screen, with what code could not resolve, the open questions, and every guide-versus-template conflict with both sides' evidence. Nothing reaches the spec until approved.</p></div>
+    <div><h3>Binding review</h3><p>Where each figure comes from in the record, flagged when it has no value, a broken path, a value that moved since the last upload, the same value as another figure, or the wrong kind. Changes are offered to memos already built.</p></div>
+    <div><h3>Pendings panel</h3><p>What the memo still needs: missing data, text to write, a picture to confirm, a box that does not fit. Each clears itself when it stops being true.</p></div>
+    <div><h3>Proposals and See changes</h3><p>An agent proposal, a newer record or a newer template version is shown as before → after and applied by a person.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="keep" style="display:grid;gap:6px"><h2><span class="n">05</span>How we know it works</h2>
+  <p>The evals act as people do (own server, the screens' API, websockets, real PowerPoint files). Expected outcomes
+  come from each firm's rules, never its name. Where layout matters, PowerPoint itself judges. Two faults planted in
+  the canvas suite dropped it from 100% to 60% and were both named.</p></div>
   <div class="tw keep"><table>
     <thead><tr><th>The brief's edits</th><th>Canvas</th><th>Agent (asked in words)</th><th>PowerPoint</th></tr></thead>
     <tbody>
-      <tr><td class="k">Drop an image</td><td>Free slide: placed, pending. Template slide: refused</td><td>Declined (receives no files)</td><td>Template slide: kept aside. Free slide: applied, pending</td></tr>
-      <tr><td class="k">Drag into a locked zone</td><td>Into the header: refused. Control: move in the free area applied, snapped</td><td>Declined</td><td>Refused</td></tr>
-      <tr><td class="k">Duplicate a slide</td><td>Section allowed several times: applied, new identities. Allowed once: refused</td><td>Same as canvas</td><td>Allowed once: refused. Free slide: applied</td></tr>
-      <tr><td class="k">Type over a figure</td><td>Text and table cell: refused. Control: words around it applied</td><td>Declined; told to change the record</td><td>Refused; figure unchanged</td></tr>
-      <tr><td class="k">Paste a chart as a picture</td><td>Never taken as a chart; pending until confirmed</td><td>n/a</td><td>Kept aside</td></tr>
+      <tr><td class="k">Drop an image</td><td>Free slide: placed, pending. Template: refused</td><td>Declined (receives no files)</td><td>Template slide: kept aside. Free slide: applied, pending</td></tr>
+      <tr><td class="k">Drag into a locked zone</td><td>Header: refused. Control: free-area move applied</td><td>Declined</td><td>Refused</td></tr>
+      <tr><td class="k">Duplicate a slide</td><td>Allowed several times: applied, new ids. Once: refused</td><td>Same as canvas</td><td>Allowed once: refused. Free slide: applied</td></tr>
+      <tr><td class="k">Type over a figure</td><td>Text and cell: refused. Control: words around it applied</td><td>Declined; points to the record</td><td>Refused; figure unchanged</td></tr>
+      <tr><td class="k">Paste a chart as a picture</td><td>Never taken as a chart; pending</td><td>n/a</td><td>Kept aside</td></tr>
     </tbody>
   </table></div>
 
@@ -230,21 +241,23 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
     <thead><tr><th>Brief's measure, per firm</th><th>Merrow</th><th>Corriemoor</th><th>Lumen</th></tr></thead>
     <tbody>
       <tr><td class="k">The edits above, by suite</td><td class="num">canvas 12/12<br>PPT script 30/30<br>PPT desktop 15/15<br>agent 6/6</td><td class="num">12/12<br>30/30<br>15/15<br>6/6</td><td class="num">13/13<br>20/20<br>14/14<br>6/6</td></tr>
-      <tr><td class="k">1 · Edits that survive, conflicts surfaced<br><span style="font-weight:400;color:var(--muted)">5 rounds: two people at once (same box, stale view, typed-over figure), the agent, a record change, PowerPoint and back</span></td><td class="num">123/123 kept<br>10/10 kept aside w/ conflict<br>0 lost</td><td class="num">113/113<br>10/10<br>0 lost</td><td class="num">38/38<br>10/10<br>0 lost</td></tr>
+      <tr><td class="k">1 · Edits that survive, conflicts surfaced<br><span style="font-weight:400;color:var(--muted)">5 rounds: 2 people (same box, stale view, typed figure), agent, record change, PowerPoint</span></td><td class="num">123/123 kept<br>10/10 kept aside w/ conflict<br>0 lost</td><td class="num">113/113<br>10/10<br>0 lost</td><td class="num">38/38<br>10/10<br>0 lost</td></tr>
       <tr><td class="k">2 · Canvas slide through PowerPoint and back<br><span style="font-weight:400;color:var(--muted)">text, record table and chart, 2 pictures; identity, place ±0.02 in, content, style</span></td><td class="num">5/5 elements<br>memo 460/460 untouched</td><td class="num">5/5<br>490/490</td><td class="num">6/6<br>145/145</td></tr>
       <tr><td class="k">3 · Overflow on our long-content set<br><span style="font-weight:400;color:var(--muted)">6 lengths in every writable box + a 45→180 word ladder; PowerPoint judges</span></td><td class="num">67 cases: 29 fit<br>6 shrunk, 32 reported<br><strong>0 cut silently</strong></td><td class="num">64: 47 / 1 / 16<br><strong>0 cut</strong></td><td class="num">46: 25 / 4 / 17<br><strong>0 cut</strong></td></tr>
       <tr><td class="k">4 · AI edits leaving the memo invalid or figures inconsistent<br><span style="font-weight:400;color:var(--muted)">fill, retitle, shorten, a customer concentration slide with chart and table</span></td><td class="num">0 typed amounts<br>0 of 122 figures off record<br>0 refused when applied</td><td class="num">0<br>0 of 83<br>0</td><td class="num">0<br>0 of 58<br>0</td></tr>
       <tr><td class="k">5 · Past memo rebuilt (structure)</td><td class="num">boxes 185/186<br>same place 185/185<br>slides 22/29</td><td class="num">194/195<br>192/194<br>25/31</td><td class="num">no past memos</td></tr>
       <tr><td class="k">6 · Time and cost of a render<br><span style="font-weight:400;color:var(--muted)">build + PowerPoint + PDF; laptop, hosted DB</span></td><td class="num">5.5 + 1.6 + 4.0 s<br>$0 model cost</td><td class="num">4.8 + 1.5 + 5.3 s<br>$0</td><td class="num">3.1 + 1.0 + 4.5 s<br>$0</td></tr>
+      <tr><td class="k">Steps that do use the model<br><span style="font-weight:400;color:var(--muted)">stored tokens and times per call (gpt-5.5)</span></td><td class="num">onboarding $4.04 · 13 min · 10 calls<br>binding $0.82 · 3 calls</td><td class="num">$3.92 · 13 min · 8<br>$0.54 · 2</td><td class="num">$2.25 · 8 min · 9<br>$0.30 · 2</td></tr>
+      <tr><td class="k">Agent request (all firms)</td><td class="num" colspan="3">31 recorded requests: about $0.05 each, median 13 s, longest 46 s; the agent eval's harder requests (custom slides with tables and charts) cost about $0.08</td></tr>
     </tbody>
   </table></div>
   <p class="caption">Also: our text measure agrees with PowerPoint on fit for 208/210 boxes; after PowerPoint desktop saves
-  an edited file, 336/336 untouched boxes are identical and 244/244 shapes keep their id; the agent eval cost $1.19 /
-  $1.37 / $1.51 per firm. Measure 5 is structure only (past records not given); missing slides are hand-built appendices.</p>
+  an edited file, 336/336 untouched boxes are identical and 244/244 shapes keep their id. Onboarding runs once per firm,
+  binding once per record format. Measure 5 is structure only (past records not given); missing slides are hand-built appendices.</p>
 </section>
 
 <section>
-  <h2><span class="n">05</span>The third firm: configuration or code</h2>
+  <h2><span class="n">06</span>The third firm: configuration or code</h2>
   <p><strong>It took code once, and that was the most useful finding.</strong> Our first onboarding assumed a
   PowerPoint template from its first step and was run by engineers, with scripts and a separate model chat. Lumen sent
   only a written guide, so it showed that onboarding was shaped around "a firm with a template". We rebuilt it at the
@@ -252,15 +265,14 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
   master designed from the guide when there is no template. That code is generic: <strong>no line of code names a
   firm</strong> (0 hits across backend, scripts and evals). With it, Lumen itself is all configuration: 10 layouts
   with a generated master, 81 boxes, 9 text roles, 16 formats, 55 rules, 57 recipe segments, 38 figures, 9 free areas.
-  It also exposed one bug that hit every firm (tables with no column definitions were not measured), fixed for all.
-  Not yet shown: a fourth firm going in with no code.</p>
+  It also exposed a bug in every firm (unmeasured tables), fixed for all.</p>
 </section>
 
 <section>
-  <h2><span class="n">06</span>Where it breaks, and how often</h2>
+  <h2><span class="n">07</span>Where it breaks, and how often</h2>
   <p><strong>45 issues</strong> logged while building and testing, each with cause, area, severity and status. The
   evals found three late, all fixed at the root: tables without column definitions not measured, template bullets and
-  indents lost, a picture PowerPoint saved without an embedded image refusing the whole file.</p>
+  indents lost, a picture PowerPoint saved without an embedded image refusing the whole file. The 10 open issues come from earlier runs and were not re-confirmed on the final code.</p>
   <div class="bar" role="img" aria-label="32 fixed, 2 partly fixed, 10 open, 1 not a bug">
     <i style="flex:32;background:var(--ok)"></i><i style="flex:2;background:var(--warn)"></i><i style="flex:10;background:var(--bad)"></i><i style="flex:1;background:var(--muted)"></i>
   </div>
@@ -272,21 +284,30 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule)
         <li><span class="sev warn pill">med</span>Some chart axes lack the firm's number format; onboarding can name chart series from their descriptions (fixed for Merrow only).</li>
         <li><span class="sev warn pill">med</span>Per-slide source lines and footnotes, and a risk matrix by probability × severity, still show "[no data]".</li>
         <li><span class="sev warn pill">med</span>A figure that is "some rows of a table" cannot be bound.</li>
-        <li>The 10 open issues come from earlier runs and were not re-confirmed on the final code.</li>
       </ul></div>
     <div><h3>Not tested</h3>
       <ul>
         <li>More than two people at once; disconnecting mid-edit (the memo reloads, missed messages are not replayed).</li>
         <li>A person clicking in PowerPoint: the desktop suite drives PowerPoint through its automation interface.</li>
         <li>Past memos' figures (their records were not given); Lumen rebuild (no past memos).</li>
-        <li>Load, and timings on anything but one laptop. Agent requests average 17–27 s per model call.</li>
+        <li>Load; every timing is from one laptop against the hosted database.</li>
       </ul>
-      <h3 style="margin-top:6px">Not built</h3>
-      <ul>
-        <li>Continuing long text on another slide; promoting a slide into the template; template editing in the app; merging two people's typing in one box; Word output.</li>
-      </ul></div>
+</div>
   </div>
 </section>
 
-<footer>Detail behind every number: <span class="mono">docs/report_pack/</span> (decisions, results, where it breaks) and the raw eval reports in <span class="mono">evals/reports/</span>.</footer>
+<section>
+  <h2><span class="n">08</span>What we would do next, in order</h2>
+  <ol class="next">
+    <li><strong>Bindings checked, not only reviewed</strong>: against the unit, period and range the guide and past memos give each figure, so a wrong datum (the tenor) is flagged.</li>
+    <li><strong>Long content that continues</strong> onto a continuation slide by the firm's rules, instead of only being reported.</li>
+    <li><strong>Promote a slide into the template</strong>, as a new spec version that memos move to with See changes.</li>
+    <li><strong>Template editing in the app</strong>, as checked operations on the spec, with the history memos already have.</li>
+    <li><strong>Reconnect and replay</strong> missed operations by sequence number; then a load test with many people per memo.</li>
+    <li class="nb">Items 2 to 5 are not built today, nor merging two people's typing in one box, nor Word output. Detail: <span class="mono">docs/report_pack/</span>, <span class="mono">evals/reports/</span>.</li>
+  </ol>
+
+</section>
+
+
 </main>

@@ -187,10 +187,19 @@ or the model write (deal-specific).
 | Model cost to build or render | $0 | $0 | $0 |
 | Slides | 11 | 13 | 2 |
 
-Other costs: an agent request is one model call (30–40 s; the agent eval costs about $1–1.6 per firm); binding a
-firm's figures to a record is one model call per firm and record format; onboarding a firm is six model calls
-(about $4 per firm when it was run). Timed on a laptop against a hosted database. Source: a timing run on 9 Nov
-(not a suite report).
+Timed on a laptop against a hosted database. Source: a timing run on 9 Nov (not a suite report).
+
+The steps that do use the model (gpt-5.5), read from the tokens and times the system stores for every call
+(onboarding step files, `agent_runs`, the binding run's output):
+
+| Step | Merrow | Corriemoor | Lumen |
+|---|---|---|---|
+| Onboarding a firm (once; steps 1–5, with retries) | $4.04 · 10 calls · 13 min | $3.92 · 8 calls · 13 min | $2.25 · 9 calls · 8 min |
+| Binding to a record (once per record format) | $0.82 · 3 calls | $0.54 · 2 calls | $0.30 · 2 calls |
+
+An agent request: 31 requests recorded, about $0.05 each (6,100 tokens in, 630 out on average), median 13 s,
+longest 46 s. The agent eval's requests (custom slides with tables and charts) cost about $0.08 each ($1.19 /
+$1.37 / $1.51 per firm). Model time only: a person's review of each onboarding step comes on top.
 
 **Not covered:** timings under load.
 
