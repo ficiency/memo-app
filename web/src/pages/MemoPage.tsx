@@ -104,6 +104,7 @@ export function MemoPage() {
   const [applying, setApplying] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   // a table or chart being added to a free slide, or a person's own one being changed (el)
   const [adding, setAdding] = useState<{ slide: SlideData; zone: number[]; kind: "table" | "chart"; el?: El } | null>(null);
   const wantTake = useRef<string | null>(null);
@@ -636,15 +637,20 @@ export function MemoPage() {
             }}
           />
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                  title="This memo's PowerPoint, edited, comes back with its changes; any other PowerPoint or PDF adds its slides">
-            {uploading ? "Bringing it in…" : "Upload PowerPoint or PDF"}
+                  title="A PowerPoint or a PDF. This memo's PowerPoint, edited, comes back with its changes; any other file adds its slides">
+            {uploading ? "Bringing it in…" : "Upload"}
           </button>
-          <button onClick={exportPdf} disabled={Boolean(busy)}>
-            {busy === "Making the PDF…" ? busy : "Export PDF"}
-          </button>
-          <button className="primary" onClick={exportPptx} disabled={Boolean(busy)}>
-            {busy && busy !== "Making the PDF…" ? busy : "Export PowerPoint"}
-          </button>
+          <span className="menu">
+            <button className="primary" onClick={() => setExportOpen((o) => !o)} disabled={Boolean(busy)}>
+              {busy ?? "Export ▾"}
+            </button>
+            {exportOpen && !busy && (
+              <span className="menu-list" onMouseLeave={() => setExportOpen(false)}>
+                <button onClick={() => { setExportOpen(false); exportPptx(); }}>PowerPoint <span className="muted small">editable</span></button>
+                <button onClick={() => { setExportOpen(false); exportPdf(); }}>PDF <span className="muted small">for committee</span></button>
+              </span>
+            )}
+          </span>
         </div>
       </div>
 

@@ -160,10 +160,6 @@ export function SlideRail({
                 e.target.value = "";
               }}
             />
-            <button className="rail-add rail-upload" disabled={uploading} onClick={() => uploadRef.current?.click()}
-                    title="Slides from a PowerPoint or pages of a PDF, as slides the firm leaves free">
-              {uploading ? "Bringing it in…" : "Upload PPTX or PDF"}
-            </button>
           </>
         )}
       </div>
@@ -171,6 +167,14 @@ export function SlideRail({
         <div className="overlay" onClick={() => setAdding(false)}>
           <div className="dialog wide-dialog" onClick={(e) => e.stopPropagation()}>
             <h2>Add a slide</h2>
+            {onUpload && (
+              <p>
+                <button className="link" disabled={uploading} onClick={() => { setAdding(false); uploadRef.current?.click(); }}>
+                  {uploading ? "Bringing it in…" : "…or from a file (PowerPoint or PDF)"}
+                </button>{" "}
+                <span className="muted small">its slides come in as slides the firm leaves free</span>
+              </p>
+            )}
             <p className="muted">
               The firm's sections and their layouts. It goes after slide {focusIndex + 1}; the firm's order rules may place it elsewhere or
               refuse it. It comes with the layout's boxes to fill.
