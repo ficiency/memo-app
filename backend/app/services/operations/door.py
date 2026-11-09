@@ -367,8 +367,16 @@ class Door:
         expected = set(self.s.scalars(select(S.Concept.name).join(S.RecipeSegment, S.RecipeSegment.concept_id == S.Concept.id)
                                       .where(S.RecipeSegment.element_id == el.origin_element_id,
                                              S.RecipeSegment.kind.in_(("figure", "fact")))))
-        return [f"the firm's recipe puts {c.concept_name.replace('_', ' ')} in this box; removed, it stays as a pending"
-                for c in removed if c.concept_name in expected]
+        out = []
+        for c in removed:
+            if c.concept_name not in expected:
+                continue
+            name = c.concept_name.replace("_", " ")
+            if (c.text or "").startswith("[no data"):      # the box never had it: still to be written
+                out.append(f"The firm's spec puts {name} in this box: still pending until the box has it.")
+            else:                                          # a figure the box had is gone
+                out.append(f"The firm's spec puts {name} in this box: removed, it stays pending until it is back or accepted.")
+        return out
 
     def _plan_set_cell(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
         """Change one table cell's text. A cell that holds a record figure cannot be typed over; header and

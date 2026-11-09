@@ -159,6 +159,11 @@ goes through the same checks**. A new firm must take **configuration, not code**
   never block editing or exporting. A **final review** button checks everything and marks the memo "Reviewed".
 - A person-typed number that is not a chip becomes a pending; "convert to chip" lets the person choose among
   matching record values; "It's fine" dismisses it.
+- **What the firm's spec puts in a box is held to:** the server says so whenever it is missing, as a pending,
+  never as a suggestion. A box whose recipe puts a figure or fact there and does not have it (a "[no data]"
+  marker taken out) stays pending until the box has it; a figure that was there and was removed stays pending
+  until it is back or a person accepts it ("It's fine", kept with who and when). The pendings list (step 10)
+  computes these from the memo as it is, with the operations' warnings.
 - **Notifications bell** computed from state.
 - **PPTX round trip:** free edits applied; figures refused; moved template box refused; added, deleted or
   pasted things and boxes changed in the app since the export kept aside, never lost.
