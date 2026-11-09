@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.db.history import ChangeSet
@@ -50,9 +50,13 @@ def apply(session: Session, change_set_id, user_id, only: list[int] | None = Non
     """The operations the person chose (all, when only is None) through the door, in order, on their behalf; the
     others are kept in the proposal as not chosen. Returns the proposal, the applied items and the door's results
     (for everyone's screens)."""
+    # taken once: a second confirmation arriving meanwhile (a double click) finds it already being applied
+    claimed = session.execute(update(ChangeSet).where(ChangeSet.id == uuid.UUID(str(change_set_id)), ChangeSet.status == "proposed")
+                              .values(status="applying").returning(ChangeSet.id)).first()
+    session.commit()
+    if claimed is None:
+        raise ValueError("this proposal was already applied or discarded")
     cs = session.get(ChangeSet, uuid.UUID(str(change_set_id)))
-    if cs is None or cs.status != "proposed":
-        raise ValueError("this proposal is not open")
     chosen = set(range(len(cs.operations))) if only is None else set(only)
     results, done, applied = [], [], []
     for i, item in enumerate(cs.operations):
@@ -70,10 +74,11 @@ def apply(session: Session, change_set_id, user_id, only: list[int] | None = Non
 
 
 def discard(session: Session, change_set_id, user_id) -> dict:
+    claimed = session.execute(update(ChangeSet).where(ChangeSet.id == uuid.UUID(str(change_set_id)), ChangeSet.status == "proposed")
+                              .values(status="rejected", decided_by=user_id).returning(ChangeSet.id)).first()
+    if claimed is None:
+        raise ValueError("this proposal was already applied or discarded")
     cs = session.get(ChangeSet, uuid.UUID(str(change_set_id)))
-    if cs is None or cs.status != "proposed":
-        raise ValueError("this proposal is not open")
-    cs.status, cs.decided_by = "rejected", user_id
     session.commit()
     return as_json(cs)
 

@@ -264,7 +264,11 @@ export function MemoPage() {
   const chosenOf = (pr: Proposal) =>
     pr.operations.map((_o, i) => i).filter((i) => pr.operations[i].check.status === "applied" && !(leftOut[pr.id] ?? []).includes(i));
 
+  const [deciding, setDeciding] = useState<string | null>(null); // the proposal being applied or discarded
+
   const decideProposal = async (id: string, how: "apply" | "discard") => {
+    if (deciding) return; // one confirmation at a time: a double click does nothing
+    setDeciding(id);
     try {
       await waitSaved();
       const pr = proposals.find((x) => x.id === id);
@@ -272,6 +276,8 @@ export function MemoPage() {
       loadProposals();
     } catch (e) {
       setNotice({ title: "Not done", body: (e as Error).message });
+    } finally {
+      setDeciding(null);
     }
   };
 
@@ -571,9 +577,19 @@ export function MemoPage() {
                   </div>
                 ))}
                 <div className="dialog-actions">
-                  <button onClick={() => decideProposal(pr.id, "discard")}>Discard</button>
-                  <button className="primary" disabled={chosenOf(pr).length === 0} onClick={() => decideProposal(pr.id, "apply")}>
-                    {chosenOf(pr).length === pr.operations.length ? "Apply" : `Apply ${chosenOf(pr).length} of ${pr.operations.length}`}
+                  <button disabled={deciding !== null} onClick={() => decideProposal(pr.id, "discard")}>
+                    Discard
+                  </button>
+                  <button
+                    className="primary"
+                    disabled={deciding !== null || chosenOf(pr).length === 0}
+                    onClick={() => decideProposal(pr.id, "apply")}
+                  >
+                    {deciding === pr.id
+                      ? "Applying…"
+                      : chosenOf(pr).length === pr.operations.length
+                        ? "Apply"
+                        : `Apply ${chosenOf(pr).length} of ${pr.operations.length}`}
                   </button>
                 </div>
               </div>
