@@ -375,3 +375,8 @@ button.icon { padding: 1px 6px; font-size: 12px; line-height: 1.4; }
 .spec-banner { background: #f3eefb; }
 .spec-report { margin: 8px 0 14px; padding-left: 18px; font-size: 14px; display: grid; gap: 4px; }
 .spec-report.warn li { color: #8a5300; }
+
+/* text that does not fit its box in the firm's fonts (even at the smallest size the firm allows) */
+.slide-paper .el.overflow { outline: 2px dashed #d9480f; outline-offset: 1px; }
+.slide-paper .overflow-tag { position: absolute; right: 2px; bottom: 2px; background: #fff1eb; color: #b03a0a; border: 1px solid #d9480f;
+  border-radius: 4px; font: 600 10px/1.4 system-ui, sans-serif; padding: 1px 6px; pointer-events: none; z-index: 20; }

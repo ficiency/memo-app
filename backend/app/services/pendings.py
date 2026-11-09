@@ -8,7 +8,8 @@ Pendings never block editing or exporting (docs/SCHEMA_DESIGN.md §3). Each one 
 - picture: a picture people added, which may stand in for a native chart, table or slide;
 - typed_figure: an amount typed as text in a box people edited, not a figure of the record;
 - section_missing: a section the memo's stage requires and the memo has no slide for;
-- chart_not_from_record: a chart that brought its own numbers (an uploaded slide's).
+- chart_not_from_record: a chart that brought its own numbers (an uploaded slide's);
+- does_not_fit: text that does not fit its box in the firm's fonts, even at the smallest size the firm allows.
 Those a person may accept ("It's fine") are in DISMISSABLE; the others go away when the memo has what is
 missing. New kinds (text that does not fit, a spec version's changes) are added here. Nothing here knows any firm.
 """
@@ -25,7 +26,7 @@ from app.db.memo import Element, Slide
 from app.services.figures import TYPED_AMOUNT
 from app.services.memo_data import MemoData, fetch
 
-DISMISSABLE = {"picture", "typed_figure", "recipe_missing", "chart_not_from_record", "old_layout"}
+DISMISSABLE = {"picture", "typed_figure", "recipe_missing", "chart_not_from_record", "old_layout", "does_not_fit"}
 
 
 def pendings(session: Session, memo_id) -> list[dict]:
@@ -75,6 +76,11 @@ def pendings(session: Session, memo_id) -> list[dict]:
         have = {x.concept_name for x in segs if x.kind == "chip" and x.concept_name}
         for name in sorted(expected.get(el.origin_element_id, set()) - have):
             add("recipe_missing", el, f"the firm's spec puts {name.replace('_', ' ')} in this box", uuid.uuid5(el.id, name))
+        measured = d.fit_of(el, page=position.get(el.slide_id)) if el.type in ("text", "table") else None
+        if measured is not None and not measured.fits:      # in the firm's fonts, even at its smallest size
+            smallest = f" even at {measured.size_pt:g} pt, the smallest the firm allows" if measured.size_pt else ""
+            add("does_not_fit", el, f"its text does not fit{smallest}: it needs {measured.needed_in:.2f} in of {el.h_in or 0:.2f} in; "
+                                    f"shorten it" + (" (measured with a stand-in font)" if measured.approximate else ""))
         chart = d.chart_of.get(el.id)
         if chart is not None and chart.chart_template_id is None and any(
                 not (x.record_path or x.concept_name) for x in d.series_of.get(chart.id, [])):

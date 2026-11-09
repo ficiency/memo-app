@@ -39,7 +39,8 @@ from app.services.formats import format_date
 STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anchor", "line_spacing",
          "space_before_pt", "space_after_pt", "bullet_char", "bullet_color_ref", "indent_in")
 COPY = ("x_in", "y_in", "w_in", "h_in", "rotation_deg", "z_index", "name", "placeholder_idx", "type", "shape_kind",
-        "role", "fill_kind", "firm_lock", "description", "fill_ref", "line_ref", "line_width_pt")
+        "role", "fill_kind", "firm_lock", "description", "fill_ref", "line_ref", "line_width_pt",
+        "inset_l_in", "inset_t_in", "inset_r_in", "inset_b_in")
 
 
 def by(rows, key) -> dict:

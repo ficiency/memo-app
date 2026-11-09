@@ -89,8 +89,12 @@ class Painter(MemoData):
         h = ref if ref.startswith("#") else self.palette.get(ref.lower())
         return RGBColor.from_string(h.lstrip("#").upper()) if h else None
 
-    def write_text(self, text_frame, paras, keep_layout_style: bool, page: int) -> None:
-        """Paragraphs and runs; placeholders keep their layout's look unless a paragraph overrides it."""
+    def write_text(self, text_frame, paras, keep_layout_style: bool, page: int, el: Element | None = None) -> None:
+        """Paragraphs and runs; placeholders keep their layout's look unless a paragraph overrides it. A drawn box
+        gets its font and size written (PowerPoint's own default is not the firm's); a box whose text was shrunk
+        to fit is drawn that much smaller (the size the canvas and the fit measure use)."""
+        measured = self.fit_of(el, page) if el is not None else None
+        scale = measured.scale if measured is not None and measured.scale < 1 else 1.0
         text_frame.clear()
         for i, (p, segs) in enumerate(paras):
             para = text_frame.paragraphs[0] if i == 0 else text_frame.add_paragraph()
@@ -102,10 +106,15 @@ class Painter(MemoData):
                 text = str(page) if seg.kind == "page_number" else seg.text or ""
                 run.text = text.upper() if p.caps and seg.kind == "text" else text
                 f = run.font
-                if p.size_pt and not keep_layout_style or (p.size_pt and keep_layout_style and len(paras) > 1):
+                font, size, _, _, _ = self.text_style(p, el) if el is not None else (p.font, p.size_pt, None, None, None)
+                if scale < 1 and size:
+                    f.size = Pt(round(size * scale * 2) / 2)
+                elif not keep_layout_style and size:
+                    f.size = Pt(size)
+                elif p.size_pt and keep_layout_style and len(paras) > 1:
                     f.size = Pt(p.size_pt)
-                if p.font and not keep_layout_style:
-                    f.name = p.font
+                if font and not keep_layout_style:
+                    f.name = font
                 if p.bold is not None and not keep_layout_style:
                     f.bold = p.bold
                 colour = self.rgb(p.color_ref)
@@ -117,7 +126,7 @@ class Painter(MemoData):
                     f.color.rgb = colour
 
     # --- tables and charts ------------------------------------------------------------------------
-    def fill_table(self, graphic_frame, table: ElementTable) -> None:
+    def fill_table(self, graphic_frame, table: ElementTable, el: Element | None = None) -> None:
         tbl = graphic_frame.table
         cols = sorted(self.cols_of.get(table.id, []), key=lambda c: c.position)
         rows = sorted(self.rows_of.get(table.id, []), key=lambda r: r.position)
@@ -130,6 +139,9 @@ class Painter(MemoData):
         st = self.table_style
         cells = {(c.row, c.col): c for c in self.cells_of.get(table.id, [])}
         font, size = self.table_font
+        measured = self.fit_of(el) if el is not None else None
+        if measured is not None and measured.size_pt and measured.scale < 1:
+            size = measured.size_pt
         for r in range(len(tbl.rows)):
             kind = rows[r].kind if r < len(rows) else "data"
             for c in range(len(tbl.columns)):
@@ -272,7 +284,7 @@ class Painter(MemoData):
                 n_rows = len(self.rows_of.get(table.id, []))
                 n_cols = len(self.cols_of.get(table.id, []))
                 frame = ph.insert_table(max(n_rows, 1), max(n_cols, 1))
-                self.fill_table(frame, table)
+                self.fill_table(frame, table, el)
                 frame.name = f"memo:{el.id}@{el.revision}"
                 counts["tables"] += 1
             return
@@ -289,7 +301,7 @@ class Painter(MemoData):
             return                                              # picture placeholders stay empty (no logo fallback)
         paras = self.paragraphs(element_id=el.id)
         if paras:
-            self.write_text(ph.text_frame, paras, keep_layout_style=True, page=page)
+            self.write_text(ph.text_frame, paras, keep_layout_style=True, page=page, el=el)
         ph.name = f"memo:{el.id}@{el.revision}"
 
     def draw(self, slide, el: Element, page: int, master_box: bool = False) -> None:
@@ -316,7 +328,7 @@ class Painter(MemoData):
             n_rows = len(self.rows_of.get(table.id, [])) or 1
             n_cols = len(self.cols_of.get(table.id, [])) or 1
             shape = slide.shapes.add_table(n_rows, n_cols, x, y, w, h)
-            self.fill_table(shape, table)
+            self.fill_table(shape, table, el)
         elif el.type == "chart":
             chart_row = self.chart_of.get(el.id)
             if not chart_row:
@@ -344,12 +356,13 @@ class Painter(MemoData):
             if paras:
                 tf = shape.text_frame
                 tf.word_wrap = True
-                for m in ("margin_left", "margin_right", "margin_top", "margin_bottom"):
-                    setattr(tf, m, Emu(0))
+                from app.services.fit import insets_of
+                for m, v in zip(("margin_left", "margin_top", "margin_right", "margin_bottom"), insets_of(el)):
+                    setattr(tf, m, Inches(v))
                 anchor = paras[0][0].anchor if paras and paras[0][0] is not None else None
                 if anchor in ANCHOR:
                     tf.vertical_anchor = ANCHOR[anchor]
-                self.write_text(tf, paras, keep_layout_style=False, page=page)
+                self.write_text(tf, paras, keep_layout_style=False, page=page, el=None if master_box else el)
         # a master box belongs to the firm's spec and repeats on every page: it is not a memo element
         shape.name = f"master:{el.id}" if master_box else f"memo:{el.id}@{el.revision}"
 

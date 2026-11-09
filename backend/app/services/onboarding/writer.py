@@ -135,6 +135,8 @@ class SpecWriter:
         self.s.commit()
         from app.services.zones import write_zones
         self.counts["layout_zones"] = write_zones(self.s, self.v)   # where people may place their own boxes
+        from app.services.insets import write_insets
+        self.counts["text_insets"] = write_insets(self.s, self.v)  # as the template's placeholders have them
         return {"firm": name, "spec": spec_name, "version": number, "rows": dict(self.counts)}
 
     # --- step 1 ---------------------------------------------------------------------------------

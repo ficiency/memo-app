@@ -115,6 +115,10 @@ def rules(session: Session, version_id) -> Rules:
                                    {x.id: x for x in r["sections"]}, r["constraints"],
                                    {z.layout_id: (z.x_in, z.y_in, z.w_in, z.h_in) for z in r["zones"]},
                                    r["grid"][0] if r["grid"] else None)
+    # its text roles and fonts too (what the fit of a box is measured with), read now: the door answers with
+    # each box as it is after an edit, when its connection is busy writing and reads no more
+    from app.services.memo_data import text_rules
+    text_rules(session, version_id)
     return _RULES[version_id]
 
 

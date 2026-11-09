@@ -23,6 +23,24 @@ PARAGRAPH_STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "al
                    "space_before_pt", "space_after_pt", "bullet_char", "bullet_color_ref", "indent_in")
 
 
+_TEXT_RULES: dict = {}
+
+
+def text_rules(session: Session, version_id) -> dict:
+    """A spec version's text roles and fonts (cached: an approved version never changes)."""
+    if version_id not in _TEXT_RULES:
+        r = fetch(session, {
+            "roles": (S.TextRole, select(S.TextRole).where(S.TextRole.spec_version_id == version_id)),
+            "fonts": (S.Font, select(S.Font).where(S.Font.spec_version_id == version_id)),
+        })
+        fonts = {f.role: f.family for f in r["fonts"]}
+        roles = {x.name: x for x in r["roles"]}
+        _TEXT_RULES[version_id] = {"roles": roles, "body": fonts.get("body") or fonts.get("heading"),
+                                   "table": next((x for name, x in roles.items() if "table" in name), None),
+                                   "table_font": fonts.get("tables") or fonts.get("body")}
+    return _TEXT_RULES[version_id]
+
+
 def group(rows, key) -> dict:
     out: dict = {}
     for r in rows:
@@ -128,6 +146,51 @@ class ElementData:
                               for s in segs]}
                 for p, segs in paras]
 
+    def text_style(self, p, el: Element) -> tuple:
+        """(font, size, bold, italic, caps) a paragraph is drawn with: its own, else its role's (the paragraph's,
+        else the box's), else the firm's body font at 12 pt. The canvas resolves it the same way."""
+        version_id = self.version.id if getattr(self, "version", None) else None
+        rules = text_rules(self.s, version_id) if version_id else {"roles": {}, "body": None}
+        r = rules["roles"].get(p.role or "") or rules["roles"].get(el.role or "")
+        pick = lambda own, attr, default: own if own is not None else (getattr(r, attr) if r is not None and getattr(r, attr) is not None else default)
+        return (pick(p.font, "font", rules["body"]), pick(p.size_pt, "size_pt", 12), pick(p.bold, "bold", False),
+                pick(p.italic, "italic", False), pick(p.caps, "caps", False))
+
+    def fit_of(self, el: Element, page: int | None = None):
+        """Whether the box's text (or table) fits, in the firm's fonts; None for other boxes."""
+        from app.services import fit
+        version_id = getattr(self, "version_id", None) or (self.version.id if getattr(self, "version", None) else None)
+        if version_id is None:
+            return None
+        rules = text_rules(self.s, version_id)
+        role_of = rules["roles"]
+        if el.type == "text":
+            paras = []
+            for p, segs in self.paragraphs(element_id=el.id):
+                font, size, bold, italic, caps = self.text_style(p, el)
+                text = "".join(str(page or 0) if x.kind == "page_number" else (x.text or "") for x in segs)
+                paras.append(fit.Para(text.upper() if caps else text, font, size, bold, italic, p.line_spacing,
+                                      p.space_before_pt, p.space_after_pt, p.indent_in))
+            role = role_of.get(el.role or "")
+            return fit.fit_text(paras, el.w_in or 0, el.h_in or 0, role.min_size_pt if role else None, fit.insets_of(el))
+        table = self.table_of.get(el.id)
+        if el.type == "table" and table is not None:
+            r = rules["table"]
+            font, size = (r.font if r and r.font else rules["table_font"]), (r.size_pt if r and r.size_pt else 10)
+            cols = [c.width_in or 1.0 for c in sorted(self.cols_of.get(table.id, []), key=lambda c: c.position)]
+            rows = sorted(self.rows_of.get(table.id, []), key=lambda x: x.position)
+            cells = {(c.row, c.col): c for c in self.cells_of.get(table.id, [])}
+            grid = []
+            for i, row in enumerate(rows):
+                line = []
+                for j in range(len(cols)):
+                    c = cells.get((i, j))
+                    text = "\n".join("".join(x.text or "" for x in segs) for _, segs in self.paragraphs(cell_id=c.id)) if c else ""
+                    line.append(fit.Para(text, font, size, bold=row.kind in ("header", "total", "group")))
+                grid.append(line)
+            return fit.fit_table(grid, cols, el.h_in or 0, r.min_size_pt if r else None, [x.height_in for x in rows])
+        return None
+
     def element_json(self, el: Element, master_box: bool = False) -> dict:
         paras = self.paragraphs(element_id=el.id)
         if master_box and not paras:
@@ -142,6 +205,11 @@ class ElementData:
             "frame": {k: getattr(el, k) for k in FRAME}, "paragraphs": self.paragraphs_json(paras),
             "table": None, "chart": None,
         }
+        from app.services.fit import insets_of
+        out["inset"] = list(insets_of(el)) if el.type == "text" else None
+        measured = None if master_box else self.fit_of(el)
+        if measured is not None:                       # how it fits in the firm's fonts (smaller, or does not fit)
+            out["fit"] = measured.json()
         table = self.table_of.get(el.id)
         if table is not None:
             out["table"] = {"own": table.table_template_id is None,

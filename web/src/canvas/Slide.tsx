@@ -206,11 +206,14 @@ function TextEl({ el, styler, page, ui }: { el: El; styler: Styler; page: number
   const editable = !el.master && el.firm_lock !== "fixed";
   const fill = styler.color(el.fill);
   const line = styler.color(el.line);
-  const inset = el.placeholder ? { padding: `${px(0.05)}px ${px(0.1)}px` } : {};
+  // the template's insets for this box (the same the fit measure and the PowerPoint use)
+  const ins = el.inset ?? (el.placeholder ? [0.1, 0.05, 0.1, 0.05] : null);
+  const inset = ins ? { padding: `${px(ins[1])}px ${px(ins[2])}px ${px(ins[3])}px ${px(ins[0])}px` } : {};
+  const overflow = el.fit !== undefined && !el.fit.fits;
   const color = other ? ui.colors.get(other) : undefined;
   return (
     <div
-      className={`el text${editable ? " editable" : ""}${mine ? " mine" : ""}${other ? " held" : ""}${pendingText !== undefined ? " saving" : ""}${ui.proposed?.has(el.id) ? " proposed" : ""}`}
+      className={`el text${editable ? " editable" : ""}${mine ? " mine" : ""}${other ? " held" : ""}${pendingText !== undefined ? " saving" : ""}${ui.proposed?.has(el.id) ? " proposed" : ""}${overflow ? " overflow" : ""}`}
       style={{
         ...box(el),
         ...inset,
@@ -228,6 +231,7 @@ function TextEl({ el, styler, page, ui }: { el: El; styler: Styler; page: number
     >
       {mine ? <Editor el={el} styler={styler} page={page} ui={ui} /> : <Paragraphs el={el} paragraphs={shown} styler={styler} page={page} />}
       {other && <span className="holder-tag" style={{ background: color }}>{other.split("@")[0]}</span>}
+      {overflow && !mine && <span className="overflow-tag">Doesn't fit</span>}
     </div>
   );
 }
@@ -243,7 +247,7 @@ function TableEl({ el, styler, page, ui }: { el: El; styler: Styler; page: numbe
   const st = styler.spec.table_style ?? {};
   const role = styler.tableRole();
   const font = role?.font ?? styler.spec.fonts.tables ?? styler.spec.fonts.body;
-  const size = ptPx(role?.size_pt ?? 10);
+  const size = ptPx(el.fit?.size_pt && el.fit.scale < 1 ? el.fit.size_pt : role?.size_pt ?? 10);
   const cells = new Map(t.cells.map((c) => [`${c.row}|${c.col}`, c]));
   const headerFill = styler.color(st.header_fill_ref as string);
   const headerText = styler.color(st.header_text_ref as string);
@@ -251,7 +255,8 @@ function TableEl({ el, styler, page, ui }: { el: El; styler: Styler; page: numbe
   const banding = styler.color(st.banding_ref as string);
   const rule = styler.color(st.rule_color_ref as string) ?? "#d0d0d0";
   return (
-    <div className="el table" style={box(el)}>
+    <div className={`el table${el.fit && !el.fit.fits ? " overflow" : ""}`} style={box(el)}>
+      {el.fit && !el.fit.fits && <span className="overflow-tag">Doesn't fit</span>}
       <table style={{ fontFamily: font ? `'${font}', Arial, sans-serif` : undefined, fontSize: size, color: bodyText }}>
         <colgroup>
           {t.columns.map((w, i) => (

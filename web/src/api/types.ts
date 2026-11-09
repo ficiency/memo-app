@@ -135,6 +135,9 @@ export type El = {
   table: TableData | null;
   chart: ChartData | null;
   image?: { flagged: boolean; alt: string | null }; // a picture people added (flagged: may stand in for native content)
+  inset?: number[] | null; // text insets (left, top, right, bottom), inches, as the firm's template has them
+  // how the text fits in the firm's fonts: drawn at scale (shrunk towards the role's minimum), or does not fit
+  fit?: { fits: boolean; size_pt: number | null; scale: number; needed_in: number; approximate: boolean };
 };
 
 export type SlideData = {

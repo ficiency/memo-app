@@ -62,7 +62,8 @@ export class Styler {
     const body = this.spec.fonts.body ?? this.spec.fonts.heading ?? null;
     return {
       font: fontStack(s.font ?? r?.font ?? body),
-      size: s.size_pt ?? r?.size_pt ?? 12,
+      // the size the server measured it fits at (smaller when shrunk to fit; the PowerPoint draws the same)
+      size: (s.size_pt ?? r?.size_pt ?? 12) * (el.fit && el.fit.scale < 1 ? el.fit.scale : 1),
       bold: s.bold ?? r?.bold ?? false,
       italic: s.italic ?? r?.italic ?? false,
       caps: s.caps ?? r?.caps ?? false,

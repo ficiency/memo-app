@@ -79,6 +79,12 @@ class Element(Frame, Base):
     fill_ref: Mapped[str | None] = mapped_column(String)
     line_ref: Mapped[str | None] = mapped_column(String)
     line_width_pt: Mapped[float | None] = mapped_column(Float)
+    # text insets (inches) as the firm's template has them for this box (a placeholder's resolved through the
+    # master like PowerPoint does); unset: PowerPoint's own for a placeholder, none for a drawn box
+    inset_l_in: Mapped[float | None] = mapped_column(Float)
+    inset_t_in: Mapped[float | None] = mapped_column(Float)
+    inset_r_in: Mapped[float | None] = mapped_column(Float)
+    inset_b_in: Mapped[float | None] = mapped_column(Float)
     revision: Mapped[int] = mapped_column(Integer, default=1)
     updated_by: Mapped[uuid.UUID | None] = fk("users.id", nullable=True, ondelete="SET NULL")
     updated_at: Mapped[datetime] = created_at()
