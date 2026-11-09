@@ -140,10 +140,9 @@ the sections that stage requires, each box filled by its recipe (figures from th
 "‹person: …›" where text is still to write, "[no data: …]" where the record has no value). It uses no model:
 about 3–5 seconds, no cost. The **painter** writes a native PowerPoint on the firm's own template (its layouts,
 footer and slide number, logo, native tables and charts), naming every slide and shape with its identity in the
-memo. The **PDF** is that PowerPoint converted, so it reads exactly as the editable file.
+memo. The **PDF** is that PowerPoint converted by PowerPoint desktop, so it reads exactly as the editable file.
 
-**Not done / not tested.** A separate PDF renderer. Converting with LibreOffice (for a server) is written but was
-not tested here: this machine converts with PowerPoint.
+**Not done.** A separate PDF renderer.
 
 ## 5. The door: how every edit is applied
 

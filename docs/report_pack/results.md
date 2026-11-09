@@ -183,7 +183,7 @@ firm's figures to a record is one model call per firm and record format; onboard
 (about $4 per firm when it was run). Timed on a laptop against a hosted database. Source: a timing run on 9 Nov
 (not a suite report).
 
-**Not covered:** PDF converted with LibreOffice (written, not tested); timings under load.
+**Not covered:** timings under load.
 
 ## Measure 7: the third firm, configuration versus code
 
@@ -211,4 +211,3 @@ rounds, overflow and rebuild suites.
 - Continuing long text on another slide.
 - Replaying missed messages after a disconnection.
 - Editing a firm's template inside the app (decided out of scope at the start).
-- PDF conversion with LibreOffice on a server: written, not tested.
