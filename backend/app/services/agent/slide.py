@@ -59,7 +59,8 @@ its layout's boxes to write; its text is written in a later request, once the pe
 On a slide the firm leaves free (its FREE AREA is given) you may add boxes inside that area: text, a table of
 the deal record (one of RECORD TABLES, with the rows and columns you choose) or a chart of record figures with
 periods (from CHART FIGURES, at most 4, with how many periods). Their values come from the record: you never
-type them. You may add them on a slide you add in the same answer: "on": "new". Lay boxes out so they do not
+type them. Add them on the slide you work on (SLIDE) unless the person names another slide, or on a slide you
+add in the same answer: "on": "new". Lay boxes out so they do not
 overlap, and keep each one inside the free area.
 
 Return JSON only:
@@ -126,13 +127,13 @@ def context(session: Session, memo_id, slide_id: str | None, element_id: str | N
             t = d.table_of[e.id]
             own = t.table_template_id is None                # a person's table: its words theirs, its data the record's
 
-            def writable(c) -> bool:
+            def cell_writable(c) -> bool:
                 if any(x.kind == "chip" for _, ss in d.paragraphs(cell_id=c.id) for x in ss):
                     return False
                 return c.kind != "data" if own else c.kind != "fixed"
 
             box["table"] = [{"row": c.row, "col": c.col, "text": _box_text(d.paragraphs(cell_id=c.id)),
-                             "editable": editable and writable(c)}
+                             "editable": editable and cell_writable(c)}
                             for c in sorted(d.cells_of.get(t.id, []), key=lambda c: (c.row, c.col))]
         else:
             box["text"] = _box_text(d.paragraphs(element_id=e.id))
