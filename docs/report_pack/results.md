@@ -36,7 +36,7 @@ chart as a picture. Each is expected to be applied, refused or kept aside as the
 |---|---|---|---|
 | Canvas: edits and controls as the firm's rules say | 12/12 | 12/12 | 13/13 |
 | PowerPoint: edits as the firm's rules say (5 round trips) | 30/30 | 30/30 | 20/20 |
-| Agent: the brief's edits as the firm's rules say | *final run pending* | | |
+| Agent: the brief's edits as the firm's rules say | 6/6 | 6/6 | 6/6 |
 
 **Not covered by this suite** (some covered elsewhere, said where):
 - In PowerPoint: a picture inserted on a **free** slide, and duplicating a slide of a section allowed several
@@ -123,13 +123,27 @@ installed on this machine, so its tables are measured with a stand-in and flagge
 
 ## Measure 4: AI edits that leave the memo invalid or its figures inconsistent
 
-Report: *final run pending* (previous run: `2026-11-09_0333_agent.md`). Per firm, on a new memo: the brief's edits
+Report: `2026-11-09_0902_agent.md`. Per firm, on a new memo: the brief's edits
 asked of the agent in words (part A); writing requests applied (fill a slide, write a title, shorten a slide; part
 B); custom slides (a customer concentration slide, a chart added to it, a table asked for on a template slide; part
 D); then code checks the whole memo: amounts typed instead of figures, figures that do not hold the record's value,
 one figure showing two values, edits refused when applied; and the memo through PowerPoint and back.
 
-*Numbers to be filled in from the final run.*
+| Result | Merrow | Corriemoor | Lumen |
+|---|---|---|---|
+| A · the brief's edits, done or declined as the firm's rules say | 6/6 | 6/6 | 6/6 |
+| B · writing requests / agent edits applied | 5 / 25 | 5 / 26 | 5 / 32 |
+| D · custom slides with a record table or chart (and a table on a template slide declined) | 3/3 | 3/3 | 3/3 |
+| Edits refused when applied | 0 | 0 | 0 |
+| Amounts typed instead of figures | 0 | 0 | 0 |
+| Figures that do not hold the record's value (figures checked) | 0 (122) | 0 (83) | 0 (58) |
+| One figure showing two values | 0 | 0 | 0 |
+| A figure the firm's recipe expects removed (warned, left pending) | 0 | 1 | 0 |
+| Changes found after PowerPoint and back | 0 | 0 | 0 |
+| Model calls · cost · time | 15 · $1.19 · 259 s | 14 · $1.37 · 324 s | 17 · $1.51 · 452 s |
+
+In the rounds of measure 1 the agent also edited in every round alongside two people: 15 proposals applied, none of
+their changes lost.
 
 **Not covered:** the agent acting on several slides in one request; the agent changing or removing people's own
 tables and charts (done on the canvas); conversations longer than one request at a time.
