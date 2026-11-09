@@ -120,6 +120,9 @@ goes through the same checks**. A new firm must take **configuration, not code**
 - **Model-written parts keep style examples** from past memos.
 - **Binding** (concept → record path) is not onboarding: it runs at a firm's first memo, once per firm and
   record schema, with review.
+  The review (Firm setup → Binding, 8 Nov): per concept its place, its value now, where the spec uses it, and what
+  code flags (missing, broken, diverged from a place it equalled in the uploaded record, mirror, unit); a person
+  changes the place (record value, formula, none) and confirms; every change is kept and offered to memos built before.
 - **Fixes must be generic:** phrased in terms of materials and structure, never a firm's content.
 - **In the app** the onboarding runs as a backend service when a firm uploads its materials. The pilot's logic
   (prompts, validations, cuts, extractors, call-check-retry cycle) is ported and reshaped as services; storage
