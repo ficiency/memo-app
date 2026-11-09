@@ -2,35 +2,48 @@
 
 An operation is checked on the server before it lands. It is applied, refused (it breaks a rule of the firm
 or changes a record figure) or kept aside (it was made on an older version of the element, so applying it
-would overwrite someone else's change). Every operation is logged with its actor and reason; nothing is
-lost. Nothing here knows any firm: locks, palette and section order come from the memo's spec.
+would overwrite someone else's change). Every operation is logged with its actor, reason and the memo's next
+sequence number; nothing is lost. Nothing here knows any firm: locks, palette and section order come from the
+memo's spec.
 
 Operation: {"type": ..., "target": <element or slide id>, "base_revision": <the revision the editor saw>,
             "payload": {...}}
-Types: set_text, set_frame, set_style, add_element, delete_element, add_slide, duplicate_slide, move_slide,
-       delete_slide, set_user_lock.
+Types: set_text, set_cell, set_frame, set_style, set_user_lock, delete_element, set_chart_data, keep_aside
+       (one element each), add_element, add_slide, duplicate_slide, move_slide, delete_slide (the memo's
+       structure).
+
+How an edit of one element lands, in few round trips (the database is remote, each one is slow):
+  1. read the memo, the element and its text in one statement, outside any transaction;
+  2. check everything in Python (the spec's rules are kept in memory per version: a version never changes);
+  3. write in one short transaction: the element's revision moves on only if it is still the one read
+     (compare and set) and the memo's sequence moves on, in one statement; then the element's new rows, the
+     operation's log and the commit, sent together. If the revision moved on in between, the edit is kept
+     aside, as any edit made on an older version is. Nothing is locked while reading and checking.
+Operations on the memo's structure (slides, a new box) change several rows; they lock the memo's row for
+their transaction, so the structure changes one at a time.
 """
 from __future__ import annotations
 
 import copy
-import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from psycopg.types.json import Jsonb
+from sqlalchemy import JSON, select
 from sqlalchemy.orm import Session
 
 from app.db import spec as S
 from app.db.history import Conflict, Operation
-from app.services.memo_data import MemoData
 from app.db.memo import (ChartPoint, ChartSeries, Element, ElementChart, ElementParagraph, ElementTable, Memo,
                          Segment, Slide, TableCell, TableColumn, TableRow)
+from app.services.memo_data import MemoData, fetch
 
 FRAME = ("x_in", "y_in", "w_in", "h_in", "rotation_deg")
 STYLE = ("font", "size_pt", "bold", "italic", "caps", "color_ref", "align", "anchor")
 COLOUR_FIELDS = ("color_ref", "fill_ref", "line_ref", "bullet_color_ref")
 SLOTS = ("model_draft", "person_slot", "conditional")
+ELEMENT_OPS = ("set_text", "set_cell", "set_chart_data", "set_frame", "set_style", "delete_element", "set_user_lock")
 
 
 @dataclass
@@ -54,86 +67,129 @@ class KeepAside(Exception):
         self.kind = kind                     # what was kept aside (deleted_box, added_box…); None = a stale edit
 
 
+# --- the spec's rules, read once per version ----------------------------------------------------------------
+@dataclass
+class Rules:
+    palette: dict           # lower-case name → upper-case hex
+    sections: dict          # id → Section
+    constraints: list       # OrderConstraint
+
+
+_RULES: dict[uuid.UUID, Rules] = {}
+
+
+def rules(session: Session, version_id) -> Rules:
+    """A spec version never changes once memos are built on it, so its rules are read once per process."""
+    if version_id not in _RULES:
+        r = fetch(session, {
+            "palette": (S.PaletteColor, select(S.PaletteColor).where(S.PaletteColor.spec_version_id == version_id)),
+            "sections": (S.Section, select(S.Section).where(S.Section.spec_version_id == version_id)),
+            "constraints": (S.OrderConstraint, select(S.OrderConstraint).where(S.OrderConstraint.spec_version_id == version_id)),
+        })
+        _RULES[version_id] = Rules({p.name.lower(): p.hex.upper() for p in r["palette"]},
+                                   {x.id: x for x in r["sections"]}, r["constraints"])
+    return _RULES[version_id]
+
+
+# --- what an element edit writes ---------------------------------------------------------------------------
+@dataclass
+class Plan:
+    """An element edit, worked out in memory: the element's new values (written with its revision, only if the
+    revision is still the one read), the statements after that, the rows to add, and how the element reads
+    afterwards (for everyone's screen)."""
+    element: Element
+    sets: dict = field(default_factory=dict)
+    statements: list = field(default_factory=list)     # (sql, params)
+    rows: list = field(default_factory=list)           # new model objects to insert
+    after: object = None                               # callable(revision) → updates the read copy
+    noop: bool = False                                 # nothing changes (the same text): logged as applied
+
+
 class Door:
     def __init__(self, session: Session, memo_id):
         self.s = session
-        self.memo = session.get(Memo, memo_id)
-        if self.memo is None:
-            raise ValueError(f"no memo {memo_id}")
-        v = self.memo.spec_version_id
-        self.palette = {p.name.lower(): p.hex.upper() for p in session.scalars(select(S.PaletteColor).where(S.PaletteColor.spec_version_id == v))}
-        self.sections = {x.id: x for x in session.scalars(select(S.Section).where(S.Section.spec_version_id == v))}
-        self.constraints = session.scalars(select(S.OrderConstraint).where(S.OrderConstraint.spec_version_id == v)).all()
+        self.memo_id = uuid.UUID(str(memo_id))
+        self.memo: Memo | None = None
 
     # --- entry point ----------------------------------------------------------------------------
     def apply(self, op: dict, actor_type: str = "person", actor_id=None, on_behalf_of=None, change_set_id=None,
               held_by: str | None = None) -> Result:
         """held_by: who is editing the target element right now (real time), when it is not the actor."""
-        # One operation at a time per memo: lock the memo's row until this operation commits, so two edits that
-        # arrive together cannot take the same sequence or both pass the same element revision.
-        self.memo = self.s.get(Memo, self.memo.id, with_for_update=True, populate_existing=True)
         kind = op.get("type")
-        handler = getattr(self, f"_{kind}", None)
-        created: list = []
-        status, reason, aside_kind = "applied", None, None
+        if kind in ("add_element", "add_slide", "duplicate_slide", "move_slide", "delete_slide"):
+            return self._apply_structure(op, actor_type, actor_id, on_behalf_of, change_set_id)
+        return self._apply_element(op, actor_type, actor_id, on_behalf_of, change_set_id, held_by)
+
+    # --- one element: read, check, compare and set ------------------------------------------------
+    def _apply_element(self, op, actor_type, actor_id, on_behalf_of, change_set_id, held_by) -> Result:
+        kind = op.get("type")
+        target = _uuid(op.get("target"))
+        if not self.s.in_transaction():                  # reads need no transaction: no BEGIN, no COMMIT
+            self.s.connection(execution_options={"isolation_level": "AUTOCOMMIT"})
         try:
-            if handler is None:
-                raise Refuse(f"unknown operation {kind!r}")
-            if held_by and self._is_element(op):
+            read = MemoData(self.s, self.memo_id, element_ids=[target] if target and kind in ELEMENT_OPS else [])
+        except IndexError:
+            raise ValueError(f"no memo {self.memo_id}")
+        self.memo = read.memo
+        self.rules = rules(self.s, self.memo.spec_version_id)
+        plan, status, reason, aside_kind = None, "applied", None, None
+        try:
+            if held_by and kind in ELEMENT_OPS:
                 raise Refuse(f"{held_by} is editing this box")
-            created = handler(op, actor_type, actor_id) or []
+            if kind == "keep_aside":
+                payload = op.get("payload") or {}
+                raise KeepAside(payload.get("reason") or "kept for a person to decide", payload.get("kind"))
+            if kind not in ELEMENT_OPS:
+                raise Refuse(f"unknown operation {kind!r}")
+            el = self.element_in(read, target)
+            if kind == "set_chart_data":
+                raise Refuse("chart values come from the deal record; change them in the record")
+            plan = getattr(self, f"_plan_{kind}")(read, el, op, actor_type, actor_id)
         except Refuse as e:
-            status, reason = "refused", str(e)
+            status, reason, plan = "refused", str(e), None
         except KeepAside as e:
-            status, reason, aside_kind = "kept_aside", str(e), e.kind
-        self.memo.sequence = (self.memo.sequence or 0) + 1
-        if status == "applied":
-            self.memo.status = "editing"                     # any change after a final review reopens the memo
-        row = Operation(id=uuid.uuid4(), memo_id=self.memo.id, sequence=self.memo.sequence, change_set_id=change_set_id,
-                        actor_type=actor_type, actor_id=actor_id, on_behalf_of=on_behalf_of, op_type=kind or "?",
-                        target_id=_uuid(op.get("target")), base_revision=op.get("base_revision"),
-                        payload=_jsonable(op.get("payload") or {}), status=status, reason=reason)
-        self.s.add(row)
-        self.s.flush()
-        if status == "kept_aside":
-            self.s.add(Conflict(memo_id=self.memo.id, operation_id=row.id, element_id=_uuid(op.get("target")) if self._is_element(op) else None,
-                                kind=aside_kind or ("changed_since_export" if actor_type == "import" else "changed_since_seen"),
-                                detail=reason, status="open"))
-        self.s.commit()
-        element = slides = None
-        if status == "applied" and self._is_element(op):
-            el = self.s.get(Element, _uuid(op.get("target")))
-            element = self.state(el) if el is not None else None
-        elif status == "applied" and op.get("type") in ("add_element",) and created:
-            element = self.state(self.s.get(Element, created[0]))
-        elif status == "applied" and "slide" in str(op.get("type")):
-            slides = [{"id": str(x.id), "position": x.position, "section_id": str(x.section_id) if x.section_id else None,
-                       "revision": x.revision} for x in self.order()]
-        return Result(status, reason, row.id, row.sequence, created, element, slides)
+            status, reason, aside_kind, plan = "kept_aside", str(e), e.kind, None
 
-    def state(self, el: Element) -> dict:
-        """An element as clients need it to redraw, in the same shape the memo is read in (app/services/memo_data)."""
-        return MemoData(self.s, self.memo.id, element_ids=[el.id]).element_json(el)
+        log = Operation(id=uuid.uuid4(), memo_id=self.memo.id, change_set_id=change_set_id, actor_type=actor_type,
+                        actor_id=actor_id, on_behalf_of=on_behalf_of, op_type=kind or "?", target_id=target,
+                        base_revision=op.get("base_revision"), payload=_jsonable(op.get("payload") or {}))
+        pg = self.s.connection().connection.driver_connection
+        element = None
+        with pg.pipeline(), pg.transaction():
+            cur = pg.cursor()
+            if plan is not None and not plan.noop:
+                cur.execute(*cas(plan, self.memo.id, actor_id))
+                revision, sequence = cur.fetchone()          # the compare and set's answer: one round trip
+                if revision is None:
+                    status, reason = "kept_aside", "the element changed while this edit was being saved"
+                else:
+                    for sql, params in plan.statements:
+                        cur.execute(sql, params)
+                    insert(cur, plan.rows)
+                    plan.after(revision)
+                    element = read.element_json(plan.element)
+            else:
+                cur.execute("UPDATE memos SET sequence = sequence + 1 WHERE id = %(memo)s RETURNING sequence",
+                            {"memo": self.memo.id})
+                sequence = cur.fetchone()[0]
+                if plan is not None:                             # applied, nothing to change
+                    element = read.element_json(plan.element)
+            log.sequence, log.status, log.reason = sequence, status, reason
+            rows = [log]
+            if status == "kept_aside":
+                rows.append(Conflict(id=uuid.uuid4(), memo_id=self.memo.id, operation_id=log.id,
+                                     element_id=target if kind in ELEMENT_OPS else None, status="open", detail=reason,
+                                     kind=aside_kind or ("changed_since_export" if actor_type == "import" else "changed_since_seen")))
+            insert(cur, rows)                                    # sent with the commit: the second round trip
+        self.s.commit()                                          # ends the session's read-only use of the connection
+        return Result(status, reason, log.id, sequence, [], element if status == "applied" else None, None)
 
-    # --- helpers --------------------------------------------------------------------------------
-    def _is_element(self, op) -> bool:
-        return op.get("type") in ("set_text", "set_cell", "set_chart_data", "set_frame", "set_style", "delete_element",
-                                  "set_user_lock")
-
-    def element(self, op) -> Element:
-        el = self.s.get(Element, _uuid(op.get("target")))
-        if el is None or el.deleted_at is not None or el.slide_id is None:
-            raise Refuse("no such element in this memo")
-        slide = self.s.get(Slide, el.slide_id)
-        if slide is None or slide.memo_id != self.memo.id:
+    def element_in(self, read: MemoData, target) -> Element:
+        el = next((e for e in read.elements if e.id == target), None)
+        slides = {x.id for x in read.slides}
+        if el is None or el.deleted_at is not None or el.slide_id not in slides:
             raise Refuse("no such element in this memo")
         return el
-
-    def slide(self, slide_id) -> Slide:
-        slide = self.s.get(Slide, _uuid(slide_id))
-        if slide is None or slide.memo_id != self.memo.id or slide.deleted_at is not None:
-            raise Refuse("no such slide in this memo")
-        return slide
 
     def fresh(self, el: Element, op: dict) -> None:
         """The edit must be made on the element's current revision; otherwise it is kept aside, not applied."""
@@ -141,36 +197,25 @@ class Door:
         if base is not None and base != el.revision:
             raise KeepAside(f"the element changed since this edit was made (edit on revision {base}, now {el.revision})")
 
-    def bump(self, el: Element, actor_id) -> None:
-        el.revision = (el.revision or 0) + 1
-        el.updated_by = actor_id if isinstance(actor_id, uuid.UUID) else None
-        el.updated_at = datetime.now(timezone.utc)
-
     def colour_ok(self, ref) -> None:
         if ref is None:
             return
         value = str(ref)
-        if value.lower() in self.palette or value.upper() in self.palette.values():
+        if value.lower() in self.rules.palette or value.upper() in self.rules.palette.values():
             return
         raise Refuse(f"colour {value!r} is not in the firm's palette")
 
-    def paragraphs(self, el: Element) -> list[tuple[ElementParagraph, list[Segment]]]:
-        paras = self.s.scalars(select(ElementParagraph).where(ElementParagraph.element_id == el.id).order_by(ElementParagraph.position)).all()
-        return [(p, self.s.scalars(select(Segment).where(Segment.paragraph_id == p.id).order_by(Segment.position)).all()) for p in paras]
-
-    # --- element operations --------------------------------------------------------------------
-    def _set_text(self, op, actor_type, actor_id):
+    # --- element edits, worked out in memory ------------------------------------------------------
+    def _plan_set_text(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
         """Replace an element's text. Chips (record figures) must stay exactly as they are, in order: text
         around them may change, the figures may not. Marked slots become plain text when filled."""
-        el = self.element(op)
         if el.firm_lock == "fixed":
             raise Refuse("this element is fixed by the firm")
         self.fresh(el, op)
         new_text = str((op.get("payload") or {}).get("text", ""))
-        old = self.paragraphs(el)
+        old = read.paragraphs(element_id=el.id)
         chips = [seg for _, segs in old for seg in segs if seg.kind == "chip"]
         new_paras = new_text.split("\n")
-        # every chip must appear, unchanged and in order, in the new text
         placed: list[tuple[int, int, Segment]] = []          # (paragraph, offset, chip)
         p_index, offset = 0, 0
         for chip in chips:
@@ -186,94 +231,87 @@ class Door:
                              f"change it in the record")
             placed.append((found[0], found[1], chip))
             offset = found[1] + len(chip.text)
-        style = old[0][0] if old else None
-        for _, segs in old:                              # segments first, then their paragraphs
-            for seg in segs:
-                self.s.delete(seg)
-        self.s.flush()
-        for para, _ in old:
-            self.s.delete(para)
-        self.s.flush()
+        paragraphs, segments = [], []
         for i, text in enumerate(new_paras):
-            src = old[min(i, len(old) - 1)][0] if old else style
-            para = ElementParagraph(element_id=el.id, position=i, level=src.level if src else 0,
-                                    **{k: getattr(src, k) for k in STYLE} if src else {})
-            self.s.add(para)
-            self.s.flush()
+            src = old[min(i, len(old) - 1)][0] if old else None
+            para = ElementParagraph(id=uuid.uuid4(), element_id=el.id, table_cell_id=None, position=i,
+                                    level=src.level if src else 0, role=src.role if src else None,
+                                    **{k: getattr(src, k) if src else None for k in PARAGRAPH_COPY})
+            paragraphs.append(para)
             pos, cursor = 0, 0
             for _, at, chip in [x for x in placed if x[0] == i]:
                 if at > cursor:
-                    self.s.add(Segment(paragraph_id=para.id, position=pos, kind="text", text=text[cursor:at]))
+                    segments.append(_segment(para.id, pos, "text", text[cursor:at]))
                     pos += 1
-                self.s.add(Segment(paragraph_id=para.id, position=pos, kind="chip", text=chip.text,
-                                   concept_name=chip.concept_name, record_path=chip.record_path,
-                                   value_snapshot=chip.value_snapshot, format_item=chip.format_item))
+                segments.append(Segment(id=uuid.uuid4(), paragraph_id=para.id, position=pos, kind="chip", text=chip.text,
+                                        concept_name=chip.concept_name, record_path=chip.record_path,
+                                        value_snapshot=chip.value_snapshot, format_item=chip.format_item))
                 pos += 1
                 cursor = at + len(chip.text)
             if cursor < len(text) or pos == 0:
-                self.s.add(Segment(paragraph_id=para.id, position=pos, kind="text", text=text[cursor:]))
-        self.bump(el, actor_id)
+                segments.append(_segment(para.id, pos, "text", text[cursor:]))
 
-    def _set_cell(self, op, actor_type, actor_id):
+        def after(revision):
+            el.revision = revision
+            read.paras_of_element[el.id] = paragraphs
+            for p in paragraphs:
+                read.segments_of[p.id] = [x for x in segments if x.paragraph_id == p.id]
+
+        return Plan(el, statements=[
+            ("DELETE FROM segments WHERE paragraph_id IN (SELECT id FROM element_paragraphs WHERE element_id = %(el)s)", {"el": el.id}),
+            ("DELETE FROM element_paragraphs WHERE element_id = %(el)s", {"el": el.id}),
+        ], rows=paragraphs + segments, after=after)
+
+    def _plan_set_cell(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
         """Change one table cell's text. A cell that holds a record figure cannot be typed over; header and
         label cells belong to the firm's table."""
-        el = self.element(op)
         self.fresh(el, op)
         payload = op.get("payload") or {}
-        table = self.s.scalar(select(ElementTable).where(ElementTable.element_id == el.id))
+        table = read.table_of.get(el.id)
         if table is None:
             raise Refuse("this element is not a table")
-        cell = self.s.scalar(select(TableCell).where(TableCell.element_table_id == table.id,
-                                                     TableCell.row == int(payload.get("row", -1)),
-                                                     TableCell.col == int(payload.get("col", -1))))
-        new_text = str(payload.get("text", ""))
+        row, col = int(payload.get("row", -1)), int(payload.get("col", -1))
+        cell = next((c for c in read.cells_of.get(table.id, []) if c.row == row and c.col == col), None)
         if cell is None:
             raise Refuse("no such cell in the firm's table")
-        para = self.s.scalar(select(ElementParagraph).where(ElementParagraph.table_cell_id == cell.id))
-        segs = self.s.scalars(select(Segment).where(Segment.paragraph_id == para.id).order_by(Segment.position)).all() if para else []
+        new_text = str(payload.get("text", ""))
+        paras = read.paragraphs(cell_id=cell.id)
+        para, segs = paras[0] if paras else (None, [])
         old_text = "".join(x.text or "" for x in segs)
         if new_text.strip() == old_text.strip():
-            return
+            return Plan(el, noop=True)
         if any(x.kind == "chip" for x in segs):
             raise Refuse(f"the figure {old_text!r} comes from the deal record and cannot be typed over; change it in the record")
         if cell.kind == "fixed":
             raise Refuse("this cell is part of the firm's table")
-        for x in segs:
-            self.s.delete(x)
-        self.s.flush()
+        rows, statements = [], []
         if para is None:
-            para = ElementParagraph(table_cell_id=cell.id, position=0)
-            self.s.add(para)
-            self.s.flush()
-        self.s.add(Segment(paragraph_id=para.id, position=0, kind="text", text=new_text))
-        self.bump(el, actor_id)
+            para = ElementParagraph(id=uuid.uuid4(), element_id=None, table_cell_id=cell.id, position=0, level=0,
+                                    role=None, **{k: None for k in PARAGRAPH_COPY})
+            rows.append(para)
+        else:
+            statements.append(("DELETE FROM segments WHERE paragraph_id = %(p)s", {"p": para.id}))
+        seg = _segment(para.id, 0, "text", new_text)
+        rows.append(seg)
 
-    def _set_chart_data(self, op, actor_type, actor_id):
-        """Chart values come from the deal record: a chart edited by hand is refused."""
-        self.element(op)
-        raise Refuse("chart values come from the deal record; change them in the record")
+        def after(revision):
+            el.revision = revision
+            read.paras_of_cell[cell.id] = [para]
+            read.segments_of[para.id] = [seg]
 
-    def _keep_aside(self, op, actor_type, actor_id):
-        """Something from PowerPoint the memo cannot take as it is (a new slide, a box moved to another
-        slide): kept for a person to decide."""
-        raise KeepAside((op.get("payload") or {}).get("reason") or "kept for a person to decide",
-                        (op.get("payload") or {}).get("kind"))
+        return Plan(el, statements=statements, rows=rows, after=after)
 
-    def _set_frame(self, op, actor_type, actor_id):
-        el = self.element(op)
+    def _plan_set_frame(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
         if el.firm_lock in ("fixed", "content"):
             raise Refuse("the firm's template places this element; it cannot move")
         if el.user_lock_by is not None:
             raise Refuse("a person locked this element")
         self.fresh(el, op)
         payload = op.get("payload") or {}
-        for k in FRAME:
-            if k in payload:
-                setattr(el, k, float(payload[k]))
-        self.bump(el, actor_id)
+        sets = {k: float(payload[k]) for k in FRAME if k in payload}
+        return Plan(el, sets=sets, after=_set_on(el, sets))
 
-    def _set_style(self, op, actor_type, actor_id):
-        el = self.element(op)
+    def _plan_set_style(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
         if el.firm_lock == "fixed":
             raise Refuse("this element is fixed by the firm")
         self.fresh(el, op)
@@ -281,27 +319,30 @@ class Door:
         for k in COLOUR_FIELDS:
             if k in payload:
                 self.colour_ok(payload[k])
-        for k in ("fill_ref", "line_ref", "line_width_pt"):
-            if k in payload:
-                setattr(el, k, payload[k])
+        sets = {k: payload[k] for k in ("fill_ref", "line_ref", "line_width_pt") if k in payload}
         para_style = {k: payload[k] for k in STYLE if k in payload}
+        statements = []
         if para_style:
-            for para, _ in self.paragraphs(el):
+            statements.append((f"UPDATE element_paragraphs SET {', '.join(f'{k} = %({k})s' for k in para_style)} "
+                               f"WHERE element_id = %(el)s", {**para_style, "el": el.id}))
+        set_element = _set_on(el, sets)
+
+        def after(revision):
+            set_element(revision)
+            for p in read.paras_of_element.get(el.id, []):
                 for k, v in para_style.items():
-                    setattr(para, k, v)
-        self.bump(el, actor_id)
+                    setattr(p, k, v)
 
-    def _set_user_lock(self, op, actor_type, actor_id):
-        el = self.element(op)
+        return Plan(el, sets=sets, statements=statements, after=after)
+
+    def _plan_set_user_lock(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
         locked = bool((op.get("payload") or {}).get("locked", True))
-        el.user_lock_by = actor_id if locked and isinstance(actor_id, uuid.UUID) else None
-        el.user_lock_at = datetime.now(timezone.utc) if locked else None
-        if locked and el.user_lock_by is None:
+        if locked and not isinstance(actor_id, uuid.UUID):
             raise Refuse("a lock needs a person")
-        self.bump(el, actor_id)
+        sets = {"user_lock_by": actor_id if locked else None, "user_lock_at": datetime.now(timezone.utc) if locked else None}
+        return Plan(el, sets=sets, after=_set_on(el, sets))
 
-    def _delete_element(self, op, actor_type, actor_id):
-        el = self.element(op)
+    def _plan_delete_element(self, read: MemoData, el: Element, op, actor_type, actor_id) -> Plan:
         if el.firm_lock in ("fixed", "content"):
             # from PowerPoint a deleted template box is kept aside and the box stays; elsewhere it is refused
             if actor_type == "import":
@@ -310,8 +351,60 @@ class Door:
         if el.user_lock_by is not None:
             raise Refuse("a person locked this element")
         self.fresh(el, op)
-        el.deleted_at = datetime.now(timezone.utc)
-        self.bump(el, actor_id)
+        sets = {"deleted_at": datetime.now(timezone.utc)}
+        return Plan(el, sets=sets, after=_set_on(el, sets))
+
+    # --- the memo's structure: one transaction holding the memo's row ------------------------------
+    def _apply_structure(self, op, actor_type, actor_id, on_behalf_of, change_set_id) -> Result:
+        # Structure changes move several slides: the memo's row is locked until this one commits, so two of
+        # them cannot interleave (and the sequence stays in commit order).
+        self.memo = self.s.get(Memo, self.memo_id, with_for_update=True, populate_existing=True)
+        if self.memo is None:
+            raise ValueError(f"no memo {self.memo_id}")
+        self.rules = rules(self.s, self.memo.spec_version_id)
+        kind = op.get("type")
+        created: list = []
+        status, reason, aside_kind = "applied", None, None
+        try:
+            created = getattr(self, f"_{kind}")(op, actor_type, actor_id) or []
+        except Refuse as e:
+            status, reason = "refused", str(e)
+        except KeepAside as e:
+            status, reason, aside_kind = "kept_aside", str(e), e.kind
+        if status != "applied":
+            self.s.rollback()                                    # nothing half-done stays
+            self.memo = self.s.get(Memo, self.memo_id, with_for_update=True, populate_existing=True)
+        self.memo.sequence = (self.memo.sequence or 0) + 1
+        if status == "applied":
+            self.memo.status = "editing"                         # any change after a final review reopens the memo
+        row = Operation(id=uuid.uuid4(), memo_id=self.memo.id, sequence=self.memo.sequence, change_set_id=change_set_id,
+                        actor_type=actor_type, actor_id=actor_id, on_behalf_of=on_behalf_of, op_type=kind or "?",
+                        target_id=_uuid(op.get("target")), base_revision=op.get("base_revision"),
+                        payload=_jsonable(op.get("payload") or {}), status=status, reason=reason)
+        self.s.add(row)
+        self.s.flush()
+        if status == "kept_aside":
+            self.s.add(Conflict(memo_id=self.memo.id, operation_id=row.id, element_id=None,
+                                kind=aside_kind or ("changed_since_export" if actor_type == "import" else "changed_since_seen"),
+                                detail=reason, status="open"))
+        self.s.commit()
+        element = slides = None
+        if status == "applied" and kind == "add_element" and created:
+            element = MemoData(self.s, self.memo.id, element_ids=created).element_json(self.s.get(Element, created[0]))
+        elif status == "applied":
+            slides = [{"id": str(x.id), "position": x.position, "section_id": str(x.section_id) if x.section_id else None,
+                       "revision": x.revision} for x in self.order()]
+        return Result(status, reason, row.id, row.sequence, created, element, slides)
+
+    def slide(self, slide_id) -> Slide:
+        slide = self.s.get(Slide, _uuid(slide_id))
+        if slide is None or slide.memo_id != self.memo.id or slide.deleted_at is not None:
+            raise Refuse("no such slide in this memo")
+        return slide
+
+    def paragraphs(self, el: Element) -> list[tuple[ElementParagraph, list[Segment]]]:
+        paras = self.s.scalars(select(ElementParagraph).where(ElementParagraph.element_id == el.id).order_by(ElementParagraph.position)).all()
+        return [(p, self.s.scalars(select(Segment).where(Segment.paragraph_id == p.id).order_by(Segment.position)).all()) for p in paras]
 
     def _add_element(self, op, actor_type, actor_id):
         """Add a box to a slide. Template slides take no new boxes: refused, or kept aside from PowerPoint."""
@@ -338,26 +431,26 @@ class Door:
                 self.s.add(Segment(paragraph_id=para.id, position=0, kind="text", text=text))
         return [el.id]
 
-    # --- slide operations ----------------------------------------------------------------------
     def order(self) -> list[Slide]:
         return self.s.scalars(select(Slide).where(Slide.memo_id == self.memo.id, Slide.deleted_at.is_(None))
                               .order_by(Slide.position)).all()
 
     def check_order(self, slides: list[Slide]) -> None:
         """The firm's order rules on the memo's sections, after a move or an addition."""
-        names = [self.sections[s.section_id].name if s.section_id in self.sections else None for s in slides]
+        sections = self.rules.sections
+        names = [sections[s.section_id].name if s.section_id in sections else None for s in slides]
         first = {}
         last = {}
         for i, n in enumerate(names):
             if n is not None:
                 first.setdefault(n, i)
                 last[n] = i
-        for c in self.constraints:
-            sec = self.sections.get(c.section_id)
+        for c in self.rules.constraints:
+            sec = sections.get(c.section_id)
             if sec is None or sec.name not in first:
                 continue
             a, z = first[sec.name], last[sec.name]
-            target = self.sections.get(c.target_section_id).name if c.target_section_id in self.sections else None
+            target = sections.get(c.target_section_id).name if c.target_section_id in sections else None
             ok = True
             if c.kind == "first":
                 ok = a == 0
@@ -370,7 +463,7 @@ class Door:
             elif c.kind in ("before", "immediately_before") and target in first:
                 ok = z < first[target] and (c.kind == "before" or z == first[target] - 1)
             elif c.kind == "after_all" and c.target_status:
-                others = [last[s.name] for s in self.sections.values() if s.status == c.target_status and s.name in last and s.name != sec.name]
+                others = [last[s.name] for s in sections.values() if s.status == c.target_status and s.name in last and s.name != sec.name]
                 ok = not others or a > max(others)
             if not ok:
                 rule = f"{c.kind}" + (f" {target}" if target else f" {c.target_status}" if c.target_status else f" {c.position}" if c.position else "")
@@ -384,7 +477,7 @@ class Door:
 
     def _move_slide(self, op, actor_type, actor_id):
         slide = self.slide(op.get("target"))
-        sec = self.sections.get(slide.section_id)
+        sec = self.rules.sections.get(slide.section_id)
         if sec is not None and sec.status == "locked":
             raise Refuse(f"{sec.name!r} is locked in place by the firm")
         to = int((op.get("payload") or {}).get("position", slide.position))
@@ -395,7 +488,7 @@ class Door:
 
     def _delete_slide(self, op, actor_type, actor_id):
         slide = self.slide(op.get("target"))
-        sec = self.sections.get(slide.section_id)
+        sec = self.rules.sections.get(slide.section_id)
         others = [s for s in self.order() if s.section_id == slide.section_id and s.id != slide.id]
         if sec is not None and sec.status in ("locked", "mandatory") and not others:
             raise Refuse(f"{sec.name!r} is required by the firm")
@@ -421,7 +514,7 @@ class Door:
     def _duplicate_slide(self, op, actor_type, actor_id):
         """A copy of a slide right after it, with new identities for the slide and every element."""
         src = self.slide(op.get("target"))
-        sec = self.sections.get(src.section_id)
+        sec = self.rules.sections.get(src.section_id)
         if sec is not None and sec.count == "one":
             raise Refuse(f"the firm allows one {sec.name!r} slide")
         slides = self.order()
@@ -477,6 +570,59 @@ class Door:
             self.s.add(_clone(seg, paragraph_id=p.id))
 
 
+# --- writing --------------------------------------------------------------------------------------------
+PARAGRAPH_COPY = tuple(c.key for c in ElementParagraph.__table__.columns
+                       if c.key not in ("id", "element_id", "table_cell_id", "position", "level", "role"))
+
+
+def cas(plan: Plan, memo_id, actor_id) -> tuple[str, dict]:
+    """One statement: the element's new values and revision, only if its revision is still the one read, and
+    the memo's next sequence. Returns (the new revision or null, the sequence)."""
+    sets = "".join(f", {k} = %(set_{k})s" for k in plan.sets)
+    sql = (f"WITH cas AS (UPDATE elements SET revision = revision + 1, updated_by = %(actor)s, updated_at = now(){sets} "
+           f"WHERE id = %(el)s AND revision = %(rev)s AND deleted_at IS NULL RETURNING revision), "
+           f"seq AS (UPDATE memos SET sequence = sequence + 1, "
+           f"status = CASE WHEN EXISTS (SELECT 1 FROM cas) THEN 'editing' ELSE status END "
+           f"WHERE id = %(memo)s RETURNING sequence) "
+           f"SELECT (SELECT revision FROM cas), (SELECT sequence FROM seq)")
+    params = {"actor": actor_id if isinstance(actor_id, uuid.UUID) else None, "el": plan.element.id,
+              "rev": plan.element.revision, "memo": memo_id, **{f"set_{k}": v for k, v in plan.sets.items()}}
+    return sql, params
+
+
+def insert(cur, rows: list) -> None:
+    """Insert model objects, one statement per table (several rows each), with no round trip of their own
+    in a pipeline. Column defaults are filled here; server defaults (creation times) are left to the database."""
+    by_table: dict = {}
+    for r in rows:
+        by_table.setdefault(type(r), []).append(r)
+    for model, items in by_table.items():
+        columns = [c for c in model.__table__.columns
+                   if not (c.server_default is not None and all(getattr(r, c.key) is None for r in items))]
+
+        def value(r, c):
+            v = getattr(r, c.key)
+            if v is None and c.default is not None and not callable(c.default.arg):
+                v = c.default.arg
+            return Jsonb(v) if isinstance(c.type, JSON) and v is not None else v
+
+        sql = f"INSERT INTO {model.__tablename__} ({', '.join(c.name for c in columns)}) VALUES ({', '.join(['%s'] * len(columns))})"
+        cur.executemany(sql, [[value(r, c) for c in columns] for r in items])
+
+
+def _set_on(el: Element, sets: dict):
+    def after(revision):
+        el.revision = revision
+        for k, v in sets.items():
+            setattr(el, k, v)
+    return after
+
+
+def _segment(paragraph_id, position, kind, text) -> Segment:
+    return Segment(id=uuid.uuid4(), paragraph_id=paragraph_id, position=position, kind=kind, text=text,
+                   concept_name=None, record_path=None, value_snapshot=None, format_item=None)
+
+
 def _clone(row, **changes):
     cols = {c.key for c in type(row).__table__.columns} - {"id"}
     return type(row)(id=uuid.uuid4(), **({c: getattr(row, c) for c in cols} | changes))
@@ -498,4 +644,4 @@ def _jsonable(value):
         return [_jsonable(v) for v in value]
     if isinstance(value, uuid.UUID):
         return str(value)
-    return value
+    return copy.copy(value)
