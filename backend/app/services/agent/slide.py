@@ -49,10 +49,20 @@ Text in ‹model: …› marks what the firm expects the model to write there: r
 ‹person: …› is for a person: leave it unless asked. Edit only boxes marked editable, only what was asked, in
 the firm's style and in the memo's language; keep each box to what its spec says it holds, short enough for it.
 
+The memo's slides and the firm's sections (with their layouts and how many slides each allows) are listed too.
+You may add a slide of a section on one of its layouts, duplicate, move or delete a slide, and move or resize a
+box (inches, on the page given): the firm's rules decide what is allowed (a locked section does not move, a
+section allowed once is not duplicated, a box the template places does not move). A slide you add comes with
+its layout's boxes to write; its text is written in a later request, once the person has applied it.
+
 Return JSON only:
 {"reply": "<one or two sentences to the person: what you propose, or why you cannot>",
  "edits": [{"box": "<box id>", "text": "<the box's whole new text; one line per paragraph>"},
-           {"box": "<table box id>", "row": <row>, "col": <col>, "text": "<the cell's new text>"}]}
+           {"box": "<table box id>", "row": <row>, "col": <col>, "text": "<the cell's new text>"},
+           {"box": "<box id>", "frame": {"x_in": <x>, "y_in": <y>, "w_in": <w>, "h_in": <h>}},
+           {"slide": "add", "section": "<section name>", "layout": "<layout name>", "position": <slide number it takes>},
+           {"slide": "duplicate" | "delete", "id": "<slide id>"},
+           {"slide": "move", "id": "<slide id>", "position": <slide number it takes>}]}
 Return "edits": [] when nothing should change."""
 
 
@@ -93,7 +103,8 @@ def context(session: Session, memo_id, slide_id: str | None, element_id: str | N
         if e.type not in ("text", "table"):
             continue
         editable = e.firm_lock != "fixed" and (element_id is None or str(e.id) == str(element_id))             and (e.origin_element_id not in recipe or e.origin_element_id in writable)
-        box = {"id": str(e.id), "what": e.name or e.role, "role": e.role, "editable": editable,
+        box = {"id": str(e.id), "what": e.name or e.role, "role": e.role, "editable": editable, "lock": e.firm_lock,
+               "frame": f"x {e.x_in:.2f}, y {e.y_in:.2f}, w {e.w_in:.2f}, h {e.h_in:.2f}",
                "spec": "; ".join(recipe.get(e.origin_element_id, [])) or e.description}
         if e.type == "table" and e.id in d.table_of:
             t = d.table_of[e.id]
@@ -115,8 +126,21 @@ def context(session: Session, memo_id, slide_id: str | None, element_id: str | N
         available.append({"name": name, "value": chip["text"], "about": (concept.description or "")[:120]})
     rules = [r.says for r in q(select(S.Rule).where(S.Rule.spec_version_id == d.version.id,
                                                    (S.Rule.section_id.is_(None)) | (S.Rule.section_id == slide.section_id)))]
+    # the memo's slides and the firm's sections with their layouts, for slide edits
+    sections = {x.id: x for x in q(select(S.Section).where(S.Section.spec_version_id == d.version.id).order_by(S.Section.position))}
+    layouts_of: dict = {}
+    for link in q(select(S.SectionLayout).where(S.SectionLayout.section_id.in_(list(sections)))):
+        if link.layout_id in d.layout_rows:
+            layouts_of.setdefault(link.section_id, []).append(d.layout_rows[link.layout_id].name)
+    slides = [{"id": str(x.id), "number": x.position + 1, "section": sections[x.section_id].name if x.section_id in sections else "—",
+               "layout": d.layout_rows[x.layout_id].name if x.layout_id in d.layout_rows else "—"} for x in d.slides]
     return {"memo": memo, "slide": slide, "boxes": boxes, "figures": available, "rules": rules,
-            "section": section, "spec_name": session.get(S.Spec, d.version.spec_id).name}
+            "section": section, "spec_name": session.get(S.Spec, d.version.spec_id).name, "slides": slides,
+            "sections": [{"id": str(x.id), "name": x.name, "status": x.status,
+                          "count": x.count if x.count != "n" else f"at most {x.count_n}", "layouts": layouts_of.get(x.id, []),
+                          "layout_ids": {d.layout_rows[l].name: str(l) for l in d.layout_rows if d.layout_rows[l].name in layouts_of.get(x.id, [])}}
+                         for x in sections.values()],
+            "page": f"{d.version.page_w_in} x {d.version.page_h_in} in"}
 
 
 def package(ctx: dict, request: str, target: str | None) -> str:
@@ -126,12 +150,17 @@ def package(ctx: dict, request: str, target: str | None) -> str:
              + (f"; the firm says it must contain: {section.must_contain}" if section and section.must_contain else ""),
              "", "BOXES"]
     for b in ctx["boxes"]:
-        lines.append(f"- box {b['id']} · {b['what']} · {'editable' if b['editable'] else 'not editable'} · spec: {b['spec'] or '—'}")
+        lines.append(f"- box {b['id']} · {b['what']} · {'editable' if b['editable'] else 'not editable'} · placed by "
+                     f"{'the template' if b['lock'] != 'free' else 'the person'} at {b['frame']} · spec: {b['spec'] or '—'}")
         if "table" in b:
             for c in b["table"]:
                 lines.append(f"    cell row {c['row']} col {c['col']}{' (editable)' if c['editable'] else ''}: {c['text']}")
         else:
             lines.append("    text now:\n" + "\n".join(f"      {x}" for x in (b["text"] or "(empty)").split("\n")))
+    lines += ["", f"THE MEMO'S SLIDES (page {ctx['page']})"]
+    lines += [f"- slide {x['number']} · id {x['id']} · {x['section']} · {x['layout']}" for x in ctx["slides"]]
+    lines += ["", "THE FIRM'S SECTIONS (status · how many slides · layouts)"]
+    lines += [f"- {x['name']} · {x['status']} · {x['count']} · {', '.join(x['layouts']) or '—'}" for x in ctx["sections"]]
     lines += ["", "FIGURES (name = value as the firm writes it · what it is)"]
     lines += [f"- {f['name']} = {f['value']} · {f['about']}" for f in ctx["figures"]]
     lines += ["", "FIRM RULES"] + [f"- {r}" for r in ctx["rules"][:40]]
@@ -146,8 +175,30 @@ def to_operations(session: Session, memo_id, ctx: dict, edits: list) -> tuple[li
     if len(edits) > MAX_EDITS:
         errors.append(f"at most {MAX_EDITS} edits per request")
     for i, e in enumerate(edits[:MAX_EDITS]):
+        if e.get("slide"):
+            op, error = slide_operation(ctx, memo_id, e)
+            if error:
+                errors.append(f"edit {i + 1} (slide {e.get('slide')}): {error}")
+            elif op:
+                ops.append(op)
+            continue
         box = boxes.get(str(e.get("box")))
         where = f"edit {i + 1} (box {e.get('box')})"
+        if box is not None and e.get("frame"):
+            f = e["frame"]
+            try:
+                frame = {k: float(f[k]) for k in ("x_in", "y_in", "w_in", "h_in") if k in f}
+            except (TypeError, ValueError):
+                errors.append(f"{where}: a frame is four numbers in inches")
+                continue
+            op = {"type": "set_frame", "target": box["id"], "payload": frame, "label": f"move {box['what']}"}
+            with SessionLocal() as s:
+                c = Door(s, memo_id).check(op, actor_type="agent")
+            if c.status != "applied":
+                errors.append(f"{where}: {c.reason}")
+            else:
+                ops.append(op)
+            continue
         if box is None:
             errors.append(f"{where}: no such box on this slide")
             continue
@@ -177,6 +228,35 @@ def to_operations(session: Session, memo_id, ctx: dict, edits: list) -> tuple[li
             continue
         ops.append(op)
     return ops, errors
+
+
+def slide_operation(ctx: dict, memo_id, e: dict) -> tuple[dict | None, str | None]:
+    """A slide edit from the model as a door operation, checked by the door (not applied): (operation, error)."""
+    kind = e.get("slide")
+    slides = {x["id"]: x for x in ctx["slides"]}
+    if kind == "add":
+        sec = next((x for x in ctx["sections"] if x["name"].lower() == str(e.get("section", "")).lower()), None)
+        if sec is None:
+            return None, f"no section {e.get('section')!r} in the firm's spec"
+        layout_id = sec["layout_ids"].get(str(e.get("layout") or (sec["layouts"][0] if sec["layouts"] else "")))
+        if layout_id is None:
+            return None, f"the firm's layouts for {sec['name']!r} are {', '.join(sec['layouts']) or 'none'}"
+        position = int(e.get("position") or len(slides) + 1) - 1
+        op = {"type": "add_slide", "target": str(memo_id), "label": f"add a {sec['name']} slide ({e.get('layout') or sec['layouts'][0]}) as slide {position + 1}",
+              "payload": {"section_id": sec["id"], "layout_id": layout_id, "position": position}}
+    elif kind in ("duplicate", "delete", "move"):
+        target = slides.get(str(e.get("id")))
+        if target is None:
+            return None, "no such slide in this memo"
+        op = {"type": f"{kind}_slide", "target": target["id"], "label": f"{kind} slide {target['number']} ({target['section']})"}
+        if kind == "move":
+            op["payload"] = {"position": int(e.get("position") or target["number"]) - 1}
+            op["label"] += f" to {op['payload']['position'] + 1}"
+    else:
+        return None, f"a slide edit is add, duplicate, move or delete, not {kind!r}"
+    with SessionLocal() as s:
+        c = Door(s, memo_id).check(op, actor_type="agent")
+    return (op, None) if c.status == "applied" else (None, c.reason)
 
 
 def keep_or_remove(session: Session, element_id: str, text: str) -> dict:

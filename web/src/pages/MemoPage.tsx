@@ -26,7 +26,7 @@ type Proposal = {
   actor: string;
   created_at: string;
   operations: {
-    op: { type: string; target?: string | null; payload?: Record<string, unknown> };
+    op: { type: string; target?: string | null; payload?: Record<string, unknown>; label?: string };
     check: { status: string; reason: string | null; warnings: string[]; before: El | null; after: El | null };
   }[];
 };
@@ -559,8 +559,8 @@ export function MemoPage() {
                         title={o.check.status === "applied" ? "Apply this change" : "This change would be refused"}
                       />{" "}
                       <span className={`badge ${o.check.status}`}>{o.check.status === "applied" ? "would apply" : o.check.status.replace("_", " ")}</span>{" "}
-                      {o.op.type.replace(/_/g, " ")}
-                      {o.check.after?.name ? ` · ${o.check.after.name}` : o.check.before?.name ? ` · ${o.check.before.name}` : ""}
+                      {o.op.label ?? o.op.type.replace(/_/g, " ")}
+                      {!o.op.label && (o.check.after?.name ? ` · ${o.check.after.name}` : o.check.before?.name ? ` · ${o.check.before.name}` : "")}
                     </div>
                     {o.check.reason && <div className="muted small">{o.check.reason}</div>}
                     {o.check.before && o.check.after && (
